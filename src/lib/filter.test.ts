@@ -12,6 +12,8 @@ function pr(overrides: Partial<PullRequest> = {}): PullRequest {
     title: 'Add a thing',
     url: 'https://github.com/acme/web/pull/1',
     repo: 'acme/web',
+    state: 'OPEN',
+    mergedAt: null,
     isDraft: false,
     createdAt: new Date(NOW - day).toISOString(),
     updatedAt: new Date(NOW - day).toISOString(),

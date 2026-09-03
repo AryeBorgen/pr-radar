@@ -1,5 +1,5 @@
 import type { PullRequest } from '../types'
-import { applyQuery } from './filter'
+import { applyStages } from './filter'
 
 /**
  * The one-click filters, as three independent axes.
@@ -26,6 +26,20 @@ export interface Facet {
 }
 
 export const FACETS: Facet[] = [
+  {
+    id: 'status',
+    legend: 'Status',
+    options: [
+      { id: 'open', label: 'Open', query: 'is:open' },
+      /*
+       * Merge history is most useful newest-first, so the option carries its own
+       * sort. Because a later stage wins, the Sort menu can still override it.
+       */
+      { id: 'merged', label: 'Merged', query: 'is:merged sort:merged-desc' },
+      { id: 'closed', label: 'Closed unmerged', query: 'is:closed' },
+      { id: 'all', label: 'All', query: '' },
+    ],
+  },
   {
     id: 'involvement',
     legend: 'Who',
@@ -81,6 +95,17 @@ export const DEFAULT_SELECTION: Selection = Object.fromEntries(
   FACETS.map((facet) => [facet.id, facet.options[0].id]),
 )
 
+/**
+ * Whether the current selection needs closed pull requests fetched.
+ *
+ * Anything but the default Open view does, and this drives the request rather
+ * than only the filter — a closed PR cannot be filtered into view if it was
+ * never loaded.
+ */
+export function needsClosed(selection: Selection): boolean {
+  return selection.status !== 'open'
+}
+
 function optionQuery(facet: Facet, selection: Selection): string {
   const chosen = facet.options.find((option) => option.id === selection[facet.id])
   return chosen?.query ?? ''
@@ -90,9 +115,14 @@ export function combine(...queries: string[]): string {
   return queries.filter((query) => query.trim()).join(' ')
 }
 
-/** The full query for the current axis selections plus anything typed. */
+/** One filter stage per axis. Each narrows the previous rather than joining it. */
+export function selectionStages(selection: Selection): string[] {
+  return FACETS.map((facet) => optionQuery(facet, selection))
+}
+
+/** Human-readable form of the whole selection, for saving as a view. */
 export function selectionQuery(selection: Selection, text: string): string {
-  return combine(...FACETS.map((facet) => optionQuery(facet, selection)), text)
+  return combine(...selectionStages(selection), text)
 }
 
 /**
@@ -106,7 +136,7 @@ export function facetCounts(
   prs: PullRequest[],
   facet: Facet,
   selection: Selection,
-  text: string,
+  stages: string[],
   viewer: string,
   now: number,
 ): Record<string, number> {
@@ -117,7 +147,7 @@ export function facetCounts(
   return Object.fromEntries(
     facet.options.map((option) => [
       option.id,
-      applyQuery(prs, combine(...others, text, option.query), { viewer, now }).length,
+      applyStages(prs, [...others, ...stages, option.query], { viewer, now }).length,
     ]),
   )
 }

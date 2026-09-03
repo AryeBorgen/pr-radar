@@ -27,9 +27,22 @@ export interface ParsedQuery {
   unknown: string[]
 }
 
-export type SortKey = 'updated-desc' | 'updated-asc' | 'created-desc' | 'created-asc'
+export type SortKey =
+  | 'updated-desc'
+  | 'updated-asc'
+  | 'created-desc'
+  | 'created-asc'
+  | 'merged-desc'
+  | 'merged-asc'
 
-const SORT_KEYS: SortKey[] = ['updated-desc', 'updated-asc', 'created-desc', 'created-asc']
+const SORT_KEYS: SortKey[] = [
+  'updated-desc',
+  'updated-asc',
+  'created-desc',
+  'created-asc',
+  'merged-desc',
+  'merged-asc',
+]
 
 /** Split on whitespace, but keep `label:"needs design"` in one piece. */
 export function tokenize(query: string): string[] {
@@ -161,10 +174,11 @@ function matchTerm(pr: PullRequest, term: Term, viewer: string, now: number): bo
 
   switch (term.key) {
     case 'is':
-      if (value === 'open') return true
+      if (value === 'open') return pr.state === 'OPEN'
+      if (value === 'merged') return pr.state === 'MERGED'
+      if (value === 'closed') return pr.state === 'CLOSED'
       if (value === 'draft') return pr.isDraft
       if (value === 'ready') return !pr.isDraft
-      // `is:merged` / `is:closed` cannot match: only open PRs are fetched.
       return false
     case 'draft':
       return value === 'false' ? !pr.isDraft : pr.isDraft
@@ -260,9 +274,23 @@ function matchesText(pr: PullRequest, text: string[]): boolean {
   return text.every((word) => haystack.includes(word))
 }
 
-function sortPrs(prs: PullRequest[], sort: SortKey): PullRequest[] {
+const mergeTime = (pr: PullRequest) => (pr.mergedAt ? Date.parse(pr.mergedAt) : null)
+
+export function sortPrs(prs: PullRequest[], sort: SortKey): PullRequest[] {
   const sorted = [...prs]
   switch (sort) {
+    case 'merged-desc':
+    case 'merged-asc': {
+      const direction = sort === 'merged-desc' ? -1 : 1
+      return sorted.sort((a, b) => {
+        const left = mergeTime(a)
+        const right = mergeTime(b)
+        if (left === null && right === null) return Date.parse(b.updatedAt) - Date.parse(a.updatedAt)
+        if (left === null) return 1
+        if (right === null) return -1
+        return (left - right) * direction
+      })
+    }
     case 'updated-asc':
       return sorted.sort((a, b) => Date.parse(a.updatedAt) - Date.parse(b.updatedAt))
     case 'created-desc':
@@ -280,14 +308,51 @@ export interface ApplyOptions {
   now?: number
 }
 
-export function applyQuery(
+export function filterQuery(
   prs: PullRequest[],
   query: string,
   { viewer, now = Date.now() }: ApplyOptions,
 ): PullRequest[] {
   const parsed = parseQuery(query)
-  const matched = prs.filter(
+  return prs.filter(
     (pr) => matchesTerms(pr, parsed.terms, viewer, now) && matchesText(pr, parsed.text),
   )
-  return sortPrs(matched, parsed.sort)
+}
+
+export function applyQuery(
+  prs: PullRequest[],
+  query: string,
+  options: ApplyOptions,
+): PullRequest[] {
+  return sortPrs(filterQuery(prs, query, options), parseQuery(query).sort)
+}
+
+/**
+ * Filter through several queries in sequence, then sort once.
+ *
+ * This is what lets the filter sources compose correctly. Concatenating them
+ * into one string would put their terms in the same query, where repeated
+ * qualifiers of one kind are OR'd to match GitHub — so picking `author:bob`
+ * from a menu while the Who axis holds `author:@me` would *widen* the result to
+ * either author. As separate stages each one narrows the previous, which is
+ * what a stack of filters is supposed to do. OR still applies within a stage,
+ * so choosing two authors in one menu means either.
+ *
+ * The sort comes from the last stage that names one, so a menu can override an
+ * axis default.
+ */
+export function applyStages(
+  prs: PullRequest[],
+  stages: string[],
+  options: ApplyOptions,
+): PullRequest[] {
+  const active = stages.filter((stage) => stage.trim())
+  const filtered = active.reduce((list, stage) => filterQuery(list, stage, options), prs)
+
+  let sort: SortKey = 'updated-desc'
+  for (const stage of active) {
+    const parsed = parseQuery(stage)
+    if (/(^|\s)sort:/.test(stage) && parsed.sort) sort = parsed.sort
+  }
+  return sortPrs(filtered, sort)
 }

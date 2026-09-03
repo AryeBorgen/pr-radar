@@ -34,7 +34,7 @@ export default function PrRow({ pr, now }: { pr: PullRequest; now: number }) {
   return (
     <li className="flex gap-3 border-b border-neutral-200 px-4 py-3 last:border-b-0 hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-900/60">
       <div className="pt-0.5">
-        <PrIcon draft={pr.isDraft} />
+        <PrIcon state={pr.state} draft={pr.isDraft} />
       </div>
 
       <div className="min-w-0 flex-1">
@@ -51,9 +51,19 @@ export default function PrRow({ pr, now }: { pr: PullRequest; now: number }) {
           >
             {pr.title}
           </a>
-          {pr.isDraft && (
+          {pr.isDraft && pr.state === 'OPEN' && (
             <span className="rounded-full border border-neutral-300 px-1.5 py-px text-xs text-neutral-500 dark:border-neutral-700">
               Draft
+            </span>
+          )}
+          {pr.state === 'MERGED' && (
+            <span className="rounded-full bg-purple-50 px-2 py-px text-xs font-medium text-purple-700 dark:bg-purple-950 dark:text-purple-300">
+              Merged
+            </span>
+          )}
+          {pr.state === 'CLOSED' && (
+            <span className="rounded-full bg-neutral-100 px-2 py-px text-xs font-medium text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
+              Closed
             </span>
           )}
           {pr.labels.map((label) => (
@@ -79,7 +89,15 @@ export default function PrRow({ pr, now }: { pr: PullRequest; now: number }) {
             </>
           )}
           <span aria-hidden="true">·</span>
-          <span title={absoluteTime(pr.updatedAt)}>updated {relativeAge(pr.updatedAt, now)} ago</span>
+          {pr.mergedAt ? (
+            <span title={absoluteTime(pr.mergedAt)}>
+              merged {relativeAge(pr.mergedAt, now)} ago
+            </span>
+          ) : (
+            <span title={absoluteTime(pr.updatedAt)}>
+              updated {relativeAge(pr.updatedAt, now)} ago
+            </span>
+          )}
           {pr.requestedReviewers.length > 0 && (
             <>
               <span aria-hidden="true">·</span>
@@ -97,17 +115,20 @@ export default function PrRow({ pr, now }: { pr: PullRequest; now: number }) {
         )}
         <CheckIcon state={pr.checkState} />
         <div className="flex -space-x-1">
-          {pr.assignees.slice(0, 3).map((assignee) => (
-            <img
-              key={assignee.login}
-              src={assignee.avatarUrl}
-              alt={assignee.login}
-              title={`Assigned: ${assignee.login}`}
-              width={20}
-              height={20}
-              className="rounded-full ring-1 ring-white dark:ring-neutral-950"
-            />
-          ))}
+          {pr.assignees
+            .filter((assignee) => assignee.avatarUrl)
+            .slice(0, 3)
+            .map((assignee) => (
+              <img
+                key={assignee.login}
+                src={assignee.avatarUrl}
+                alt={assignee.login}
+                title={`Assigned: ${assignee.login}`}
+                width={20}
+                height={20}
+                className="rounded-full ring-1 ring-white dark:ring-neutral-950"
+              />
+            ))}
         </div>
       </div>
     </li>

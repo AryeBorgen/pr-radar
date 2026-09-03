@@ -36,12 +36,17 @@ export interface Label {
  * the filter language read lives here — nothing reaches into raw API shapes,
  * which is what kept the move off GraphQL confined to one module.
  */
+export type PullState = 'OPEN' | 'MERGED' | 'CLOSED'
+
 export interface PullRequest {
   id: string
   number: number
   title: string
   url: string
   repo: string
+  state: PullState
+  /** Set only when merged; the sort key for browsing merge history. */
+  mergedAt: string | null
   /** Head commit SHA: identifies what the review and check state belong to. */
   headSha: string
   isDraft: boolean

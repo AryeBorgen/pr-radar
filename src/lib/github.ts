@@ -1,4 +1,12 @@
-import type { Actor, CheckState, Enrichment, PullRequest, RepoRef, ReviewDecision } from '../types'
+import type {
+  Actor,
+  CheckState,
+  Enrichment,
+  PullRequest,
+  PullState,
+  RepoRef,
+  ReviewDecision,
+} from '../types'
 
 const API = 'https://api.github.com'
 
@@ -77,6 +85,8 @@ interface RawPull {
   title: string
   html_url: string
   draft?: boolean
+  state: string
+  merged_at: string | null
   created_at: string
   updated_at: string
   user: RawUser | null
@@ -91,6 +101,12 @@ function toActor(user: RawUser): Actor {
   return { login: user.login, avatarUrl: user.avatar_url }
 }
 
+/** REST reports `state: closed` for merged and abandoned alike; `merged_at` separates them. */
+function toState(raw: RawPull): PullState {
+  if (raw.state === 'open') return 'OPEN'
+  return raw.merged_at ? 'MERGED' : 'CLOSED'
+}
+
 function normalise(raw: RawPull, repo: string): PullRequest {
   return {
     id: String(raw.id),
@@ -98,6 +114,8 @@ function normalise(raw: RawPull, repo: string): PullRequest {
     title: raw.title,
     url: raw.html_url,
     repo,
+    state: toState(raw),
+    mergedAt: raw.merged_at,
     headSha: raw.head.sha,
     isDraft: Boolean(raw.draft),
     createdAt: raw.created_at,
@@ -152,22 +170,49 @@ async function mapLimit<T, R>(
 }
 
 /**
- * Fetch every open PR across `repos`.
+ * Closed pull requests per repository.
+ *
+ * Lower than the open page size on purpose: closed PRs accumulate without
+ * bound, they are for looking back rather than for triage, and every one of
+ * them is a row to render. Fifty of the most recently updated per repository is
+ * enough to answer "what shipped lately" across a whole organisation.
+ */
+const CLOSED_PAGE_SIZE = 50
+
+/**
+ * Fetch pull requests across `repos`.
+ *
+ * `includeClosed` costs a second request per repository, so it is driven by the
+ * Status axis rather than always on: a dashboard that is open all day should not
+ * pay for merge history nobody asked to see.
  *
  * A repository that fails is reported by name and does not take the others with
  * it, so one typo or one revoked grant cannot blank the dashboard.
  */
-export async function fetchPullRequests(token: string, repos: RepoRef[]): Promise<FetchResult> {
+export async function fetchPullRequests(
+  token: string,
+  repos: RepoRef[],
+  includeClosed = false,
+): Promise<FetchResult> {
   if (repos.length === 0) return { pullRequests: [], errors: [] }
 
   const outcomes = await mapLimit(repos, MAX_CONCURRENT_REQUESTS, async (ref) => {
     const slug = `${ref.owner}/${ref.name}`
+    const base = `/repos/${ref.owner}/${ref.name}/pulls`
     try {
-      const raw = await rest<RawPull[]>(
-        token,
-        `/repos/${ref.owner}/${ref.name}/pulls?state=open&per_page=100&sort=updated&direction=desc`,
-      )
-      return { pulls: raw.map((pull) => normalise(pull, slug)) }
+      const requests = [
+        rest<RawPull[]>(token, `${base}?state=open&per_page=100&sort=updated&direction=desc`),
+      ]
+      if (includeClosed) {
+        requests.push(
+          rest<RawPull[]>(
+            token,
+            `${base}?state=closed&per_page=${CLOSED_PAGE_SIZE}&sort=updated&direction=desc`,
+          ),
+        )
+      }
+      const pages = await Promise.all(requests)
+      return { pulls: pages.flat().map((pull) => normalise(pull, slug)) }
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : 'Request failed.'
       return { error: { repo: slug, message } }

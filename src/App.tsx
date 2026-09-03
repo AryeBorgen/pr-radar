@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { fetchPullRequests, fetchViewer } from './lib/github'
 import { useEnrichment } from './lib/useEnrichment'
-import { applyQuery, parseQuery } from './lib/filter'
+import { applyStages, parseQuery } from './lib/filter'
 import {
   DEFAULT_SETTINGS,
   loadSettings,
@@ -13,8 +13,11 @@ import {
 } from './lib/storage'
 import type { RepoRef, SavedView, Settings } from './types'
 import type { Selection } from './lib/facets'
-import { DEFAULT_SELECTION, selectionQuery } from './lib/facets'
+import { DEFAULT_SELECTION, needsClosed, selectionQuery, selectionStages } from './lib/facets'
+import type { MenuSelection } from './lib/menus'
+import { menuOptions, menuStages } from './lib/menus'
 import FacetBar from './components/FacetBar'
+import FilterMenus from './components/FilterMenus'
 import SavedViews from './components/SavedViews'
 import FilterBar from './components/FilterBar'
 import PrRow from './components/PrRow'
@@ -27,6 +30,8 @@ export default function App() {
     typeof localStorage === 'undefined' ? DEFAULT_SETTINGS : loadSettings(),
   )
   const [selection, setSelection] = useState<Selection>(DEFAULT_SELECTION)
+  const [menus, setMenus] = useState<MenuSelection>({})
+  const [sort, setSort] = useState('')
   const [search, setSearch] = useState('')
   const [showRepos, setShowRepos] = useState(false)
 
@@ -43,9 +48,12 @@ export default function App() {
     staleTime: Infinity,
   })
 
+  // Closed PRs are part of the key: switching the Status axis refetches.
+  const withClosed = needsClosed(selection)
+
   const query = useQuery({
-    queryKey: ['pull-requests', repoIds],
-    queryFn: () => fetchPullRequests(token, settings.repos),
+    queryKey: ['pull-requests', repoIds, withClosed],
+    queryFn: () => fetchPullRequests(token, settings.repos, withClosed),
     enabled: Boolean(token) && settings.repos.length > 0,
     refetchInterval: settings.refreshInterval > 0 ? settings.refreshInterval * 1000 : false,
   })
@@ -60,22 +68,50 @@ export default function App() {
    */
   const now = useMemo(() => Date.now(), [query.dataUpdatedAt])
 
-  const combined = useMemo(() => selectionQuery(selection, search), [selection, search])
+  /*
+   * Every filter source contributes its own stage rather than being merged into
+   * one query string: stages narrow each other, while a single string would OR
+   * repeated qualifiers and make "Mine" plus an author from the menu widen the
+   * result instead of intersecting it.
+   */
+  const nonAxisStages = useMemo(
+    () => [...menuStages(menus, sort), search],
+    [menus, sort, search],
+  )
+  const allStages = useMemo(
+    () => [...selectionStages(selection), ...nonAxisStages],
+    [selection, nonAxisStages],
+  )
 
   const visible = useMemo(
-    () => applyQuery(prs, combined, { viewer, now }),
-    [prs, combined, viewer, now],
+    () => applyStages(prs, allStages, { viewer, now }),
+    [prs, allStages, viewer, now],
+  )
+
+  /*
+   * Menu options come from the list narrowed by everything except the menus, so
+   * a choice that would lead nowhere is not offered in the first place.
+   */
+  const optionsFor = useMemo(
+    () =>
+      menuOptions(applyStages(prs, [...selectionStages(selection), search], { viewer, now })),
+    [prs, selection, search, viewer, now],
+  )
+
+  const combined = useMemo(
+    () => selectionQuery(selection, [...menuStages(menus, sort), search].join(' ')),
+    [selection, menus, sort, search],
   )
 
   const viewCounts = useMemo(() => {
     const result: Record<string, number> = {}
     for (const view of settings.views) {
-      result[view.id] = applyQuery(prs, view.query, { viewer, now }).length
+      result[view.id] = applyStages(prs, [view.query], { viewer, now }).length
     }
     return result
   }, [prs, settings.views, viewer, now])
 
-  const unknown = useMemo(() => parseQuery(combined).unknown, [combined])
+  const unknown = useMemo(() => parseQuery(search).unknown, [search])
 
   const setRepos = (repos: RepoRef[]) => setSettings((prev) => ({ ...prev, repos }))
   const setViews = (views: SavedView[]) => setSettings((prev) => ({ ...prev, views }))
@@ -87,6 +123,8 @@ export default function App() {
    */
   const applyView = (view: SavedView) => {
     setSelection(DEFAULT_SELECTION)
+    setMenus({})
+    setSort('')
     setSearch(view.query)
   }
 
@@ -129,10 +167,17 @@ export default function App() {
           <FacetBar
             prs={prs}
             selection={selection}
-            text={search}
+            stages={nonAxisStages}
             viewer={viewer}
             now={now}
             onChange={setSelection}
+          />
+          <FilterMenus
+            options={optionsFor}
+            selection={menus}
+            sort={sort}
+            onChange={setMenus}
+            onSortChange={setSort}
           />
           <SavedViews
             views={settings.views}

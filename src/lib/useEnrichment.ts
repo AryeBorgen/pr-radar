@@ -36,7 +36,13 @@ export function useEnrichment(
   const [, render] = useReducer((n: number) => n + 1, 0)
 
   useEffect(() => {
+    /*
+     * Only open PRs are enriched. Review and check state on a merged PR is
+     * history, and buying it would cost two requests each for a list that grows
+     * without bound — the budget belongs to the PRs still in play.
+     */
     const todo = prs.filter((pr) => {
+      if (pr.state !== 'OPEN') return false
       const key = enrichmentKey(pr)
       return !cache.current.has(key) && !inFlight.current.has(key)
     })

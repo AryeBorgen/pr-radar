@@ -22,9 +22,15 @@ the place you notice things, not the place you do them.
   the useful view is their intersection. Every chip carries a live count, and
   each count is measured against the *other* axes — with *Mine* selected,
   *Approved* answers "how many of mine are approved".
-- **Saved views for the rest.** Anything the axes cannot express — two authors,
-  a specific label, one repository — can be typed and saved as a named view with
-  its own count.
+- **Dropdown menus built from the data.** Repository, Author, Label, Assignee
+  and Reviewer work like GitHub's, with a search box once a list gets long — but
+  the options are whoever actually appears in the fetched list, ranked by how
+  often, and each option carries its count. They are also narrowed by the other
+  filters, so a choice that would lead to an empty list is not offered.
+- **Merge history.** The Status axis switches between open, merged, closed and
+  all. *Merged* sorts by merge date, newest first.
+- **Saved views for the rest.** Anything the axes and menus cannot express can
+  be typed and saved as a named view with its own count.
 - **GitHub's filter syntax.** `is:draft author:@me -label:wip` means here what
   it means there, so there is nothing new to learn.
 - **No backend.** No server, no database, no account, no deployment to operate.
@@ -71,7 +77,7 @@ The trade-off is worth stating plainly:
 
 | Qualifier | Values | Notes |
 | --- | --- | --- |
-| `is:` | `open`, `draft`, `ready` | Only open PRs are fetched, so `is:merged` matches nothing |
+| `is:` | `open`, `merged`, `closed`, `draft`, `ready` | `closed` means closed without merging |
 | `draft:` | `true`, `false` | |
 | `author:` | login or `@me` | |
 | `assignee:` | login or `@me` | |
@@ -85,7 +91,7 @@ The trade-off is worth stating plainly:
 | `checks:` | `success`, `failure`, `pending`, `none`, `unknown` | `status:` is an alias |
 | `no:` | `label`, `assignee`, `reviewer` | |
 | `updated:` / `created:` | `<7d`, `>2026-01-01`, `<=12h`, `>2w` | An age means *that long ago*, so `updated:<7d` is "untouched for over a week" |
-| `sort:` | `updated-desc` (default), `updated-asc`, `created-desc`, `created-asc` | |
+| `sort:` | `updated-desc` (default), `updated-asc`, `created-desc`, `created-asc`, `merged-desc`, `merged-asc` | Unmerged PRs sort last under a merge-date sort |
 
 Prefix any qualifier with `-` to negate it. Bare words match the title,
 repository and number. Repeated qualifiers are OR'd (`author:a author:b` means
@@ -93,11 +99,17 @@ either), except `label:`, which is AND'd — the same as GitHub. A qualifier tha
 is not supported is listed under the filter box rather than silently ignored,
 so a filter never quietly lies about what it matched.
 
-One consequence of GitHub-compatible OR: because the axes are ANDed by
-concatenating their queries, no two axes may use the same qualifier, or a
-selection would widen results instead of narrowing them. A test enforces that.
-It also means typing `author:someone` while *Mine* is selected matches either
-author rather than both — use a saved view for that.
+### How the filter sources compose
+
+Repeated qualifiers of one kind are OR'd to match GitHub, which is right within
+a single query and wrong across a stack of filters: `is:open` from the Status
+axis concatenated with `is:draft` from the Drafts axis would mean "open **or**
+draft". So each source — every axis, every menu, the text box — is applied as
+its own filter stage, narrowing the previous one, with a single sort at the end.
+Picking an author from the menu therefore intersects with *Mine* rather than
+widening it, and two authors picked in the *same* menu still mean either. The
+sort comes from the last stage that names one, which is how the Sort menu
+overrides the newest-first default that the *Merged* view carries.
 
 ### Drafts are shown by default
 
@@ -130,6 +142,13 @@ filter is never quietly wrong about a PR it has not finished loading.
 - 100 open PRs per repository per refresh, most recently updated first.
 - One request per repository for the list, six at a time, plus two per pull
   request for review and check state.
+- Closed pull requests cost a second request per repository and are fetched
+  only when the Status axis asks for them, capped at the 50 most recently
+  updated per repository — they accumulate without bound and are for looking
+  back, not for triage.
+- Only open pull requests are enriched with review and check state. On a merged
+  PR that is history, and buying it would cost two requests each for a list
+  that keeps growing.
 - The second pass is cached by head SHA, so a refresh that finds nothing new
   costs no requests at all and a new commit re-fetches exactly one PR. That is
   what makes a two-minute poll affordable against the 5,000 requests/hour limit.

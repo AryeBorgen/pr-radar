@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_SELECTION, FACETS, combine, facetCounts, selectionQuery } from './facets'
+import {
+  DEFAULT_SELECTION,
+  FACETS,
+  combine,
+  facetCounts,
+  needsClosed,
+  selectionQuery,
+  selectionStages,
+} from './facets'
+import type { Selection } from './facets'
+import { applyStages } from './filter'
 import type { PullRequest } from '../types'
 
 const NOW = Date.parse('2026-09-03T12:00:00Z')
@@ -12,6 +22,8 @@ function pr(overrides: Partial<PullRequest> = {}): PullRequest {
     title: 'A change',
     url: 'https://github.com/acme/web/pull/1',
     repo: 'acme/web',
+    state: 'OPEN',
+    mergedAt: null,
     headSha: 'abc',
     isDraft: false,
     createdAt: new Date(NOW - day).toISOString(),
@@ -30,8 +42,8 @@ function pr(overrides: Partial<PullRequest> = {}): PullRequest {
 const facet = (id: string) => FACETS.find((f) => f.id === id)!
 
 describe('the default selection', () => {
-  it('filters nothing, so the first view is everything', () => {
-    expect(selectionQuery(DEFAULT_SELECTION, '')).toBe('')
+  it('opens on open pull requests', () => {
+    expect(selectionQuery(DEFAULT_SELECTION, '')).toBe('is:open')
   })
 
   it('shows drafts, because a draft is a state worth seeing here', () => {
@@ -58,37 +70,69 @@ describe('selectionQuery', () => {
 })
 
 /**
- * The axes are ANDed by concatenating their query strings, and the filter
- * language ORs repeated positive terms of the same qualifier — GitHub does the
- * same, and matching it is a stated goal. That combination is only sound while
- * no two axes use the same qualifier, so this is a real invariant rather than a
- * tidiness check: an axis added later that reuses, say, `author:` would silently
- * widen results instead of narrowing them.
+ * The axes must intersect, never union — and two of them (Status and Drafts)
+ * deliberately share the `is:` qualifier, which is exactly the case that breaks
+ * if the axes are ever concatenated into a single query: the filter language
+ * ORs repeated positive terms of one qualifier to match GitHub, so `is:open
+ * is:draft` in one string would mean "open or draft" rather than "open drafts".
+ * Applying each axis as its own filter stage is what makes it AND. These tests
+ * pin that behaviour down rather than banning the overlap.
  */
-describe('the axes never share a qualifier', () => {
-  const keysOf = (facet: (typeof FACETS)[number]) =>
-    new Set(
-      facet.options
-        .flatMap((option) => option.query.split(/\s+/))
-        .filter(Boolean)
-        .map((term) => term.replace(/^-/, '').split(':')[0]),
-    )
+describe('the axes intersect rather than union', () => {
+  const openReady = pr({ id: 'open-ready', state: 'OPEN', isDraft: false })
+  const openDraft = pr({ id: 'open-draft', state: 'OPEN', isDraft: true })
+  const mergedDraft = pr({
+    id: 'merged-draft',
+    state: 'MERGED',
+    isDraft: true,
+    mergedAt: new Date(NOW - day).toISOString(),
+  })
+  const all = [openReady, openDraft, mergedDraft]
 
-  it('uses a disjoint set of qualifiers per axis', () => {
-    const perAxis = FACETS.map((facet) => ({ id: facet.id, keys: keysOf(facet) }))
-    expect(perAxis.every((axis) => axis.keys.size > 0)).toBe(true)
+  const run = (selection: Selection) =>
+    applyStages(all, selectionStages(selection), { viewer: 'arye', now: NOW }).map((p) => p.id)
 
-    const collisions: string[] = []
-    for (let i = 0; i < perAxis.length; i++) {
-      for (let j = i + 1; j < perAxis.length; j++) {
-        for (const key of perAxis[i].keys) {
-          if (perAxis[j].keys.has(key)) {
-            collisions.push(`${perAxis[i].id}/${perAxis[j].id}: ${key}`)
-          }
-        }
-      }
-    }
-    expect(collisions).toEqual([])
+  it('ANDs two axes that share the is: qualifier', () => {
+    expect(run({ ...DEFAULT_SELECTION, status: 'open', draft: 'only' })).toEqual(['open-draft'])
+    expect(run({ ...DEFAULT_SELECTION, status: 'open', draft: 'hide' })).toEqual(['open-ready'])
+    expect(run({ ...DEFAULT_SELECTION, status: 'merged', draft: 'only' })).toEqual(['merged-draft'])
+  })
+
+  it('would union them if the axes were concatenated, which is why they are not', () => {
+    const concatenated = 'is:open is:draft'
+    expect(applyStages(all, [concatenated], { viewer: 'arye', now: NOW })).toHaveLength(3)
+    expect(applyStages(all, ['is:open', 'is:draft'], { viewer: 'arye', now: NOW })).toHaveLength(1)
+  })
+
+  it('sorts merged pull requests by merge date, newest first', () => {
+    const older = pr({
+      id: 'older',
+      state: 'MERGED',
+      mergedAt: new Date(NOW - 10 * day).toISOString(),
+      updatedAt: new Date(NOW - day).toISOString(),
+    })
+    const newer = pr({
+      id: 'newer',
+      state: 'MERGED',
+      mergedAt: new Date(NOW - day).toISOString(),
+      updatedAt: new Date(NOW - 10 * day).toISOString(),
+    })
+    expect(
+      applyStages(
+        [older, newer],
+        selectionStages({ ...DEFAULT_SELECTION, status: 'merged' }),
+        { viewer: 'arye', now: NOW },
+      ).map((p) => p.id),
+    ).toEqual(['newer', 'older'])
+  })
+})
+
+describe('needsClosed', () => {
+  it('is false only for the default Open view, because closed costs a request', () => {
+    expect(needsClosed(DEFAULT_SELECTION)).toBe(false)
+    expect(needsClosed({ ...DEFAULT_SELECTION, status: 'merged' })).toBe(true)
+    expect(needsClosed({ ...DEFAULT_SELECTION, status: 'closed' })).toBe(true)
+    expect(needsClosed({ ...DEFAULT_SELECTION, status: 'all' })).toBe(true)
   })
 })
 
@@ -100,7 +144,7 @@ describe('facetCounts', () => {
     pr({ author: { login: 'bob', avatarUrl: '' }, reviewDecision: 'APPROVED' }),
   ]
   const count = (id: string, selection = DEFAULT_SELECTION, text = '') =>
-    facetCounts(prs, facet(id), selection, text, 'arye', NOW)
+    facetCounts(prs, facet(id), selection, [text], 'arye', NOW)
 
   it('counts each option against the whole list by default', () => {
     expect(count('state').approved).toBe(3)
@@ -134,7 +178,7 @@ describe('facetCounts', () => {
 
   it('does not count a PR whose review state has not been fetched as awaiting', () => {
     const unknown = [pr({ reviewDecision: 'UNKNOWN' })]
-    const counts = facetCounts(unknown, facet('state'), DEFAULT_SELECTION, '', 'arye', NOW)
+    const counts = facetCounts(unknown, facet('state'), DEFAULT_SELECTION, [''], 'arye', NOW)
     expect(counts.awaiting).toBe(0)
     expect(counts.any).toBe(1)
   })

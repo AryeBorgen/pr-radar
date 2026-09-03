@@ -5,17 +5,18 @@ import { FACETS, facetCounts } from '../lib/facets'
 interface Props {
   prs: PullRequest[]
   selection: Selection
-  text: string
+  /** Filter stages from every source other than the axes. */
+  stages: string[]
   viewer: string
   now: number
   onChange: (selection: Selection) => void
 }
 
-export default function FacetBar({ prs, selection, text, viewer, now, onChange }: Props) {
+export default function FacetBar({ prs, selection, stages, viewer, now, onChange }: Props) {
   return (
     <div className="border-b border-neutral-200 dark:border-neutral-800">
       {FACETS.map((facet) => {
-        const counts = facetCounts(prs, facet, selection, text, viewer, now)
+        const counts = facetCounts(prs, facet, selection, stages, viewer, now)
         return (
           <div key={facet.id} className="flex flex-wrap items-center gap-1.5 px-4 py-1.5">
             <span className="w-14 shrink-0 text-xs font-medium tracking-wide text-neutral-400 uppercase dark:text-neutral-500">
