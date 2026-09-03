@@ -1,0 +1,31 @@
+name: Idea
+description: Something it should do that it does not.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to find out
+      description: >
+        The question you are asking your pull requests, rather than the control
+        you have in mind. This dashboard is built around questions -- "what is
+        waiting on me", "what did I approve that has not merged" -- and the best
+        features have come from someone naming a new one.
+    validations:
+      required: true
+
+  - type: textarea
+    id: today
+    attributes:
+      label: What you do today instead
+      description: Including "I open six tabs", which is a real answer and a useful one.
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - label: >
+            I understand this is deliberately not a review client -- no diff
+            viewer, no comment box, no merge button. It is where you notice
+            things, not where you do them.
