@@ -2,7 +2,13 @@
 
 # The build needs Node; serving the result does not. Keeping them in separate
 # stages means the shipped image carries no toolchain and no source.
-FROM node:22-alpine AS build
+#
+# Pinned to $BUILDPLATFORM -- the builder's own architecture -- rather than the
+# target's. `dist/` is HTML, CSS and JavaScript, which are the same bytes on
+# every architecture, so there is nothing to cross-compile and no reason to run
+# `npm ci` under QEMU once per target. Only the nginx stage below is built per
+# architecture, and all it does is copy files.
+FROM --platform=$BUILDPLATFORM node:22-alpine AS build
 WORKDIR /app
 
 # Dependencies are their own layer, so a source-only change does not reinstall.
