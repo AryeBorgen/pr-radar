@@ -126,9 +126,16 @@ test.describe('the service worker', () => {
       return urls
     })
 
-    expect(cached.filter((url) => url.includes('api.github.com'))).toEqual([])
+    // Compare origins rather than searching for a substring: `api.github.com`
+    // appears in https://evil.example/api.github.com too, and a check that can
+    // be fooled in either direction is not a check. CodeQL flagged the first
+    // version of this line, and was right to.
+    const own = new URL(page.url()).origin
+    const foreign = cached.filter((url) => new URL(url).origin !== own)
+    expect(foreign, 'the worker must cache nothing from another origin').toEqual([])
+
     // It should, however, be holding the immutable assets -- that is the point.
-    expect(cached.some((url) => url.includes('/assets/'))).toBe(true)
+    expect(cached.some((url) => new URL(url).pathname.startsWith('/assets/'))).toBe(true)
   })
 
   test('a new build replaces the cached document rather than being shadowed by it', async ({
