@@ -39,6 +39,23 @@
       "
     />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
+
+    <!--
+      Vite rewrites root-relative URLs in these attributes to sit under the
+      configured base, so the same source works whether the app is served from
+      / or from /<repo>/ on Pages. The manifest itself uses relative paths for
+      the same reason.
+    -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/icons/radar.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+
+    <meta name="theme-color" content="#0b1220" />
+    <!-- iOS reads its own tags rather than the manifest. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="PR Radar" />
   </head>
   <body>
     <div id="root"></div>
