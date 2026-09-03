@@ -16,11 +16,14 @@ import type { Selection } from './lib/facets'
 import { DEFAULT_SELECTION, needsClosed, selectionQuery, selectionStages } from './lib/facets'
 import type { MenuSelection } from './lib/menus'
 import { DEFAULT_PERIOD, menuOptions, menuStages } from './lib/menus'
+import { DEFAULT_NOTIFY_ENABLED } from './lib/notifications'
+import { useNotifications } from './lib/useNotifications'
 import FacetBar from './components/FacetBar'
 import FilterMenus from './components/FilterMenus'
 import SavedViews from './components/SavedViews'
 import FilterBar from './components/FilterBar'
 import PrRow from './components/PrRow'
+import NotifyMenu from './components/NotifyMenu'
 import RepoManager from './components/RepoManager'
 import TokenGate from './components/TokenGate'
 
@@ -35,6 +38,7 @@ export default function App() {
   const [period, setPeriod] = useState(DEFAULT_PERIOD)
   const [search, setSearch] = useState('')
   const [showRepos, setShowRepos] = useState(false)
+  const [notify, setNotify] = useState<Record<string, boolean>>(DEFAULT_NOTIFY_ENABLED)
 
   useEffect(() => saveSettings(settings), [settings])
   useEffect(() => saveToken(token), [token])
@@ -61,6 +65,10 @@ export default function App() {
 
   const { prs, pending } = useEnrichment(token, query.data?.pullRequests)
   const viewer = viewerQuery.data ?? ''
+
+  // Watches the whole fetched list, not the filtered view: a notification you
+  // only get when the right tab is selected is not a notification.
+  useNotifications(prs, viewer, notify, settings.repos.length > 0)
 
   /*
    * `now` is pinned to each fetch rather than read per render, so relative ages
@@ -160,6 +168,7 @@ export default function App() {
           >
             {showRepos ? 'Done' : 'Repositories'}
           </button>
+          <NotifyMenu enabled={notify} onChange={setNotify} />
           <button
             type="button"
             onClick={() => setToken('')}

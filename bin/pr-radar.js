@@ -1,0 +1,107 @@
+#!/usr/bin/env node
+/**
+ * Serves the built dashboard so `npx pr-radar` needs nothing installed.
+ *
+ * Deliberately dependency-free: this package ships a bundle of static files and
+ * a way to look at them, and pulling a server framework in to do that would add
+ * an install and a supply chain for no benefit.
+ */
+import { createReadStream, existsSync, statSync } from 'node:fs'
+import { createServer } from 'node:http'
+import { spawn } from 'node:child_process'
+import { dirname, extname, join, normalize, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'dist')
+
+if (!existsSync(join(root, 'index.html'))) {
+  console.error(
+    'pr-radar: no build found.\n' +
+      'If you are running from a clone, build it first:  npm install && npm run build',
+  )
+  process.exit(1)
+}
+
+const TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.ico': 'image/x-icon',
+  '.woff2': 'font/woff2',
+}
+
+const args = process.argv.slice(2)
+const flag = (name) => {
+  const index = args.indexOf(name)
+  return index === -1 ? undefined : args[index + 1]
+}
+
+if (args.includes('--help') || args.includes('-h')) {
+  console.log(
+    'pr-radar — every open pull request across all your repositories, on one screen\n\n' +
+      'Usage: pr-radar [--port <n>] [--host <addr>] [--no-open]\n\n' +
+      '  --port     port to listen on (default 4173, or the first free port after it)\n' +
+      '  --host     address to bind (default 127.0.0.1; use 0.0.0.0 to expose it)\n' +
+      '  --no-open  do not launch a browser\n',
+  )
+  process.exit(0)
+}
+
+const host = flag('--host') ?? '127.0.0.1'
+const startPort = Number(flag('--port') ?? process.env.PORT ?? 4173)
+
+const server = createServer((request, response) => {
+  const path = decodeURIComponent(new URL(request.url, 'http://localhost').pathname)
+
+  // normalize collapses `..` before it is joined, so a crafted path cannot
+  // escape the bundle directory.
+  const candidate = join(root, normalize(path))
+  const file =
+    candidate.startsWith(root) && existsSync(candidate) && statSync(candidate).isFile()
+      ? candidate
+      : join(root, 'index.html')
+
+  // Hashed asset names make the bundle immutable; index.html must not be, or a
+  // deploy would keep serving the old app from cache.
+  response.writeHead(200, {
+    'Content-Type': TYPES[extname(file)] ?? 'application/octet-stream',
+    'Cache-Control': file.endsWith('index.html')
+      ? 'no-cache'
+      : 'public, max-age=31536000, immutable',
+  })
+  createReadStream(file).pipe(response)
+})
+
+function listen(port, attemptsLeft) {
+  server.once('error', (error) => {
+    if (error.code === 'EADDRINUSE' && attemptsLeft > 0) {
+      listen(port + 1, attemptsLeft - 1)
+      return
+    }
+    console.error(`pr-radar: ${error.message}`)
+    process.exit(1)
+  })
+
+  server.listen(port, host, () => {
+    const url = `http://${host === '0.0.0.0' ? 'localhost' : host}:${port}`
+    console.log(`pr-radar running at ${url}`)
+    console.log('Paste a GitHub personal access token to get started. Ctrl+C to stop.')
+    if (!args.includes('--no-open')) open(url)
+  })
+}
+
+function open(url) {
+  const command =
+    process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open'
+  try {
+    spawn(command, [url], { stdio: 'ignore', detached: true, shell: process.platform === 'win32' })
+      .unref()
+  } catch {
+    // Not being able to launch a browser is not a reason to fail; the URL is printed.
+  }
+}
+
+listen(startPort, 20)

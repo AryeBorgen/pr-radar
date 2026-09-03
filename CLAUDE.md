@@ -1,0 +1,188 @@
+# PR Radar — working notes
+
+A cross-repository pull request dashboard. Static, no backend, no database. The
+page talks to `api.github.com` from the browser with a token the user pastes,
+and keeps everything else in that browser.
+
+Read `README.md` for what it does. This file is for the reasons behind how it is
+built — the decisions that look arbitrary until you know what they prevent.
+
+## The one-line summary of the architecture
+
+Everything outside `src/lib/github.ts` works on the normalised `PullRequest`
+type and never touches raw API shapes. That boundary is the most valuable thing
+in the codebase: it is why replacing the entire data layer (GraphQL → REST)
+changed one module and left the filter engine, the axes and the UI untouched.
+**Keep it.** If you find yourself reaching for `raw.head.sha` outside that file,
+normalise it into the type instead.
+
+## Hard-won facts about the GitHub API
+
+These are the constraints the design is bent around. Each one cost a debugging
+cycle; none of them are guesses.
+
+1. **The GraphQL API cannot be called from a browser.** `api.github.com/graphql`
+   sends no `Access-Control-Allow-Origin` header at all, so the CORS preflight
+   fails and `fetch` rejects before a request is made. Verified in a real
+   browser. No client-side change fixes it. The whole app was originally built
+   on GraphQL and had to be moved.
+2. **The REST API does support CORS**, including preflight with an
+   `Authorization` header. Verified with a token in a real browser.
+3. **REST's pull-request list omits review decision and check state.** They are
+   fetched per PR in a second pass — hence `useEnrichment`.
+4. **Closed PRs can only be sorted by `updated`**, never by merge date. So a PR
+   merged three months ago but commented on yesterday arrives near the top of
+   the page. This is why the period filter reads `closedAt` and not `updatedAt`,
+   and why `closedAt` exists on the type at all.
+5. **The REST list has no comment count, line counts or mergeability.** Those
+   live on the single-PR endpoint, a third request each. They were dropped
+   rather than bought.
+
+## Decisions worth not re-litigating
+
+**Filter sources are separate stages, not one concatenated query.** The filter
+language ORs repeated positive terms of the same qualifier, because GitHub does
+and matching GitHub is a stated goal. That is right inside one query and wrong
+across a stack of filters: `is:open` from the Status axis concatenated with
+`is:draft` from the Drafts axis reads as "open **or** draft", and an author
+picked from a menu would *widen* the result against `Who: Mine` instead of
+intersecting it. `applyStages` filters through each stage in turn and sorts once
+at the end. A test in `facets.test.ts` asserts the concatenated form returns 3
+where the staged form returns 1, specifically so this reason cannot be lost.
+
+An earlier commit tried to solve this by *banning* two axes from sharing a
+qualifier, with a test enforcing disjointness. That was the wrong fix — it
+constrained the design instead of correcting the composition — and it was
+replaced. Status and Drafts now share `is:` deliberately.
+
+**`UNKNOWN` is not `NONE`.** Review and check state arrive asynchronously.
+`UNKNOWN` means "not answered yet"; `NONE` means "answered: there are none".
+Collapsing them would make `review:none` silently wrong for every PR still
+loading, would overstate the "Awaiting review" count, and would turn every first
+page load into a burst of notifications. Anything you add that can be partially
+known needs the same treatment.
+
+**Drafts are shown by default.** At the shop this was built for, a review bot
+moves a PR back to draft when review fails, so draft is a state to triage rather
+than noise to hide. Two of the original default views quietly excluded drafts
+and therefore hid exactly the PRs that needed attention.
+
+**Enrichment is keyed by head SHA; notifications are keyed by repo and number.**
+Different keys on purpose. Enrichment describes a commit, so a push should
+invalidate it — that is what makes a two-minute poll cost nothing when nothing
+changed. Notification identity must survive a push, or every commit would
+announce the PR as new; keying on repo and number is what lets "CI went red on
+the new commit" fire correctly.
+
+**Only open PRs are enriched.** Review and check state on a merged PR is
+history, and the list of merged PRs grows without bound.
+
+**Closed PRs are not fetched until asked for.** The Status axis drives the
+request, not just the filter. The default view is one request per repository.
+
+## Request budget
+
+This matters more than it looks; the app polls.
+
+- List: one request per repository, six concurrent (`MAX_CONCURRENT_REQUESTS`).
+- Enrichment: two per open PR (reviews + check-runs), cached by head SHA, so a
+  poll that finds nothing new costs **zero** requests.
+- Closed: one extra request per repository, one page of 100, no pagination.
+- Limit is 5,000/hour. First load on ~15 repositories with ~150 open PRs is
+  roughly 300 requests; steady state is ~15 per poll.
+
+Going deeper into history would mean paginating per repository, which across an
+organisation is hundreds of requests for pages nobody scrolls to. The period
+filter and the page cap bound it instead, whichever bites first.
+
+## Verification
+
+`npm run typecheck && npm test && npm run build`.
+
+**`typecheck` must be `tsc -b`, never `tsc --noEmit`.** The root `tsconfig.json`
+is a solution file with empty `files`, so `--noEmit` compiles nothing and passes
+on code that does not build. This was a live bug — CI was guarding nothing —
+found by injecting a deliberate type error and watching it pass.
+
+The unit tests cover the parts with real logic: the filter language, the review
+and check rollups, the facets, the period window, the notification transitions.
+Several exist to pin a decision rather than check a behaviour; read them before
+changing those areas.
+
+**There is no checked-in browser suite.** Every UI change so far was verified
+with Playwright driving a real Chromium against a mocked `api.github.com`, and
+those scripts were not committed to keep Playwright out of the dependencies.
+That trade is now questionable — see open work.
+
+Two bugs the browser runs caught that unit tests could not: `<img src="">` when
+an avatar is missing (React warns; the browser may re-request the page), and the
+whole CORS failure, which was invisible precisely because the smoke test mocked
+the endpoint it should have been exercising. **Mocking the thing under test
+proves nothing.**
+
+## Layout
+
+```
+src/lib/
+  github.ts          REST client, normalisation, review/check rollups
+  filter.ts          the query language: parse, match, stage, sort
+  facets.ts          the three one-click axes (Status, Who, State, Drafts)
+  menus.ts           the dynamic dropdowns + period + sort
+  notifications.ts   transition detection (pure; the hook does the I/O)
+  useEnrichment.ts   second-pass fetching with a SHA-keyed cache
+  useNotifications.ts  fires Notifications, maintains the tab title
+  storage.ts         localStorage, defensively parsed
+src/components/      FacetBar, FilterMenus, SavedViews, FilterBar, PrRow,
+                     NotifyMenu, RepoManager, TokenGate, icons
+bin/pr-radar.js      dependency-free static server, so `npx pr-radar` works
+```
+
+## Open work, roughly in order of value
+
+1. **Verify the Docker image.** `Dockerfile`, `docker/nginx.conf`,
+   `docker-compose.yml` and `.github/workflows/docker.yml` are written but were
+   **never built** — the environment they were authored in had the Docker CLI
+   but no daemon. The workflow builds the image and curls it, so the first CI
+   run is the real test. Treat the image as unproven until it goes green.
+2. **Publish to npm.** `package.json` has `bin`, `files`, `engines` and a
+   `prepublishOnly` gate; the server is verified locally (MIME types, cache
+   headers, path traversal). Nobody has run `npm publish`, and the README tells
+   people to `npx pr-radar`, so until it is published that instruction is a lie.
+   The Docker image reference `ghcr.io/aryeborgen/pr-radar` is likewise not real
+   until the workflow has pushed it once.
+3. **A checked-in browser test suite.** The Playwright scripts proved their
+   worth repeatedly. Adding `@playwright/test` as a dev dependency and wiring a
+   handful of the flows into CI would be a real improvement.
+4. **Editing the built-in axes.** Saved views can be created and deleted, but a
+   built-in axis option cannot be edited. The workaround is typing into the
+   filter box and saving a view.
+5. **Team-level "waiting on your team".** GitHub distinguishes a review
+   requested from you personally and from a team you belong to. Only the former
+   is handled; the latter needs the team memberships of the viewer.
+6. **A backend, if the trade is worth it.** Explicitly *optional* — see below.
+
+## On adding a backend
+
+This has been raised, and it is a real fork rather than a detail. A backend
+would unlock things that genuinely cannot be done from a static page:
+
+- **Real push**, so notifications arrive with the tab closed. Web Push needs a
+  server holding VAPID keys.
+- **OAuth**, replacing the pasted token. The code exchange needs a client
+  secret, and GitHub's token endpoint sends no CORS headers, so a page cannot do
+  it alone. A single serverless function is enough for this one.
+- **Server-side polling**, shared caching across a team, and history beyond what
+  a page can hold.
+
+What it costs is the reason it was not done: something to deploy and operate,
+secrets to hold, and — the serious one — **holding other people's GitHub
+tokens**, which turns a page with no attack surface into a system with a
+significant one. It also breaks the distribution story: `npx pr-radar` and
+`docker run` work precisely because there is nothing to configure.
+
+If it happens, the shape that keeps both properties is an **optional** backend:
+the static app stays the default and works exactly as it does now, and a
+deployment that wants push and OAuth points it at a server via one environment
+variable. Do not make the backend mandatory, and do not let its existence leak
+into modules other than the data layer — the boundary described at the top of
+this file is what would make that possible.

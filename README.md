@@ -39,24 +39,58 @@ the place you notice things, not the place you do them.
   The page talks to `api.github.com` directly and keeps your settings in your
   own browser.
 
-## Running it
+## Install
+
+Pick whichever fits. All of them run the same static bundle, and none of them
+need a server, a database or an account.
+
+**Try it without installing anything**
 
 ```bash
-npm install
-npm run dev
+npx pr-radar          # or: pnpm dlx pr-radar     bunx pr-radar
 ```
 
-Then paste a [personal access token](https://github.com/settings/tokens/new?scopes=repo,read:org&description=PR%20Radar).
+Serves the dashboard on `http://localhost:4173` and opens a browser.
+`--port`, `--host` and `--no-open` are available; `--help` lists them.
+
+**Docker**
+
+```bash
+docker run -p 4173:80 ghcr.io/aryeborgen/pr-radar
+```
+
+or, from a clone, `docker compose up`.
+
+**From source**
+
+```bash
+git clone https://github.com/AryeBorgen/pr-radar.git
+cd pr-radar
+
+npm install && npm run dev        # or: pnpm install && pnpm dev
+                                  #     yarn install && yarn dev
+```
+
+**Host it yourself**
+
+```bash
+npm run build         # → dist/, a folder of static files
+```
+
+Serve `dist/` from anything — GitHub Pages, Netlify, S3, nginx. On GitHub Pages
+the site lives under `/<repo>/`, so build with `PR_RADAR_BASE=/pr-radar/`; the
+included workflow does that for you when Pages is set to *GitHub Actions*.
+
+Requires Node 20 or newer to build.
+
+## The token
+
+Whichever way you run it, the first screen asks for a
+[personal access token](https://github.com/settings/tokens/new?scopes=repo,read:org&description=PR%20Radar).
 Public repositories need no scopes at all; add `repo` for private ones and
 `read:org` to expand an organisation into its repositories in one step.
 
-To build a static bundle you can host anywhere:
-
-```bash
-npm run build      # → dist/
-```
-
-## About the token
+## Why a token and not a login
 
 There is no "Sign in with GitHub" button, and that is a consequence of having
 no backend rather than an oversight: exchanging an OAuth code requires a client
@@ -74,6 +108,22 @@ The trade-off is worth stating plainly:
   want to watch, with read-only permissions.
 - Nothing about your repositories is ever transmitted to a third party, because
   there is no third party.
+
+## Notifications
+
+The bell in the header announces four things: a review requested from you, your
+PR approved, changes requested on your PR, and CI failing on your PR. Each can
+be switched off.
+
+They arrive **while the tab is open**, and that is a limit of having no backend
+rather than a choice: real push needs a server holding VAPID keys to send
+through a push service. The tab title always shows how many pull requests are
+waiting on your review, which works whether or not you granted permission.
+
+Nothing is announced on first load, however much already matches — the first
+pass establishes a baseline silently, and only a genuine transition after that
+notifies. A pull request seen for the first time is baselined too, so adding a
+repository does not produce a burst.
 
 ## Filter reference
 

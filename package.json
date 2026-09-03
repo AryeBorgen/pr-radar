@@ -3,7 +3,7 @@
   "private": false,
   "version": "0.1.0",
   "type": "module",
-  "description": "A cross-repository pull request dashboard. Runs entirely in your browser \u2014 no backend, no database, no server to trust.",
+  "description": "Every open pull request across all your repositories, on one screen. Static, backend-free, bring your own repos.",
   "license": "MIT",
   "scripts": {
     "dev": "vite",
@@ -11,7 +11,9 @@
     "preview": "vite preview",
     "typecheck": "tsc -b --force",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "start": "node bin/pr-radar.js",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.62.7",
@@ -28,5 +30,33 @@
     "typescript": "^5.7.2",
     "vite": "^6.0.5",
     "vitest": "^3.2.7"
+  },
+  "keywords": [
+    "github",
+    "pull-requests",
+    "dashboard",
+    "code-review",
+    "cli",
+    "self-hosted"
+  ],
+  "homepage": "https://github.com/AryeBorgen/pr-radar#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AryeBorgen/pr-radar.git"
+  },
+  "bugs": {
+    "url": "https://github.com/AryeBorgen/pr-radar/issues"
+  },
+  "bin": {
+    "pr-radar": "bin/pr-radar.js"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
   }
 }
