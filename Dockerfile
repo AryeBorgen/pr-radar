@@ -19,5 +19,9 @@ COPY --from=build /app/dist /usr/share/nginx/html
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
+# 127.0.0.1, not localhost. nginx's `listen 80` binds IPv4 only -- the official
+# image's own default.conf does the same -- while the container's /etc/hosts maps
+# localhost to both 127.0.0.1 and ::1, and busybox wget tries ::1 first. The probe
+# is refused there, so the container reports unhealthy while serving perfectly.
 HEALTHCHECK --interval=30s --timeout=3s \
-  CMD wget --quiet --tries=1 --spider http://localhost/ || exit 1
+  CMD wget --quiet --tries=1 --spider http://127.0.0.1/ || exit 1

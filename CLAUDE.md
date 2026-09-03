@@ -38,6 +38,26 @@ cycle; none of them are guesses.
    live on the single-PR endpoint, a third request each. They were dropped
    rather than bought.
 
+## Hard-won facts about the container
+
+1. **`localhost` inside the container is not one address.** `/etc/hosts` maps it
+   to both `127.0.0.1` and `::1`, and busybox `wget` tries `::1` first. nginx's
+   `listen 80` binds IPv4 only — the official image's own `default.conf` does
+   the same — so a `HEALTHCHECK` against `http://localhost/` is refused every
+   time and the container sits at `unhealthy` while serving traffic perfectly.
+   The probe now names `127.0.0.1`, and the server now also binds `[::]:80` so
+   a client that resolves to an AAAA record is answered rather than refused.
+2. **`listen [::]:80` is safe where IPv6 is switched off.** The socket family
+   still exists even with `net.ipv6.conf.all.disable_ipv6=1` and no `inet6` on
+   `lo`, so nginx starts either way. This was tested rather than assumed,
+   because the failure mode it would otherwise introduce — a server that will
+   not start at all — is worse than the bug being fixed. `smoke.sh` keeps
+   asserting it.
+3. **`docker compose --wait` has no default timeout.** A container that never
+   reports healthy holds the job open until the job limit instead of failing,
+   so CI passes `--wait-timeout`. A hang and a red build are not the same
+   signal.
+
 ## Decisions worth not re-litigating
 
 **Filter sources are separate stages, not one concatenated query.** The filter
@@ -109,6 +129,14 @@ and check rollups, the facets, the period window, the notification transitions.
 Several exist to pin a decision rather than check a behaviour; read them before
 changing those areas.
 
+**The Docker image has a checked-in smoke test.** `docker/smoke.sh` builds
+nothing; it takes an image tag, runs it, and asserts ten things over HTTP and
+over `docker inspect`. It exists because the check it replaced curled the
+published port — a path that already worked — and so passed on an image whose
+own `HEALTHCHECK` was failing. **A check that exercises a different path from
+the one that breaks is not a check.** Run it as `docker build -t pr-radar:x . &&
+docker/smoke.sh pr-radar:x`.
+
 **There is no checked-in browser suite.** Every UI change so far was verified
 with Playwright driving a real Chromium against a mocked `api.github.com`, and
 those scripts were not committed to keep Playwright out of the dependencies.
@@ -139,11 +167,11 @@ bin/pr-radar.js      dependency-free static server, so `npx pr-radar` works
 
 ## Open work, roughly in order of value
 
-1. **Verify the Docker image.** `Dockerfile`, `docker/nginx.conf`,
-   `docker-compose.yml` and `.github/workflows/docker.yml` are written but were
-   **never built** — the environment they were authored in had the Docker CLI
-   but no daemon. The workflow builds the image and curls it, so the first CI
-   run is the real test. Treat the image as unproven until it goes green.
+1. **Run the Docker workflow on GitHub.** The image itself is no longer
+   unproven: it has been built and probed locally on both `arm64` and `amd64`
+   by `docker/smoke.sh`, and `docker-compose.yml` has been brought up with
+   `--wait`. What has still never executed is `.github/workflows/docker.yml`,
+   so the first PR is the real test of the workflow — not of the image.
 2. **Publish to npm.** `package.json` has `bin`, `files`, `engines` and a
    `prepublishOnly` gate; the server is verified locally (MIME types, cache
    headers, path traversal). Nobody has run `npm publish`, and the README tells
