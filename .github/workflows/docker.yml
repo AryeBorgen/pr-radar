@@ -17,6 +17,10 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+      # The runner is amd64; arm64 is emulated. Without this the published image
+      # is amd64-only, and every Apple Silicon, Graviton or Pi host either runs
+      # it under emulation or cannot run it at all.
+      - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
 
       # Pull requests build the image but do not publish it, so a broken
@@ -40,19 +44,28 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
+          platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # build-push-action does not load the image into the local daemon, so the
+      # smoke test builds its own copy; the layers are already cached.
       - name: Check the image actually serves the app
         run: |
           docker build -t pr-radar:ci .
-          docker run -d --name pr-radar-ci -p 8080:80 pr-radar:ci
-          for i in $(seq 1 30); do
-            curl -sf http://localhost:8080/ -o /dev/null && break
-            sleep 1
-          done
-          curl -sf http://localhost:8080/ | grep -q "PR Radar"
-          docker rm -f pr-radar-ci
+          docker/smoke.sh pr-radar:ci
+
+      # --wait blocks until every service reports healthy, which is the whole
+      # point -- but its default timeout is none at all, so a container that
+      # never goes healthy would hold the job open until the job limit rather
+      # than failing. The bound is what turns a hang into a red build.
+      - name: Check docker-compose builds and serves
+        run: |
+          docker compose up -d --build --wait --wait-timeout 120
+          curl -sf http://localhost:4173/ | grep -q "PR Radar"
+      - name: Tear down compose
+        if: always()
+        run: docker compose down --remove-orphans
