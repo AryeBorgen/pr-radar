@@ -1,0 +1,26 @@
+@import 'tailwindcss';
+
+/*
+ * A deliberately small palette. The dashboard is a dense list, so the only
+ * colour that carries meaning is status colour — anything else competes with it.
+ */
+@theme {
+  --color-canvas: #ffffff;
+  --color-subtle: #f6f8fa;
+  --color-line: #d1d9e0;
+  --color-ink: #1f2328;
+  --color-muted: #59636e;
+}
+
+@layer base {
+  html {
+    color-scheme: light dark;
+  }
+
+  body {
+    margin: 0;
+    font-family:
+      -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+}
