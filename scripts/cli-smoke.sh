@@ -91,6 +91,22 @@ check 'unknown route falls back to the app' \
 check 'missing asset 404s rather than falling back' \
   "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/assets/does-not-exist.js")" '404'
 
+echo 'Security headers'
+# The page carries its own Content-Security-Policy in a meta tag. These are the
+# parts a meta tag cannot express, and they have to match between the container
+# and `npx pr-radar` or the two channels protect their users differently.
+header() { curl -sI "$1" | tr -d '\r' | awk -v k="$2" 'BEGIN{IGNORECASE=1} $0 ~ "^"k": " {sub("^"k": ","",$0); print}'; }
+check 'frames are refused'          "$(header "$BASE/" 'Content-Security-Policy')" "frame-ancestors 'none'"
+check 'X-Frame-Options is DENY'     "$(header "$BASE/" 'X-Frame-Options')" 'DENY'
+check 'content types are not sniffed' "$(header "$BASE/" 'X-Content-Type-Options')" 'nosniff'
+check 'referrers are trimmed'       "$(header "$BASE/" 'Referrer-Policy')" 'strict-origin-when-cross-origin'
+case $(header "$BASE/" 'Permissions-Policy') in
+  *'camera=()'*) pass 'powerful features are denied' ;;
+  *) fail 'powerful features are denied' ;;
+esac
+# Assets too: a script served without nosniff is the interesting case.
+check 'assets are not sniffed'      "$(header "$BASE$asset" 'X-Content-Type-Options')" 'nosniff'
+
 echo 'Isolation'
 # The server may answer these however it likes as long as the answer is not the
 # contents of a file outside dist/.

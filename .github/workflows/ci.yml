@@ -33,6 +33,28 @@ jobs:
       # one: packed, installed from the tarball and talked to over HTTP.
       - run: scripts/cli-smoke.sh
 
+  # Unit tests cannot see a Content-Security-Policy that silently drops a
+  # stylesheet, an <img src=""> React warns about, or an API that stops
+  # answering a cross-origin request. A browser can, and all three have
+  # actually happened here.
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
   # Pinning to SHAs only helps if every workflow actually does it, and that is
   # the kind of rule a hurried edit breaks silently. Check it mechanically.
   workflows:

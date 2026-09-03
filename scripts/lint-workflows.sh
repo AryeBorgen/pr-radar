@@ -37,6 +37,27 @@ else
   fail 'every pin names its version in a comment'; show "$uncommented"
 fi
 
+# A well-formed SHA that points at nothing fails the workflow at run time, and a
+# typo in forty hex characters is not something review catches. Needs network and
+# an authenticated gh, so it steps aside rather than failing when either is
+# missing -- the format checks above still ran.
+if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+  bad=''
+  for pin in $(grep -ho 'uses: [^@]*@[0-9a-f]\{40\}' "$DIR"/*.yml | sed 's/uses: //' | sort -u); do
+    repo=${pin%@*}
+    sha=${pin##*@}
+    owner=$(printf '%s' "$repo" | cut -d/ -f1,2)
+    gh api "repos/$owner/commits/$sha" --jq '.sha' >/dev/null 2>&1 || bad="$bad$pin\n"
+  done
+  if [ -z "$bad" ]; then
+    pass 'every pinned SHA exists upstream'
+  else
+    fail 'every pinned SHA exists upstream'; show "$(printf "$bad")"
+  fi
+else
+  printf '  skip  every pinned SHA exists upstream (no authenticated gh)\n'
+fi
+
 echo 'Permissions'
 # Without an explicit block a workflow inherits the repository default, which
 # may be write-all. Any step -- including one inside a dependency -- would then

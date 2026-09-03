@@ -21,11 +21,22 @@ normalise it into the type instead.
 These are the constraints the design is bent around. Each one cost a debugging
 cycle; none of them are guesses.
 
-1. **The GraphQL API cannot be called from a browser.** `api.github.com/graphql`
-   sends no `Access-Control-Allow-Origin` header at all, so the CORS preflight
-   fails and `fetch` rejects before a request is made. Verified in a real
-   browser. No client-side change fixes it. The whole app was originally built
-   on GraphQL and had to be moved.
+1. **The GraphQL API could not be called from a browser. It can now.** This note
+   used to say the restriction was permanent. As of 2026-09-04 that is wrong, and
+   it was checked rather than assumed: a preflight to `api.github.com/graphql`
+   carrying `Authorization` and `Content-Type` comes back `204` with
+   `access-control-allow-origin: *` and both headers named in
+   `access-control-allow-headers` -- byte for byte what REST returns. A real
+   Chromium sending the request the app would send resolves with `401`, the
+   right answer to a made-up token, rather than rejecting.
+
+   Two things follow. The move to REST was still correct, and is not worth
+   undoing: the request budget, the enrichment cache and the closed-PR handling
+   below are all shaped around REST, and going back buys a user nothing. And
+   more importantly -- **a fact that cost a debugging cycle can still expire.**
+   Re-run the check before repeating any of these to someone. That is what
+   `tests/reachability.spec.ts` is for, and it is deliberately the one test that
+   does not mock GitHub.
 2. **The REST API does support CORS**, including preflight with an
    `Authorization` header. Verified with a token in a real browser.
 3. **REST's pull-request list omits review decision and check state.** They are
