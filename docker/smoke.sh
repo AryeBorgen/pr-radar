@@ -26,6 +26,17 @@ skip() { printf '  skip  %s\n' "$1"; }
 fail() { printf '  FAIL  %s\n' "$1"; failures=$((failures + 1)); }
 check() { if [ "$2" = "$3" ]; then pass "$1"; else fail "$1 (expected '$3', got '$2')"; fi; }
 
+# HTTP header names are case-insensitive, and HTTP/2 sends them lowercased, so
+# matching has to fold case. awk's IGNORECASE is a gawk extension that BSD awk
+# silently ignores -- these checks once passed only because the casing happened
+# to line up.
+header() {
+  curl -sI "$1" | tr -d '\r' \
+    | awk -v k="$2" 'tolower(substr($0, 1, length(k) + 1)) == tolower(k) ":" {
+        print substr($0, length(k) + 3)
+      }'
+}
+
 # Poll rather than sleep a fixed span: the interval is overridden per container,
 # so a fixed wait would be either wrong or wasteful.
 await_health() {
@@ -84,11 +95,25 @@ check 'unknown route falls back to the app' \
 check 'missing asset 404s rather than falling back' \
   "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/assets/does-not-exist.js")" '404'
 
+echo 'Progressive web app'
+# A manifest served as the wrong type is ignored, and the only symptom is an
+# install prompt that never appears.
+check 'the manifest has the right content type' \
+  "$(header "$BASE/manifest.webmanifest" 'Content-Type' | cut -d';' -f1 | tr -d ' ')" \
+  'application/manifest+json'
+check 'the service worker is served' \
+  "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/sw.js")" '200'
+# A cached service worker is a service worker that can never be replaced.
+check 'the service worker is not cached' \
+  "$(header "$BASE/sw.js" 'Cache-Control')" 'no-cache'
+for icon in /icons/icon-192.png /icons/icon-512.png /icons/icon-maskable-512.png /icons/apple-touch-icon.png; do
+  check "$icon is served" "$(curl -s -o /dev/null -w '%{http_code}' "$BASE$icon")" '200'
+done
+
 echo 'Security headers'
 # The page carries its own Content-Security-Policy in a meta tag. These are the
 # parts a meta tag cannot express, and they have to match between the container
 # and `npx pr-radar` or the two channels protect their users differently.
-header() { curl -sI "$1" | tr -d '\r' | awk -v k="$2" 'BEGIN{IGNORECASE=1} $0 ~ "^"k": " {sub("^"k": ","",$0); print}'; }
 check 'frames are refused'          "$(header "$BASE/" 'Content-Security-Policy')" "frame-ancestors 'none'"
 check 'X-Frame-Options is DENY'     "$(header "$BASE/" 'X-Frame-Options')" 'DENY'
 check 'content types are not sniffed' "$(header "$BASE/" 'X-Content-Type-Options')" 'nosniff'

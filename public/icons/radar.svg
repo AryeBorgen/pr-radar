@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="PR Radar">
+  <defs>
+    <linearGradient id="sweep" x1="256" y1="256" x2="256" y2="40" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#10b981" stop-opacity="0"/>
+      <stop offset="1" stop-color="#10b981" stop-opacity=".85"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="#0b1220"/>
+
+  <!-- Range rings. -->
+  <g fill="none" stroke="#1f3b31" stroke-width="10">
+    <circle cx="256" cy="256" r="176"/>
+    <circle cx="256" cy="256" r="116"/>
+    <circle cx="256" cy="256" r="56"/>
+  </g>
+
+  <!-- The sweep, wedge-shaped, fading behind the leading edge. -->
+  <path d="M256 256 L256 80 A176 176 0 0 1 380 132 Z" fill="url(#sweep)"/>
+  <line x1="256" y1="256" x2="256" y2="80" stroke="#34d399" stroke-width="12" stroke-linecap="round"/>
+
+  <!-- Three contacts: one merged, one waiting, one that needs attention. -->
+  <circle cx="326" cy="186" r="20" fill="#34d399"/>
+  <circle cx="182" cy="318" r="16" fill="#fbbf24"/>
+  <circle cx="330" cy="330" r="14" fill="#f87171"/>
+</svg>

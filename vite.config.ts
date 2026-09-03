@@ -19,5 +19,10 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    // Vitest's default pattern would also collect tests/*.spec.ts, which are
+    // Playwright specs and cannot run under it. Naming the source tree keeps the
+    // two suites from colliding: `npm test` is the unit tests, `npm run
+    // test:browser` is the browser ones.
+    include: ['src/**/*.test.ts'],
   },
 })

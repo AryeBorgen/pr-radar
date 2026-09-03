@@ -31,6 +31,11 @@ const TYPES = {
   '.png': 'image/png',
   '.ico': 'image/x-icon',
   '.woff2': 'font/woff2',
+  // Not derivable from the extension by any convention, and a browser is
+  // entitled to refuse a manifest served as something else.
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
+  '.webp': 'image/webp',
+  '.txt': 'text/plain; charset=utf-8',
 }
 
 const args = process.argv.slice(2)
@@ -91,13 +96,17 @@ const server = createServer((request, response) => {
 
   const file = found ? candidate : join(root, 'index.html')
 
-  // Hashed asset names make the bundle immutable; index.html must not be, or a
-  // deploy would keep serving the old app from cache.
+  // Only /assets/ carries a content hash in the filename, and only a hashed name
+  // is safe to keep forever. Everything else has a stable URL whose contents
+  // change on every deploy: index.html, the manifest, and -- the one that bites
+  // -- sw.js. A service worker cached for a year is a service worker that can
+  // never be replaced, which strands a visitor on an old build with no way back.
+  // nginx draws the line in the same place, by location.
   response.writeHead(200, {
     'Content-Type': TYPES[extname(file)] ?? 'application/octet-stream',
-    'Cache-Control': file.endsWith('index.html')
-      ? 'no-cache'
-      : 'public, max-age=31536000, immutable',
+    'Cache-Control': path.startsWith('/assets/')
+      ? 'public, max-age=31536000, immutable'
+      : 'no-cache',
     ...SECURITY_HEADERS,
   })
   createReadStream(file).pipe(response)
