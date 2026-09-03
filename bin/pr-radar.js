@@ -59,10 +59,22 @@ const server = createServer((request, response) => {
   // normalize collapses `..` before it is joined, so a crafted path cannot
   // escape the bundle directory.
   const candidate = join(root, normalize(path))
-  const file =
+  const found =
     candidate.startsWith(root) && existsSync(candidate) && statSync(candidate).isFile()
-      ? candidate
-      : join(root, 'index.html')
+
+  // A hashed asset name is never a route, so a miss under /assets/ is a missing
+  // file rather than a deep link. Falling back to index.html there would answer
+  // a <script> with markup, and the browser would report a syntax error inside
+  // the HTML instead of the file that is actually absent. nginx is configured
+  // the same way (`try_files $uri =404`); the two install channels have to
+  // agree about what a missing file means.
+  if (!found && path.startsWith('/assets/')) {
+    response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' })
+    response.end('Not found\n')
+    return
+  }
+
+  const file = found ? candidate : join(root, 'index.html')
 
   // Hashed asset names make the bundle immutable; index.html must not be, or a
   // deploy would keep serving the old app from cache.

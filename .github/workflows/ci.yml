@@ -18,3 +18,6 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      # `npx pr-radar` is a documented install path, so it gets checked like
+      # one: packed, installed from the tarball and talked to over HTTP.
+      - run: scripts/cli-smoke.sh
