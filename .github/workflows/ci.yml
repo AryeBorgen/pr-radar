@@ -5,12 +5,23 @@ on:
     branches: [main]
   pull_request:
 
+# Nothing here writes anything. Stating that explicitly means a compromised
+# dependency in the build cannot reach for a token that would let it push.
+permissions:
+  contents: read
+
+# A superseded run is wasted minutes and a confusing status; let a newer push
+# cancel it. Never on main, where every commit's result is worth keeping.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
@@ -21,3 +32,11 @@ jobs:
       # `npx pr-radar` is a documented install path, so it gets checked like
       # one: packed, installed from the tarball and talked to over HTTP.
       - run: scripts/cli-smoke.sh
+
+  # Pinning to SHAs only helps if every workflow actually does it, and that is
+  # the kind of rule a hurried edit breaks silently. Check it mechanically.
+  workflows:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - run: scripts/lint-workflows.sh
