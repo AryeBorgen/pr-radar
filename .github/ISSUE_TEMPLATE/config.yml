@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/AryeBorgen/pr-radar/security/advisories/new
+    about: Report privately here instead. Please do not open a public issue for anything exploitable.
+  - name: How do I get a token?
+    url: https://github.com/AryeBorgen/pr-radar#start-here
+    about: Three steps in the README, and public repositories need no scopes at all.
