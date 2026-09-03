@@ -15,18 +15,14 @@ function pr(overrides: Partial<PullRequest> = {}): PullRequest {
     isDraft: false,
     createdAt: new Date(NOW - day).toISOString(),
     updatedAt: new Date(NOW - day).toISOString(),
+    headSha: 'abc123',
     author: { login: 'alice', avatarUrl: '' },
     labels: [],
     assignees: [],
     requestedReviewers: [],
     reviewedBy: [],
-    reviewDecision: null,
+    reviewDecision: 'NONE',
     checkState: 'NONE',
-    comments: 0,
-    additions: 0,
-    deletions: 0,
-    changedFiles: 0,
-    mergeable: 'MERGEABLE',
     ...overrides,
   }
 }
@@ -141,6 +137,21 @@ describe('applyQuery', () => {
     const recent = pr({ id: 'recent', updatedAt: new Date(NOW - day).toISOString() })
     expect(run([old, recent], '').map((p) => p.id)).toEqual(['recent', 'old'])
     expect(run([old, recent], 'sort:updated-asc').map((p) => p.id)).toEqual(['old', 'recent'])
+  })
+
+  it('distinguishes a status not yet loaded from a status of none', () => {
+    const loaded = pr({ id: 'loaded', reviewDecision: 'NONE', checkState: 'NONE' })
+    const loading = pr({ id: 'loading', reviewDecision: 'UNKNOWN', checkState: 'UNKNOWN' })
+    expect(run([loaded, loading], 'review:none').map((p) => p.id)).toEqual(['loaded'])
+    expect(run([loaded, loading], 'review:unknown').map((p) => p.id)).toEqual(['loading'])
+    expect(run([loaded, loading], 'checks:none').map((p) => p.id)).toEqual(['loaded'])
+    expect(run([loaded, loading], 'checks:unknown').map((p) => p.id)).toEqual(['loading'])
+  })
+
+  it('maps review:required onto the REVIEW_REQUIRED state', () => {
+    const waiting = pr({ reviewDecision: 'REVIEW_REQUIRED' })
+    const approved = pr({ reviewDecision: 'APPROVED' })
+    expect(run([waiting, approved], 'review:required')).toEqual([waiting])
   })
 
   it('returns everything for an empty query', () => {

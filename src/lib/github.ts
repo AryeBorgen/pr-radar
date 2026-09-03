@@ -1,6 +1,20 @@
-import type { Actor, CheckState, PullRequest, RepoRef } from '../types'
+import type { Actor, CheckState, Enrichment, PullRequest, RepoRef, ReviewDecision } from '../types'
 
-const GRAPHQL_URL = 'https://api.github.com/graphql'
+const API = 'https://api.github.com'
+
+/**
+ * Why REST and not GraphQL.
+ *
+ * GitHub's GraphQL endpoint sends no `Access-Control-Allow-Origin` header at
+ * all, so a browser cannot call it — the preflight fails and `fetch` rejects
+ * before any request is made. No client-side change fixes that; it would take a
+ * server to proxy, which is exactly what this app is built to avoid. The REST
+ * API does support CORS (`Access-Control-Allow-Origin: *`), so everything here
+ * goes through REST.
+ *
+ * The cost is that REST's pull-request list omits review decision and check
+ * state, so those are fetched per PR in a second pass. See `fetchEnrichment`.
+ */
 
 export class GitHubError extends Error {
   constructor(
@@ -12,266 +26,294 @@ export class GitHubError extends Error {
   }
 }
 
-/**
- * Fields for one pull request. Every `first:` here is a node-count multiplier
- * against GitHub's 500,000-node ceiling per request, so each one is set to what
- * the UI actually reads rather than to the maximum allowed.
- *
- * `first: 100` on the PR connection is GitHub's per-page ceiling; a repo with
- * more open PRs is truncated to the 100 most recently updated, which is what
- * the dashboard sorts by anyway.
- */
-const PR_FIELDS = `
-  id
-  number
-  title
-  url
-  isDraft
-  createdAt
-  updatedAt
-  additions
-  deletions
-  changedFiles
-  mergeable
-  reviewDecision
-  author { login avatarUrl }
-  labels(first: 10) { nodes { name color } }
-  assignees(first: 5) { nodes { login avatarUrl } }
-  reviewRequests(first: 10) {
-    nodes {
-      requestedReviewer {
-        __typename
-        ... on User { login }
-        ... on Team { name }
-      }
-    }
+async function rest<T>(token: string, path: string): Promise<T> {
+  let response: Response
+  try {
+    response = await fetch(`${API}${path}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    })
+  } catch {
+    // `fetch` rejects only for network-level failures: offline, DNS, blocked by
+    // an extension, or a CORS preflight that never passed.
+    throw new GitHubError(
+      'Could not reach api.github.com. Check your connection, and whether a browser extension is blocking the request.',
+    )
   }
-  reviews(first: 20) { nodes { author { login } } }
-  comments { totalCount }
-  commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
-`
-
-function buildQuery(repos: RepoRef[]): string {
-  const parts = repos.map(
-    (repo, i) => `
-    r${i}: repository(owner: ${JSON.stringify(repo.owner)}, name: ${JSON.stringify(repo.name)}) {
-      nameWithOwner
-      pullRequests(states: OPEN, first: 100, orderBy: { field: UPDATED_AT, direction: DESC }) {
-        nodes { ${PR_FIELDS} }
-      }
-    }`,
-  )
-  return `query { viewer { login } ${parts.join('\n')} }`
-}
-
-interface RawPr {
-  id: string
-  number: number
-  title: string
-  url: string
-  isDraft: boolean
-  createdAt: string
-  updatedAt: string
-  additions: number
-  deletions: number
-  changedFiles: number
-  mergeable: string
-  reviewDecision: string | null
-  author: Actor | null
-  labels: { nodes: { name: string; color: string }[] }
-  assignees: { nodes: Actor[] }
-  reviewRequests: { nodes: { requestedReviewer: { login?: string; name?: string } | null }[] }
-  reviews: { nodes: { author: { login: string } | null }[] }
-  comments: { totalCount: number }
-  commits: { nodes: { commit: { statusCheckRollup: { state: string } | null } }[] }
-}
-
-/**
- * GitHub reports more rollup states than are worth six separate icons. ERROR is
- * a failure by any practical reading, and EXPECTED means a required check has
- * been announced but not yet reported — pending.
- */
-function toCheckState(state: string | undefined): CheckState {
-  switch (state) {
-    case 'SUCCESS':
-      return 'SUCCESS'
-    case 'FAILURE':
-    case 'ERROR':
-      return 'FAILURE'
-    case 'PENDING':
-    case 'EXPECTED':
-      return 'PENDING'
-    default:
-      return 'NONE'
-  }
-}
-
-function normalise(raw: RawPr, repo: string): PullRequest {
-  const decision = raw.reviewDecision
-  return {
-    id: raw.id,
-    number: raw.number,
-    title: raw.title,
-    url: raw.url,
-    repo,
-    isDraft: raw.isDraft,
-    createdAt: raw.createdAt,
-    updatedAt: raw.updatedAt,
-    author: raw.author,
-    labels: raw.labels.nodes,
-    assignees: raw.assignees.nodes,
-    requestedReviewers: raw.reviewRequests.nodes
-      .map((n) => n.requestedReviewer?.login ?? n.requestedReviewer?.name)
-      .filter((n): n is string => Boolean(n)),
-    reviewedBy: [
-      ...new Set(
-        raw.reviews.nodes.map((n) => n.author?.login).filter((l): l is string => Boolean(l)),
-      ),
-    ],
-    reviewDecision:
-      decision === 'APPROVED' || decision === 'CHANGES_REQUESTED' || decision === 'REVIEW_REQUIRED'
-        ? decision
-        : null,
-    checkState: toCheckState(raw.commits.nodes[0]?.commit.statusCheckRollup?.state),
-    comments: raw.comments.totalCount,
-    additions: raw.additions,
-    deletions: raw.deletions,
-    changedFiles: raw.changedFiles,
-    mergeable:
-      raw.mergeable === 'MERGEABLE' || raw.mergeable === 'CONFLICTING' ? raw.mergeable : 'UNKNOWN',
-  }
-}
-
-export interface FetchResult {
-  viewer: string
-  pullRequests: PullRequest[]
-  /** Repositories that failed to load, with GitHub's reason. */
-  errors: { repo: string; message: string }[]
-}
-
-async function graphql<T>(token: string, query: string): Promise<{ data: T; errors?: GraphQLError[] }> {
-  const response = await fetch(GRAPHQL_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ query }),
-  })
 
   if (response.status === 401) {
     throw new GitHubError('GitHub rejected the token. It may be expired or revoked.', 401)
   }
+  if (response.status === 403 || response.status === 429) {
+    if (response.headers.get('x-ratelimit-remaining') === '0') {
+      const reset = Number(response.headers.get('x-ratelimit-reset'))
+      const when = Number.isFinite(reset) ? new Date(reset * 1000).toLocaleTimeString() : 'shortly'
+      throw new GitHubError(`GitHub rate limit reached. It resets at ${when}.`, response.status)
+    }
+    throw new GitHubError(
+      'GitHub refused the request. The token may lack the scopes for this repository.',
+      response.status,
+    )
+  }
   if (!response.ok) {
     throw new GitHubError(`GitHub returned ${response.status} ${response.statusText}`, response.status)
   }
-  return response.json()
+  return response.json() as Promise<T>
 }
 
-interface GraphQLError {
-  type?: string
-  message: string
-  path?: (string | number)[]
+/* ------------------------------------------------------------------ listing */
+
+interface RawUser {
+  login: string
+  avatar_url: string
 }
 
-async function fetchBatch(token: string, repos: RepoRef[]): Promise<FetchResult> {
-  const body = await graphql<Record<string, unknown>>(token, buildQuery(repos))
+interface RawPull {
+  id: number
+  number: number
+  title: string
+  html_url: string
+  draft?: boolean
+  created_at: string
+  updated_at: string
+  user: RawUser | null
+  head: { sha: string }
+  labels: { name: string; color: string }[]
+  assignees: RawUser[] | null
+  requested_reviewers: RawUser[] | null
+  requested_teams: { name: string }[] | null
+}
 
-  const pullRequests: PullRequest[] = []
-  const errors: { repo: string; message: string }[] = []
+function toActor(user: RawUser): Actor {
+  return { login: user.login, avatarUrl: user.avatar_url }
+}
 
-  repos.forEach((ref, i) => {
-    const slug = `${ref.owner}/${ref.name}`
-    const node = body.data?.[`r${i}`] as
-      | { nameWithOwner: string; pullRequests: { nodes: RawPr[] } }
-      | null
-      | undefined
-    if (!node) {
-      const reason = body.errors?.find((e) => e.path?.[0] === `r${i}`)
-      errors.push({ repo: slug, message: reason?.message ?? 'Repository not found or not accessible.' })
-      return
+function normalise(raw: RawPull, repo: string): PullRequest {
+  return {
+    id: String(raw.id),
+    number: raw.number,
+    title: raw.title,
+    url: raw.html_url,
+    repo,
+    headSha: raw.head.sha,
+    isDraft: Boolean(raw.draft),
+    createdAt: raw.created_at,
+    updatedAt: raw.updated_at,
+    author: raw.user ? toActor(raw.user) : null,
+    labels: raw.labels.map((label) => ({ name: label.name, color: label.color })),
+    assignees: (raw.assignees ?? []).map(toActor),
+    requestedReviewers: [
+      ...(raw.requested_reviewers ?? []).map((user) => user.login),
+      ...(raw.requested_teams ?? []).map((team) => team.name),
+    ],
+    reviewedBy: [],
+    reviewDecision: 'UNKNOWN',
+    checkState: 'UNKNOWN',
+  }
+}
+
+export interface FetchResult {
+  pullRequests: PullRequest[]
+  /** Repositories that failed to load, with the reason. */
+  errors: { repo: string; message: string }[]
+}
+
+/**
+ * Requests in flight at once.
+ *
+ * One request per repository is unavoidable on REST, so a large list means many
+ * requests. Six at a time keeps a 100-repository list moving without tripping
+ * GitHub's secondary rate limits, which react to burst concurrency rather than
+ * to the hourly quota.
+ */
+const MAX_CONCURRENT_REQUESTS = 6
+
+/** Run `task` over `items`, at most `limit` at a time, preserving input order. */
+async function mapLimit<T, R>(
+  items: T[],
+  limit: number,
+  task: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length)
+  let next = 0
+
+  async function worker(): Promise<void> {
+    while (next < items.length) {
+      const index = next++
+      results[index] = await task(items[index])
     }
-    for (const raw of node.pullRequests.nodes) {
-      pullRequests.push(normalise(raw, node.nameWithOwner))
+  }
+
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
+  return results
+}
+
+/**
+ * Fetch every open PR across `repos`.
+ *
+ * A repository that fails is reported by name and does not take the others with
+ * it, so one typo or one revoked grant cannot blank the dashboard.
+ */
+export async function fetchPullRequests(token: string, repos: RepoRef[]): Promise<FetchResult> {
+  if (repos.length === 0) return { pullRequests: [], errors: [] }
+
+  const outcomes = await mapLimit(repos, MAX_CONCURRENT_REQUESTS, async (ref) => {
+    const slug = `${ref.owner}/${ref.name}`
+    try {
+      const raw = await rest<RawPull[]>(
+        token,
+        `/repos/${ref.owner}/${ref.name}/pulls?state=open&per_page=100&sort=updated&direction=desc`,
+      )
+      return { pulls: raw.map((pull) => normalise(pull, slug)) }
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : 'Request failed.'
+      return { error: { repo: slug, message } }
     }
   })
 
-  // Errors with no path point at the request as a whole, not a single repo.
-  for (const error of body.errors ?? []) {
-    if (!error.path) errors.push({ repo: '', message: error.message })
+  return {
+    pullRequests: outcomes.flatMap((outcome) => outcome.pulls ?? []),
+    errors: outcomes.flatMap((outcome) => (outcome.error ? [outcome.error] : [])),
   }
+}
 
-  const viewer = (body.data?.viewer as { login: string } | undefined)?.login ?? ''
-  return { viewer, pullRequests, errors }
+/* --------------------------------------------------------------- enrichment */
+
+interface RawReview {
+  user: RawUser | null
+  state: string
+  submitted_at: string | null
 }
 
 /**
- * Repositories per request, and requests in flight at once.
+ * Collapse a review list into a single decision.
  *
- * A single query over every repository is tempting but breaks twice over: at
- * roughly 4,700 nodes per repository, a list of more than ~100 repositories
- * exceeds GitHub's 500,000-node limit and is rejected outright — and adding a
- * whole organisation can add 100 repositories in one click. Batching keeps each
- * request small; the concurrency cap keeps a large list from tripping GitHub's
- * secondary rate limits.
+ * Only the most recent decisive review per person counts — GitHub works the
+ * same way, so an approval that follows a change request supersedes it. Comment
+ * and pending reviews express no verdict and are skipped entirely.
  */
-const REPOS_PER_REQUEST = 10
-const MAX_CONCURRENT_REQUESTS = 3
+export function decideReview(
+  reviews: RawReview[],
+  hasOutstandingRequest: boolean,
+): { reviewedBy: string[]; reviewDecision: ReviewDecision } {
+  const latest = new Map<string, string>()
+  const reviewedBy = new Set<string>()
 
-function chunk<T>(items: T[], size: number): T[][] {
-  const batches: T[][] = []
-  for (let i = 0; i < items.length; i += size) batches.push(items.slice(i, i + size))
-  return batches
+  for (const review of reviews) {
+    const login = review.user?.login
+    if (!login) continue
+    reviewedBy.add(login)
+    if (review.state === 'APPROVED' || review.state === 'CHANGES_REQUESTED') {
+      latest.set(login, review.state)
+    } else if (review.state === 'DISMISSED') {
+      latest.delete(login)
+    }
+  }
+
+  const verdicts = [...latest.values()]
+  const reviewDecision: ReviewDecision = verdicts.includes('CHANGES_REQUESTED')
+    ? 'CHANGES_REQUESTED'
+    : verdicts.includes('APPROVED')
+      ? 'APPROVED'
+      : hasOutstandingRequest
+        ? 'REVIEW_REQUIRED'
+        : 'NONE'
+
+  return { reviewedBy: [...reviewedBy], reviewDecision }
+}
+
+interface RawCheckRun {
+  status: string
+  conclusion: string | null
+}
+
+const FAILING_CONCLUSIONS = new Set([
+  'failure',
+  'timed_out',
+  'cancelled',
+  'action_required',
+  'startup_failure',
+])
+
+/**
+ * Collapse check runs into one state. A run that has not completed outranks a
+ * passing one, and any failure outranks everything: the dashboard exists to
+ * surface the bad news, so it must never round a failure up to green.
+ */
+export function rollupChecks(runs: RawCheckRun[]): CheckState {
+  if (runs.length === 0) return 'NONE'
+  if (runs.some((run) => run.conclusion && FAILING_CONCLUSIONS.has(run.conclusion))) return 'FAILURE'
+  if (runs.some((run) => run.status !== 'completed')) return 'PENDING'
+  return 'SUCCESS'
 }
 
 /**
- * Fetch every open PR across `repos`, batching as needed.
+ * Fetch the review decision and check state for one pull request.
  *
- * A repository the token cannot see fails on its own alias rather than failing
- * the whole query: GraphQL nulls that field and reports it in `errors`, so one
- * typo or one revoked grant does not blank the dashboard.
+ * Two requests, deliberately: the single-PR endpoint would also give line
+ * counts and mergeability, but that is a third round trip per PR for cosmetic
+ * fields, and on a list of this size the request budget is better spent on the
+ * two signals that drive buckets.
  */
-export async function fetchPullRequests(token: string, repos: RepoRef[]): Promise<FetchResult> {
-  if (repos.length === 0) return { viewer: '', pullRequests: [], errors: [] }
+export async function fetchEnrichment(token: string, pr: PullRequest): Promise<Enrichment> {
+  const [owner, name] = pr.repo.split('/')
 
-  const batches = chunk(repos, REPOS_PER_REQUEST)
-  const results: FetchResult[] = []
-
-  for (const group of chunk(batches, MAX_CONCURRENT_REQUESTS)) {
-    results.push(...(await Promise.all(group.map((batch) => fetchBatch(token, batch)))))
-  }
+  const [reviews, checks] = await Promise.all([
+    rest<RawReview[]>(token, `/repos/${owner}/${name}/pulls/${pr.number}/reviews?per_page=100`),
+    rest<{ check_runs: RawCheckRun[] }>(
+      token,
+      `/repos/${owner}/${name}/commits/${pr.headSha}/check-runs?per_page=100`,
+    ),
+  ])
 
   return {
-    viewer: results.find((result) => result.viewer)?.viewer ?? '',
-    pullRequests: results.flatMap((result) => result.pullRequests),
-    errors: results.flatMap((result) => result.errors),
+    ...decideReview(reviews, pr.requestedReviewers.length > 0),
+    checkState: rollupChecks(checks.check_runs),
   }
 }
 
-/** Expand an org or user login into its non-archived repositories. */
-export async function fetchOwnerRepos(token: string, login: string): Promise<RepoRef[]> {
-  const query = `query {
-    repositoryOwner(login: ${JSON.stringify(login)}) {
-      repositories(first: 100, isArchived: false, orderBy: { field: PUSHED_AT, direction: DESC }) {
-        nodes { name owner { login } }
-      }
-    }
-  }`
-  const body = await graphql<{
-    repositoryOwner: { repositories: { nodes: { name: string; owner: { login: string } }[] } } | null
-  }>(token, query)
-
-  const owner = body.data?.repositoryOwner
-  if (!owner) {
-    throw new GitHubError(`No user or organisation named "${login}" is visible to this token.`)
-  }
-  return owner.repositories.nodes.map((n) => ({ owner: n.owner.login, name: n.name }))
-}
+/* -------------------------------------------------------------------- setup */
 
 /** Verify a token and return the login it belongs to. */
 export async function fetchViewer(token: string): Promise<string> {
-  const body = await graphql<{ viewer: { login: string } }>(token, 'query { viewer { login } }')
-  const login = body.data?.viewer?.login
-  if (!login) throw new GitHubError('Token accepted but no user could be read from it.')
-  return login
+  const user = await rest<{ login: string }>(token, '/user')
+  if (!user.login) throw new GitHubError('Token accepted but no user could be read from it.')
+  return user.login
+}
+
+interface RawRepo {
+  name: string
+  archived: boolean
+  owner: { login: string }
+}
+
+/**
+ * Expand an org or user login into its non-archived repositories. The org
+ * endpoint is tried first and a 404 falls through to the user endpoint, because
+ * nothing in a bare login says which of the two it is.
+ */
+export async function fetchOwnerRepos(token: string, login: string): Promise<RepoRef[]> {
+  const query = 'per_page=100&sort=pushed&direction=desc'
+  let repos: RawRepo[]
+
+  try {
+    repos = await rest<RawRepo[]>(token, `/orgs/${login}/repos?type=all&${query}`)
+  } catch (cause) {
+    if (!(cause instanceof GitHubError) || cause.status !== 404) throw cause
+    try {
+      repos = await rest<RawRepo[]>(token, `/users/${login}/repos?type=owner&${query}`)
+    } catch (inner) {
+      if (inner instanceof GitHubError && inner.status === 404) {
+        throw new GitHubError(`No user or organisation named "${login}" is visible to this token.`)
+      }
+      throw inner
+    }
+  }
+
+  return repos
+    .filter((repo) => !repo.archived)
+    .map((repo) => ({ owner: repo.owner.login, name: repo.name }))
 }

@@ -5,6 +5,8 @@ interface Props {
   shown: number
   total: number
   fetching: boolean
+  /** PRs whose review and check state are still being fetched. */
+  pending: number
   onRefresh: () => void
 }
 
@@ -17,6 +19,7 @@ export default function FilterBar({
   shown,
   total,
   fetching,
+  pending,
   onRefresh,
 }: Props) {
   return (
@@ -50,6 +53,14 @@ export default function FilterBar({
           {fetching ? 'Refreshing…' : 'Refresh'}
         </button>
       </div>
+
+      {pending > 0 && (
+        <p className="mt-1.5 text-xs text-neutral-500 dark:text-neutral-400">
+          Loading review and check status for {pending} more{' '}
+          {pending === 1 ? 'pull request' : 'pull requests'} — counts for the review and CI
+          views are still settling.
+        </p>
+      )}
 
       {unknown.length > 0 && (
         <p className="mt-1.5 text-xs text-amber-700 dark:text-amber-500">

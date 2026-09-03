@@ -4,10 +4,21 @@ export interface RepoRef {
   name: string
 }
 
-export type ReviewDecision = 'APPROVED' | 'CHANGES_REQUESTED' | 'REVIEW_REQUIRED' | null
+/**
+ * Review and check state both carry an `UNKNOWN` member, and that is load-bearing
+ * rather than defensive. The REST list endpoint does not report either one, so
+ * they arrive in a second pass per pull request. `UNKNOWN` means "not answered
+ * yet" and is deliberately distinct from `NONE` ("answered: there are none"), so
+ * a filter is never silently wrong about a PR whose status has not arrived.
+ */
+export type ReviewDecision =
+  | 'APPROVED'
+  | 'CHANGES_REQUESTED'
+  | 'REVIEW_REQUIRED'
+  | 'NONE'
+  | 'UNKNOWN'
 
-/** GitHub's statusCheckRollup, flattened to the four states we render. */
-export type CheckState = 'SUCCESS' | 'FAILURE' | 'PENDING' | 'NONE'
+export type CheckState = 'SUCCESS' | 'FAILURE' | 'PENDING' | 'NONE' | 'UNKNOWN'
 
 export interface Actor {
   login: string
@@ -21,8 +32,9 @@ export interface Label {
 }
 
 /**
- * One pull request, normalised out of the GraphQL response. Everything the UI
- * and the filter language read lives here — nothing reaches into raw API shapes.
+ * One pull request, normalised out of the REST response. Everything the UI and
+ * the filter language read lives here — nothing reaches into raw API shapes,
+ * which is what kept the move off GraphQL confined to one module.
  */
 export interface PullRequest {
   id: string
@@ -30,6 +42,8 @@ export interface PullRequest {
   title: string
   url: string
   repo: string
+  /** Head commit SHA: identifies what the review and check state belong to. */
+  headSha: string
   isDraft: boolean
   createdAt: string
   updatedAt: string
@@ -38,15 +52,17 @@ export interface PullRequest {
   assignees: Actor[]
   /** Users and teams with a review still outstanding. Teams appear as their name. */
   requestedReviewers: string[]
-  /** Logins that have already submitted any review. */
+  /** Logins that have already submitted a review. Empty until enriched. */
   reviewedBy: string[]
   reviewDecision: ReviewDecision
   checkState: CheckState
-  comments: number
-  additions: number
-  deletions: number
-  changedFiles: number
-  mergeable: 'MERGEABLE' | 'CONFLICTING' | 'UNKNOWN'
+}
+
+/** The per-PR state fetched in the second pass. */
+export interface Enrichment {
+  reviewedBy: string[]
+  reviewDecision: ReviewDecision
+  checkState: CheckState
 }
 
 /** A named saved filter. Buckets are nothing but a query string with a label. */

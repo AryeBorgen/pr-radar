@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { fetchPullRequests } from './lib/github'
+import { fetchPullRequests, fetchViewer } from './lib/github'
+import { useEnrichment } from './lib/useEnrichment'
 import { applyQuery, parseQuery } from './lib/filter'
 import {
   DEFAULT_SETTINGS,
@@ -32,6 +33,13 @@ export default function App() {
   // Repos are the query key, so adding or removing one refetches immediately.
   const repoIds = settings.repos.map(repoKey).sort().join(',')
 
+  const viewerQuery = useQuery({
+    queryKey: ['viewer', token],
+    queryFn: () => fetchViewer(token),
+    enabled: Boolean(token),
+    staleTime: Infinity,
+  })
+
   const query = useQuery({
     queryKey: ['pull-requests', repoIds],
     queryFn: () => fetchPullRequests(token, settings.repos),
@@ -39,8 +47,8 @@ export default function App() {
     refetchInterval: settings.refreshInterval > 0 ? settings.refreshInterval * 1000 : false,
   })
 
-  const prs = query.data?.pullRequests ?? []
-  const viewer = query.data?.viewer ?? ''
+  const { prs, pending } = useEnrichment(token, query.data?.pullRequests)
+  const viewer = viewerQuery.data ?? ''
 
   /*
    * `now` is pinned to each fetch rather than read per render, so relative ages
@@ -121,6 +129,7 @@ export default function App() {
             shown={visible.length}
             total={prs.length}
             fetching={query.isFetching}
+            pending={pending}
             onRefresh={() => query.refetch()}
           />
         </>

@@ -1,6 +1,6 @@
 import type { PullRequest } from '../types'
 import { absoluteTime, relativeAge } from '../lib/time'
-import { CheckIcon, CommentIcon, ConflictIcon, PrIcon } from './icons'
+import { CheckIcon, PrIcon } from './icons'
 
 /** Perceived-luminance pick so a label's text stays legible on its own colour. */
 function labelTextColor(hex: string): string {
@@ -12,6 +12,7 @@ function labelTextColor(hex: string): string {
   return 0.299 * r + 0.587 * g + 0.114 * b > 150 ? '#1f2328' : '#ffffff'
 }
 
+/** NONE and UNKNOWN get no badge: absence of a verdict is not a verdict. */
 const REVIEW_BADGE: Record<string, { text: string; className: string }> = {
   APPROVED: {
     text: 'Approved',
@@ -79,9 +80,6 @@ export default function PrRow({ pr, now }: { pr: PullRequest; now: number }) {
           )}
           <span aria-hidden="true">·</span>
           <span title={absoluteTime(pr.updatedAt)}>updated {relativeAge(pr.updatedAt, now)} ago</span>
-          <span aria-hidden="true">·</span>
-          <span className="text-emerald-600 dark:text-emerald-500">+{pr.additions}</span>
-          <span className="text-red-600 dark:text-red-500">−{pr.deletions}</span>
           {pr.requestedReviewers.length > 0 && (
             <>
               <span aria-hidden="true">·</span>
@@ -97,14 +95,7 @@ export default function PrRow({ pr, now }: { pr: PullRequest; now: number }) {
             {badge.text}
           </span>
         )}
-        {pr.mergeable === 'CONFLICTING' && <ConflictIcon />}
         <CheckIcon state={pr.checkState} />
-        {pr.comments > 0 && (
-          <span className="flex items-center gap-1 text-xs text-neutral-500 dark:text-neutral-400">
-            <CommentIcon />
-            {pr.comments}
-          </span>
-        )}
         <div className="flex -space-x-1">
           {pr.assignees.slice(0, 3).map((assignee) => (
             <img

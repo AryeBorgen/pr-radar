@@ -73,11 +73,11 @@ The trade-off is worth stating plainly:
 | `label:` | label name | Quote names with spaces: `label:"needs design"` |
 | `repo:` | `owner/name` | |
 | `org:` | owner login | |
-| `review:` | `approved`, `changes-requested`, `required`, `none` | |
-| `checks:` | `success`, `failure`, `pending`, `none` | `status:` is an alias |
+| `review:` | `approved`, `changes-requested`, `required`, `none`, `unknown` | `unknown` = not fetched yet, which is not the same as `none` |
+| `checks:` | `success`, `failure`, `pending`, `none`, `unknown` | `status:` is an alias |
 | `no:` | `label`, `assignee`, `reviewer` | |
 | `updated:` / `created:` | `<7d`, `>2026-01-01`, `<=12h`, `>2w` | An age means *that long ago*, so `updated:<7d` is "untouched for over a week" |
-| `sort:` | `updated-desc` (default), `updated-asc`, `created-desc`, `created-asc`, `comments-desc`, `added-desc` | |
+| `sort:` | `updated-desc` (default), `updated-asc`, `created-desc`, `created-asc` | |
 
 Prefix any qualifier with `-` to negate it. Bare words match the title,
 repository and number. Repeated qualifiers are OR'd (`author:a author:b` means
@@ -85,11 +85,35 @@ either), except `label:`, which is AND'd — the same as GitHub. A qualifier tha
 is not supported is listed under the filter box rather than silently ignored,
 so a filter never quietly lies about what it matched.
 
+## Why REST, and why the list fills in twice
+
+GitHub's GraphQL API would answer all of this in one request, and it is the
+obvious choice — right up until you call it from a browser. The GraphQL endpoint
+sends no `Access-Control-Allow-Origin` header at all, so the CORS preflight
+fails and `fetch` rejects before a request is ever made. No client-side change
+fixes that; it would take a server to proxy, which is the one thing this app is
+built to avoid. The REST API does support CORS, so everything here goes through
+REST.
+
+The cost is that REST's pull-request list omits two things the dashboard cares
+about: whether a PR is approved, and whether its checks pass. Those are fetched
+per pull request in a second pass, which is why the list appears immediately and
+then fills in. While that is happening the filter bar says so, because a bucket
+count that depends on data still in flight should not present itself as final.
+State that has not arrived is `UNKNOWN`, which is deliberately distinct from
+`NONE` — so `review:none` and `review:unknown` mean different things, and a
+filter is never quietly wrong about a PR it has not finished loading.
+
 ## Limits
 
 - 100 open PRs per repository per refresh, most recently updated first.
-- One GraphQL request covers every repository in your list, so the practical
-  ceiling is GitHub's 5,000 points/hour — far more than polling needs.
+- One request per repository for the list, six at a time, plus two per pull
+  request for review and check state.
+- The second pass is cached by head SHA, so a refresh that finds nothing new
+  costs no requests at all and a new commit re-fetches exactly one PR. That is
+  what makes a two-minute poll affordable against the 5,000 requests/hour limit.
+- Check state comes from check runs (GitHub Actions and other check-run apps).
+  Legacy commit statuses are not read.
 - A repository the token cannot see fails on its own and is reported by name;
   it does not blank the rest of the dashboard.
 

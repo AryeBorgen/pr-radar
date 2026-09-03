@@ -1,3 +1,5 @@
+import type { CheckState } from '../types'
+
 /** Octicon-derived glyphs, inlined so the app ships no icon dependency. */
 
 const base = 'shrink-0'
@@ -17,8 +19,8 @@ export function PrIcon({ draft }: { draft: boolean }) {
   )
 }
 
-export function CheckIcon({ state }: { state: 'SUCCESS' | 'FAILURE' | 'PENDING' | 'NONE' }) {
-  if (state === 'NONE') return null
+export function CheckIcon({ state }: { state: CheckState }) {
+  if (state === 'NONE' || state === 'UNKNOWN') return null
 
   const look = {
     SUCCESS: { className: 'text-emerald-600 dark:text-emerald-500', label: 'All checks passed' },
@@ -47,31 +49,6 @@ export function CheckIcon({ state }: { state: 'SUCCESS' | 'FAILURE' | 'PENDING' 
     >
       <title>{look.label}</title>
       <path d={path} />
-    </svg>
-  )
-}
-
-export function CommentIcon() {
-  return (
-    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" className={base} fill="currentColor">
-      <path d="M1 2.75C1 1.784 1.784 1 2.75 1h10.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 13.25 12H9.06l-2.573 2.573A1.458 1.458 0 0 1 4 13.543V12H2.75A1.75 1.75 0 0 1 1 10.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h2a.75.75 0 0 1 .75.75v2.19l2.72-2.72a.75.75 0 0 1 .53-.22h3.75a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z" />
-    </svg>
-  )
-}
-
-export function ConflictIcon() {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      width="14"
-      height="14"
-      role="img"
-      aria-label="Merge conflict"
-      className={`${base} text-red-600 dark:text-red-500`}
-      fill="currentColor"
-    >
-      <title>Merge conflict</title>
-      <path d="M4.4 1.4a.75.75 0 1 0-1.1 1.02l.72.79a3.999 3.999 0 0 0-.77 6.28V13.4a2.25 2.25 0 1 0 1.5 0V9.49a4 4 0 0 0 1.98.53h1.06l-1.9-2.08a2.5 2.5 0 0 1-.14-4.63Zm-.65 13.1a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Zm8.25-1.87V9.99a4 4 0 0 0 .79-6.29l.72-.79a.75.75 0 1 0-1.11-1.01l-.73.8a3.99 3.99 0 0 0-4.62.55l1.07 1.17a2.5 2.5 0 1 1 3.38 3.66l1.07 1.17c.13-.11.25-.23.36-.35v3.83a2.25 2.25 0 1 0 1.5 0ZM12 14.5a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Z" />
     </svg>
   )
 }

@@ -27,22 +27,9 @@ export interface ParsedQuery {
   unknown: string[]
 }
 
-export type SortKey =
-  | 'updated-desc'
-  | 'updated-asc'
-  | 'created-desc'
-  | 'created-asc'
-  | 'comments-desc'
-  | 'added-desc'
+export type SortKey = 'updated-desc' | 'updated-asc' | 'created-desc' | 'created-asc'
 
-const SORT_KEYS: SortKey[] = [
-  'updated-desc',
-  'updated-asc',
-  'created-desc',
-  'created-asc',
-  'comments-desc',
-  'added-desc',
-]
+const SORT_KEYS: SortKey[] = ['updated-desc', 'updated-asc', 'created-desc', 'created-asc']
 
 /** Split on whitespace, but keep `label:"needs design"` in one piece. */
 export function tokenize(query: string): string[] {
@@ -200,9 +187,10 @@ function matchTerm(pr: PullRequest, term: Term, viewer: string, now: number): bo
       return pr.repo.toLowerCase() === value
     case 'org':
       return pr.repo.split('/')[0].toLowerCase() === value
-    case 'review':
-      if (value === 'none') return pr.reviewDecision === null
-      return pr.reviewDecision === value.replace('-', '_').toUpperCase()
+    case 'review': {
+      const wanted = value === 'required' ? 'review_required' : value
+      return pr.reviewDecision === wanted.replace(/-/g, '_').toUpperCase()
+    }
     case 'checks':
     case 'status':
       return pr.checkState === value.toUpperCase()
@@ -264,10 +252,6 @@ function sortPrs(prs: PullRequest[], sort: SortKey): PullRequest[] {
       return sorted.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
     case 'created-asc':
       return sorted.sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))
-    case 'comments-desc':
-      return sorted.sort((a, b) => b.comments - a.comments)
-    case 'added-desc':
-      return sorted.sort((a, b) => b.additions + b.deletions - (a.additions + a.deletions))
     default:
       return sorted.sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
   }
