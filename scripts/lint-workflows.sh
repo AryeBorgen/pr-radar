@@ -54,8 +54,32 @@ if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
   else
     fail 'every pinned SHA exists upstream'; show "$(printf "$bad")"
   fi
+
+  # The requirement reaches inside: a composite action that calls another by tag
+  # is refused just as a workflow would be, and the failure lands at run time
+  # with a message about an action this repository never mentions. Checking the
+  # first level catches the realistic case -- it is how a Pages deploy here was
+  # rejected for `actions/upload-artifact@v4`, which appears in no file.
+  nested=''
+  for pin in $(grep -ho 'uses: [^@]*@[0-9a-f]\{40\}' "$DIR"/*.yml | sed 's/uses: //' | sort -u); do
+    repo=${pin%@*}
+    sha=${pin##*@}
+    owner=$(printf '%s' "$repo" | cut -d/ -f1,2)
+    for f in action.yml action.yaml; do
+      body=$(gh api "repos/$owner/contents/$f?ref=$sha" --jq '.content' 2>/dev/null | base64 -d 2>/dev/null) || continue
+      [ -z "$body" ] && continue
+      loose=$(printf '%s' "$body" | grep -o 'uses: [^ ]*' | grep -v 'uses: \./' | grep -Ev '@[0-9a-f]{40}' || true)
+      [ -n "$loose" ] && nested="$nested$repo -> $(printf '%s' "$loose" | tr '\n' ' ')\n"
+      break
+    done
+  done
+  if [ -z "$nested" ]; then
+    pass 'no pinned action calls another one by tag'
+  else
+    fail 'no pinned action calls another one by tag'; show "$(printf "$nested")"
+  fi
 else
-  printf '  skip  every pinned SHA exists upstream (no authenticated gh)\n'
+  printf '  skip  upstream SHA and nested-action checks (no authenticated gh)\n'
 fi
 
 echo 'Permissions'
