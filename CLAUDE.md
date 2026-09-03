@@ -128,7 +128,9 @@ filter and the page cap bound it instead, whichever bites first.
 
 ## Verification
 
-`npm run typecheck && npm test && npm run build`.
+`npm run test:all` -- typecheck, unit tests, build, browser tests. Plus
+`scripts/cli-smoke.sh`, `scripts/lint-workflows.sh`, `docker/smoke.sh` and
+`scripts/site-smoke.sh`, all of which CI runs.
 
 **`typecheck` must be `tsc -b`, never `tsc --noEmit`.** The root `tsconfig.json`
 is a solution file with empty `files`, so `--noEmit` compiles nothing and passes
@@ -148,10 +150,17 @@ own `HEALTHCHECK` was failing. **A check that exercises a different path from
 the one that breaks is not a check.** Run it as `docker build -t pr-radar:x . &&
 docker/smoke.sh pr-radar:x`.
 
-**There is no checked-in browser suite.** Every UI change so far was verified
-with Playwright driving a real Chromium against a mocked `api.github.com`, and
-those scripts were not committed to keep Playwright out of the dependencies.
-That trade is now questionable — see open work.
+**There is a checked-in browser suite**, in `tests/`, run with
+`npm run test:browser`. It drives a real Chromium against the production bundle
+served by `bin/pr-radar.js`, not against the dev server, because the artefact
+users get is the one worth testing. Two rules hold it up:
+
+- `reuseExistingServer` is off and the port is 41730. The suite first ran green
+  against a container still listening on 4173 from an earlier session -- eight
+  tests passing against the previous commit's bundle. **A suite that quietly
+  tests a stale artefact is worse than one that fails.**
+- `tests/reachability.spec.ts` deliberately does not mock GitHub, for the reason
+  below. It is what corrected fact 1 above.
 
 Two bugs the browser runs caught that unit tests could not: `<img src="">` when
 an avatar is missing (React warns; the browser may re-request the page), and the
@@ -178,27 +187,27 @@ bin/pr-radar.js      dependency-free static server, so `npx pr-radar` works
 
 ## Open work, roughly in order of value
 
-1. **Run the Docker workflow on GitHub.** The image itself is no longer
-   unproven: it has been built and probed locally on both `arm64` and `amd64`
-   by `docker/smoke.sh`, and `docker-compose.yml` has been brought up with
-   `--wait`. What has still never executed is `.github/workflows/docker.yml`,
-   so the first PR is the real test of the workflow — not of the image.
-2. **Publish to npm.** `package.json` has `bin`, `files`, `engines` and a
-   `prepublishOnly` gate; the server is verified locally (MIME types, cache
-   headers, path traversal). Nobody has run `npm publish`, and the README tells
-   people to `npx pr-radar`, so until it is published that instruction is a lie.
-   The Docker image reference `ghcr.io/aryeborgen/pr-radar` is likewise not real
-   until the workflow has pushed it once.
-3. **A checked-in browser test suite.** The Playwright scripts proved their
-   worth repeatedly. Adding `@playwright/test` as a dev dependency and wiring a
-   handful of the flows into CI would be a real improvement.
-4. **Editing the built-in axes.** Saved views can be created and deleted, but a
+1. **Publish an npm release.** `.github/workflows/release.yml` builds, verifies,
+   refuses a tag that disagrees with `package.json`, and publishes with
+   `--provenance`. It has never run, and it cannot until an `NPM_TOKEN` secret
+   exists on the repository. Until then the README says `npx pr-radar` *will*
+   work rather than that it does, which is the honest tense.
+2. **Editing the built-in axes.** Saved views can be created and deleted, but a
    built-in axis option cannot be edited. The workaround is typing into the
    filter box and saving a view.
-5. **Team-level "waiting on your team".** GitHub distinguishes a review
+3. **Team-level "waiting on your team".** GitHub distinguishes a review
    requested from you personally and from a team you belong to. Only the former
    is handled; the latter needs the team memberships of the viewer.
-6. **A backend, if the trade is worth it.** Explicitly *optional* — see below.
+4. **Offline honesty.** The service worker serves the shell with no network, and
+   the app then reports that it cannot reach GitHub. That is correct but blunt:
+   a banner saying *when* the list was last fetched would be better than a plain
+   error, and is the only thing the worker's design leaves on the table.
+5. **A backend, if the trade is worth it.** Explicitly *optional* — see below.
+
+Closed since this file was last revised: the Docker image was unproven and is
+now built, probed on `arm64` and `amd64`, and published multi-arch; the browser
+suite that was open work is in `tests/`; the site had no verified deploy and now
+has `scripts/site-smoke.sh` running against the published URL.
 
 ## On adding a backend
 
@@ -207,9 +216,16 @@ would unlock things that genuinely cannot be done from a static page:
 
 - **Real push**, so notifications arrive with the tab closed. Web Push needs a
   server holding VAPID keys.
-- **OAuth**, replacing the pasted token. The code exchange needs a client
-  secret, and GitHub's token endpoint sends no CORS headers, so a page cannot do
-  it alone. A single serverless function is enough for this one.
+- **OAuth**, replacing the pasted token. Re-verified in a real browser on
+  2026-09-04, because the CORS note above it turned out to have expired and this
+  one deserved the same scrutiny: it has not. `github.com/login/device/code`
+  refuses a browser both as a preflighted request and as a simple form POST that
+  triggers no preflight, and no GitHub OAuth endpoint sends
+  `Access-Control-Allow-Origin`. The device flow needs no client secret, so the
+  blocker is purely CORS -- which means the smallest thing that would unlock it
+  is a stateless forwarder rather than a full OAuth backend. It would still see
+  the resulting access token in the response body, which is the part worth
+  arguing about before anyone writes it.
 - **Server-side polling**, shared caching across a team, and history beyond what
   a page can hold.
 

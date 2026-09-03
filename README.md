@@ -1,6 +1,53 @@
+<div align="center">
+
+<img src="public/icons/icon-192.png" alt="" width="88" height="88">
+
 # PR Radar
 
-Every open pull request across all your repositories, on one screen.
+**Every open pull request across all your repositories, on one screen.**
+
+### [→ Open it](https://aryeborgen.github.io/pr-radar/)
+
+No install, no sign-up, no server. Works on a laptop and on a phone.
+
+[![CI](https://github.com/AryeBorgen/pr-radar/actions/workflows/ci.yml/badge.svg)](https://github.com/AryeBorgen/pr-radar/actions/workflows/ci.yml)
+[![Docker image](https://github.com/AryeBorgen/pr-radar/actions/workflows/docker.yml/badge.svg)](https://github.com/AryeBorgen/pr-radar/actions/workflows/docker.yml)
+[![CodeQL](https://github.com/AryeBorgen/pr-radar/actions/workflows/codeql.yml/badge.svg)](https://github.com/AryeBorgen/pr-radar/actions/workflows/codeql.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+</div>
+
+---
+
+## Start here
+
+Three steps, about a minute, nothing to install.
+
+1. **[Open the app](https://aryeborgen.github.io/pr-radar/).**
+2. **[Create a token](https://github.com/settings/tokens/new?scopes=repo,read:org&description=PR%20Radar)** — that link
+   pre-fills everything. Scroll down, press **Generate token**, and copy it.
+   *(Only watching public repositories? You can untick every box.)*
+3. **Paste it in, then add a repository** — type `facebook/react`, or just
+   `facebook` to pull in the whole organisation at once.
+
+That is the entire setup. The token stays in your browser tab and is sent to
+nobody but GitHub. Close the tab and it is gone.
+
+### Put it on your phone
+
+It installs like an app, because it is one.
+
+- **iPhone / iPad** — open the link in Safari, tap **Share**, then
+  **Add to Home Screen**.
+- **Android** — open the link in Chrome, tap the **⋮** menu, then **Install app**.
+- **Desktop** — Chrome and Edge show an **install** icon in the address bar.
+
+It then opens full-screen with its own icon, and starts instantly because the
+app itself is cached. Your pull requests are never cached: those are always
+fetched fresh, because a dashboard showing yesterday's state is worse than one
+that says it is offline.
+
+---
 
 GitHub can already list pull requests. What it cannot do is tell you, across
 every repository at once, which ones are actually waiting on **you** — so that
@@ -39,49 +86,48 @@ the place you notice things, not the place you do them.
   The page talks to `api.github.com` directly and keeps your settings in your
   own browser.
 
-## Install
+## Running your own copy
 
-Pick whichever fits. All of them run the same static bundle, and none of them
-need a server, a database or an account.
+You do not have to. [The hosted one](https://aryeborgen.github.io/pr-radar/) is
+the same bundle, and since there is no backend there is nothing about it that is
+"theirs" -- your token and your settings never leave your browser either way.
 
-**Try it without installing anything**
+Run your own if you would rather serve it yourself. Every option below is the
+same static bundle.
 
-```bash
-npx pr-radar          # or: pnpm dlx pr-radar     bunx pr-radar
-```
-
-Serves the dashboard on `http://localhost:4173` and opens a browser.
-`--port`, `--host` and `--no-open` are available; `--help` lists them.
-
-**Docker**
+**Docker** — nothing to install but Docker itself:
 
 ```bash
 docker run -p 4173:80 ghcr.io/aryeborgen/pr-radar
 ```
 
-or, from a clone, `docker compose up`.
+Then open <http://localhost:4173>. Published for `amd64` and `arm64`, so it runs
+on an Apple Silicon Mac, a Graviton instance or a Raspberry Pi without
+emulation. From a clone, `docker compose up` does the same thing.
 
-**From source**
+**From source** — needs Node 20 or newer:
 
 ```bash
 git clone https://github.com/AryeBorgen/pr-radar.git
 cd pr-radar
-
-npm install && npm run dev        # or: pnpm install && pnpm dev
-                                  #     yarn install && yarn dev
+npm install
+npm run dev
 ```
 
-**Host it yourself**
+**As a command** — once the package is published, `npx pr-radar` will serve the
+dashboard on `http://localhost:4173` and open a browser, with `--port`, `--host`
+and `--no-open` available. Until then, `npm start` from a clone runs the same
+server.
+
+**On your own host:**
 
 ```bash
 npm run build         # → dist/, a folder of static files
 ```
 
-Serve `dist/` from anything — GitHub Pages, Netlify, S3, nginx. On GitHub Pages
-the site lives under `/<repo>/`, so build with `PR_RADAR_BASE=/pr-radar/`; the
-included workflow does that for you when Pages is set to *GitHub Actions*.
-
-Requires Node 20 or newer to build.
+Serve `dist/` from anything -- GitHub Pages, Netlify, S3, nginx. When the site
+lives under a path rather than at the root, build with `PR_RADAR_BASE=/that/path/`;
+the included Pages workflow does it for you.
 
 ## The token
 
@@ -92,13 +138,22 @@ Public repositories need no scopes at all; add `repo` for private ones and
 
 ## Why a token and not a login
 
-There is no "Sign in with GitHub" button, and that is a consequence of having
-no backend rather than an oversight: exchanging an OAuth code requires a client
-secret, and GitHub's token endpoint sends no CORS headers, so a page cannot do
-it alone. A token you create yourself keeps the whole app deployable as static
-files with no secret held anywhere.
+There is no "Sign in with GitHub" button. That is a consequence of having no
+backend, not an oversight, and it was re-checked on 2026-09-04 rather than taken
+on trust: a real browser asking `github.com/login/device/code` for a device code
+is refused outright, both as a preflighted request and as a simple form POST that
+needs no preflight. GitHub sends no `Access-Control-Allow-Origin` on any of its
+OAuth endpoints, so a page cannot complete the exchange no matter how it asks.
 
-The trade-off is worth stating plainly:
+Adding a "Sign in with GitHub" button therefore means adding a server, and the
+cost of that server is not the hosting. It is that the server would handle other
+people's GitHub tokens -- turning a page with no attack surface into a system
+with a serious one, and replacing `docker run` with something to deploy, operate
+and keep patched. If it is ever built it will be optional: the static app stays
+the default and works exactly as it does now.
+
+A token you create yourself keeps the whole thing deployable as static files
+with no secret held anywhere. The trade-off is worth stating plainly:
 
 - The token is kept in **`sessionStorage`**, so it is gone when the tab closes.
   It is never written to disk by this app and never sent anywhere except
