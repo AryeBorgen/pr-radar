@@ -53,6 +53,21 @@ jobs:
       - id: deploy
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
 
+      # The app holds a live GitHub token, so a visitor arriving over plain HTTP
+      # must be redirected rather than served a page whose script anyone on the
+      # path could rewrite. Pages will not accept the setting until it has
+      # finished issuing the certificate, which can lag a day behind the site
+      # actually working -- so ask on every deploy and shrug if it is too early.
+      # The next deploy turns it on rather than a person having to remember.
+      - name: Ask Pages to enforce HTTPS
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --method PUT "repos/$GITHUB_REPOSITORY/pages" -F https_enforced=true \
+            && echo "HTTPS enforcement is on" \
+            || echo "::warning::Pages would not enable HTTPS enforcement yet (certificate still issuing). The next deploy will try again."
+
   # A deploy that goes green while serving a blank page is the failure mode that
   # matters here, and it has happened: the site once answered 200 with the
   # unbuilt source because Pages was building from the branch rather than from
