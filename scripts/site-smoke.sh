@@ -92,9 +92,26 @@ else
 fi
 
 echo 'Transport'
-case $URL in
-  https://*) pass 'served over HTTPS' ;;
-  *) fail 'served over HTTPS' ;;
+# The first version of this checked whether the URL it was handed began with
+# "https", which tests a string rather than the site. GitHub Pages hands back an
+# http:// URL whenever HTTPS enforcement is off, even though the site has a
+# valid certificate and answers on 443 -- so the check failed while the property
+# it cared about held. Ask the site instead.
+https_url=$(printf '%s' "$URL" | sed 's|^http://|https://|')
+if curl -sf --max-time 20 "$https_url/" -o /dev/null; then
+  pass 'answers over HTTPS with a certificate the client accepts'
+else
+  fail 'answers over HTTPS with a certificate the client accepts'
+fi
+
+# The token this page holds is a live GitHub credential, so a visitor arriving
+# over plain HTTP must not be served the app: anyone on the path could rewrite
+# the script that reads it. On Pages this is the `https_enforced` setting.
+http_url=$(printf '%s' "$https_url" | sed 's|^https://|http://|')
+redirect=$(curl -s -o /dev/null -w '%{redirect_url}' --max-time 20 "$http_url/")
+case $redirect in
+  https://*) pass 'plain HTTP redirects to HTTPS' ;;
+  *) fail "plain HTTP redirects to HTTPS (got '${redirect:-no redirect}')" ;;
 esac
 
 printf '\n'
