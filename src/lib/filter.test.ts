@@ -154,6 +154,28 @@ describe('applyQuery', () => {
     expect(run([waiting, approved], 'review:required')).toEqual([waiting])
   })
 
+  it('matches involves: against author, assignee, requested reviewer and reviewer', () => {
+    const author = pr({ id: 'author', author: { login: 'alice', avatarUrl: '' } })
+    const assigned = pr({
+      id: 'assigned',
+      author: { login: 'bob', avatarUrl: '' },
+      assignees: [{ login: 'alice', avatarUrl: '' }],
+    })
+    const requested = pr({
+      id: 'requested',
+      author: { login: 'bob', avatarUrl: '' },
+      requestedReviewers: ['alice'],
+    })
+    const reviewed = pr({
+      id: 'reviewed',
+      author: { login: 'bob', avatarUrl: '' },
+      reviewedBy: ['alice'],
+    })
+    const unrelated = pr({ id: 'unrelated', author: { login: 'bob', avatarUrl: '' } })
+    expect(run([author, assigned, requested, reviewed, unrelated], 'involves:@me').map((p) => p.id))
+      .toEqual(['author', 'assigned', 'requested', 'reviewed'])
+  })
+
   it('returns everything for an empty query', () => {
     expect(run([pr(), pr()], '')).toHaveLength(2)
   })

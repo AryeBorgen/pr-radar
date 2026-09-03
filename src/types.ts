@@ -65,8 +65,8 @@ export interface Enrichment {
   checkState: CheckState
 }
 
-/** A named saved filter. Buckets are nothing but a query string with a label. */
-export interface Bucket {
+/** A named saved filter. A view is nothing but a query string with a label. */
+export interface SavedView {
   id: string
   name: string
   query: string
@@ -74,7 +74,7 @@ export interface Bucket {
 
 export interface Settings {
   repos: RepoRef[]
-  buckets: Bucket[]
+  views: SavedView[]
   /** Seconds between background refetches. 0 disables polling. */
   refreshInterval: number
 }

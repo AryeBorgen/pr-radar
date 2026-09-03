@@ -15,9 +15,16 @@ the place you notice things, not the place you do them.
 
 - **One list, many repositories.** Add any repo you can see, from any owner or
   organisation. Each developer keeps their own list.
-- **Saved views as filter strings.** The tabs across the top are nothing but
-  named queries. Type a filter, press *Save view*, and it becomes a tab with a
-  live count.
+- **Three filter axes, one click each.** *Who* (mine, to review, I reviewed,
+  involves me), *State* (awaiting review, approved, changes requested, CI
+  failing, stale) and *Drafts* (shown, only, hidden). They are independent and
+  combine, because "my PRs" and "changes requested" are different questions and
+  the useful view is their intersection. Every chip carries a live count, and
+  each count is measured against the *other* axes — with *Mine* selected,
+  *Approved* answers "how many of mine are approved".
+- **Saved views for the rest.** Anything the axes cannot express — two authors,
+  a specific label, one repository — can be typed and saved as a named view with
+  its own count.
 - **GitHub's filter syntax.** `is:draft author:@me -label:wip` means here what
   it means there, so there is nothing new to learn.
 - **No backend.** No server, no database, no account, no deployment to operate.
@@ -70,6 +77,7 @@ The trade-off is worth stating plainly:
 | `assignee:` | login or `@me` | |
 | `review-requested:` | login or `@me` | Reviews still outstanding |
 | `reviewed-by:` | login or `@me` | Anyone who has already reviewed |
+| `involves:` | login or `@me` | Author, assignee, requested reviewer or reviewer |
 | `label:` | label name | Quote names with spaces: `label:"needs design"` |
 | `repo:` | `owner/name` | |
 | `org:` | owner login | |
@@ -84,6 +92,19 @@ repository and number. Repeated qualifiers are OR'd (`author:a author:b` means
 either), except `label:`, which is AND'd — the same as GitHub. A qualifier that
 is not supported is listed under the filter box rather than silently ignored,
 so a filter never quietly lies about what it matched.
+
+One consequence of GitHub-compatible OR: because the axes are ANDed by
+concatenating their queries, no two axes may use the same qualifier, or a
+selection would widen results instead of narrowing them. A test enforces that.
+It also means typing `author:someone` while *Mine* is selected matches either
+author rather than both — use a saved view for that.
+
+### Drafts are shown by default
+
+That is deliberate. Where a review bot moves a pull request back to draft on a
+failed review, "draft" is a state worth seeing rather than noise to hide — so
+the *Drafts* axis defaults to *Shown*, with *Only* one click away for triaging
+exactly those.
 
 ## Why REST, and why the list fills in twice
 

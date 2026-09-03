@@ -1,30 +1,16 @@
-import type { Bucket, RepoRef, Settings } from '../types'
+import type { RepoRef, SavedView, Settings } from '../types'
 
 const SETTINGS_KEY = 'pr-radar.settings.v1'
 const TOKEN_KEY = 'pr-radar.token.v1'
 
 /**
- * The default buckets. These encode the reason this dashboard exists: GitHub can
- * already list pull requests, but it cannot tell you, across every repository at
- * once, which ones are actually waiting on you.
+ * Views start empty. The built-in one-click filters are the facet axes, which
+ * are code rather than stored state, so nothing has to be migrated when they
+ * change and a user's saved views only ever hold what that user chose to save.
  */
-export const DEFAULT_BUCKETS: Bucket[] = [
-  { id: 'review', name: 'Needs my review', query: 'review-requested:@me' },
-  {
-    id: 'changes',
-    name: 'My PRs · changes requested',
-    query: 'author:@me review:changes_requested',
-  },
-  { id: 'red', name: 'My PRs · CI failing', query: 'author:@me checks:failure' },
-  { id: 'mergeable', name: 'Approved · ready to merge', query: 'review:approved -is:draft' },
-  { id: 'stale', name: 'Stale · untouched 7d+', query: '-is:draft updated:<7d' },
-  { id: 'mine', name: 'Everything I opened', query: 'author:@me' },
-  { id: 'all', name: 'All open', query: '' },
-]
-
 export const DEFAULT_SETTINGS: Settings = {
   repos: [],
-  buckets: DEFAULT_BUCKETS,
+  views: [],
   refreshInterval: 120,
 }
 
@@ -33,12 +19,10 @@ function isRepoRef(value: unknown): value is RepoRef {
   return typeof ref?.owner === 'string' && typeof ref?.name === 'string'
 }
 
-function isBucket(value: unknown): value is Bucket {
-  const bucket = value as Bucket
+function isSavedView(value: unknown): value is SavedView {
+  const view = value as SavedView
   return (
-    typeof bucket?.id === 'string' &&
-    typeof bucket?.name === 'string' &&
-    typeof bucket?.query === 'string'
+    typeof view?.id === 'string' && typeof view?.name === 'string' && typeof view?.query === 'string'
   )
 }
 
@@ -54,10 +38,7 @@ export function loadSettings(): Settings {
     const parsed = JSON.parse(raw) as Partial<Settings>
     return {
       repos: Array.isArray(parsed.repos) ? parsed.repos.filter(isRepoRef) : [],
-      buckets:
-        Array.isArray(parsed.buckets) && parsed.buckets.length > 0
-          ? parsed.buckets.filter(isBucket)
-          : DEFAULT_BUCKETS,
+      views: Array.isArray(parsed.views) ? parsed.views.filter(isSavedView) : [],
       refreshInterval:
         typeof parsed.refreshInterval === 'number' && parsed.refreshInterval >= 0
           ? parsed.refreshInterval

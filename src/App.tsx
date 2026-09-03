@@ -11,8 +11,11 @@ import {
   saveSettings,
   saveToken,
 } from './lib/storage'
-import type { Bucket, RepoRef, Settings } from './types'
-import BucketTabs from './components/BucketTabs'
+import type { RepoRef, SavedView, Settings } from './types'
+import type { Selection } from './lib/facets'
+import { DEFAULT_SELECTION, selectionQuery } from './lib/facets'
+import FacetBar from './components/FacetBar'
+import SavedViews from './components/SavedViews'
 import FilterBar from './components/FilterBar'
 import PrRow from './components/PrRow'
 import RepoManager from './components/RepoManager'
@@ -23,7 +26,7 @@ export default function App() {
   const [settings, setSettings] = useState<Settings>(() =>
     typeof localStorage === 'undefined' ? DEFAULT_SETTINGS : loadSettings(),
   )
-  const [activeBucket, setActiveBucket] = useState(() => settings.buckets[0]?.id ?? '')
+  const [selection, setSelection] = useState<Selection>(DEFAULT_SELECTION)
   const [search, setSearch] = useState('')
   const [showRepos, setShowRepos] = useState(false)
 
@@ -57,26 +60,35 @@ export default function App() {
    */
   const now = useMemo(() => Date.now(), [query.dataUpdatedAt])
 
-  const bucket = settings.buckets.find((b) => b.id === activeBucket) ?? settings.buckets[0]
-  const combined = [bucket?.query ?? '', search].filter(Boolean).join(' ')
+  const combined = useMemo(() => selectionQuery(selection, search), [selection, search])
 
   const visible = useMemo(
     () => applyQuery(prs, combined, { viewer, now }),
     [prs, combined, viewer, now],
   )
 
-  const counts = useMemo(() => {
+  const viewCounts = useMemo(() => {
     const result: Record<string, number> = {}
-    for (const item of settings.buckets) {
-      result[item.id] = applyQuery(prs, item.query, { viewer, now }).length
+    for (const view of settings.views) {
+      result[view.id] = applyQuery(prs, view.query, { viewer, now }).length
     }
     return result
-  }, [prs, settings.buckets, viewer, now])
+  }, [prs, settings.views, viewer, now])
 
   const unknown = useMemo(() => parseQuery(combined).unknown, [combined])
 
   const setRepos = (repos: RepoRef[]) => setSettings((prev) => ({ ...prev, repos }))
-  const setBuckets = (buckets: Bucket[]) => setSettings((prev) => ({ ...prev, buckets }))
+  const setViews = (views: SavedView[]) => setSettings((prev) => ({ ...prev, views }))
+
+  /*
+   * Applying a view resets the axes and puts its query in the box, so what runs
+   * is exactly the string that was saved — a view never half-merges with an
+   * axis selection left over from before.
+   */
+  const applyView = (view: SavedView) => {
+    setSelection(DEFAULT_SELECTION)
+    setSearch(view.query)
+  }
 
   if (!token) return <TokenGate onToken={setToken} />
 
@@ -114,12 +126,19 @@ export default function App() {
 
       {!noRepos && (
         <>
-          <BucketTabs
-            buckets={settings.buckets}
-            counts={counts}
-            activeId={bucket?.id ?? ''}
-            onSelect={setActiveBucket}
-            onChange={setBuckets}
+          <FacetBar
+            prs={prs}
+            selection={selection}
+            text={search}
+            viewer={viewer}
+            now={now}
+            onChange={setSelection}
+          />
+          <SavedViews
+            views={settings.views}
+            counts={viewCounts}
+            onApply={applyView}
+            onChange={setViews}
             draftQuery={combined}
           />
           <FilterBar

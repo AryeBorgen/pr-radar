@@ -61,6 +61,7 @@ const KNOWN_KEYS = new Set([
   'assignee',
   'review-requested',
   'reviewed-by',
+  'involves',
   'label',
   'repo',
   'org',
@@ -178,6 +179,22 @@ function matchTerm(pr: PullRequest, term: Term, viewer: string, now: number): bo
       return has(pr.requestedReviewers, value)
     case 'reviewed-by':
       return has(pr.reviewedBy, value)
+    /*
+     * Everyone with a stake in the PR: opened it, is assigned it, was asked to
+     * review it, or has reviewed it. GitHub's own `involves:` also counts being
+     * mentioned in a comment, which would cost a request per PR to know — this
+     * is the same idea within what the list already tells us.
+     */
+    case 'involves':
+      return (
+        (pr.author?.login ?? '').toLowerCase() === value ||
+        has(
+          pr.assignees.map((a) => a.login),
+          value,
+        ) ||
+        has(pr.requestedReviewers, value) ||
+        has(pr.reviewedBy, value)
+      )
     case 'label':
       return has(
         pr.labels.map((l) => l.name),
