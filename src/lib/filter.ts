@@ -66,7 +66,7 @@ export function tokenize(query: string): string[] {
   return tokens
 }
 
-const DATE_KEYS = new Set(['updated', 'created'])
+const DATE_KEYS = new Set(['updated', 'created', 'merged', 'closed'])
 const KNOWN_KEYS = new Set([
   'is',
   'draft',
@@ -84,6 +84,8 @@ const KNOWN_KEYS = new Set([
   'no',
   'updated',
   'created',
+  'merged',
+  'closed',
 ])
 
 export function parseQuery(query: string): ParsedQuery {
@@ -133,17 +135,25 @@ export function parseQuery(query: string): ParsedQuery {
   return { terms, text, sort, unknown }
 }
 
+const AGE_UNITS = {
+  h: 3_600_000,
+  d: 86_400_000,
+  w: 604_800_000,
+  mo: 2_592_000_000,
+  y: 31_536_000_000,
+} as const
+
 /**
  * Resolve a filter value into a timestamp. Accepts an ISO date (`2026-01-01`)
- * or an age (`7d`, `12h`, `2w`), where an age means "the moment that long ago" —
- * so `updated:<7d` reads as "last touched more than seven days ago".
+ * or an age (`7d`, `12h`, `2w`, `1mo`, `1y`), where an age means "the moment
+ * that long ago" — so `updated:<7d` reads as "last touched more than seven days
+ * ago" and `closed:>1mo` as "closed within the last month". A month is 30 days
+ * and a year 365; this is a filter, not a calendar.
  */
 function resolveDate(value: string, now: number): number | null {
-  const age = /^(\d+)([hdw])$/.exec(value)
+  const age = /^(\d+)(mo|[hdwy])$/.exec(value)
   if (age) {
-    const amount = Number(age[1])
-    const unit = { h: 3_600_000, d: 86_400_000, w: 604_800_000 }[age[2] as 'h' | 'd' | 'w']
-    return now - amount * unit
+    return now - Number(age[1]) * AGE_UNITS[age[2] as keyof typeof AGE_UNITS]
   }
   const parsed = Date.parse(value)
   return Number.isNaN(parsed) ? null : parsed
@@ -231,11 +241,20 @@ function matchTerm(pr: PullRequest, term: Term, viewer: string, now: number): bo
       if (value === 'reviewer') return pr.requestedReviewers.length === 0
       return false
     case 'updated':
-    case 'created': {
+    case 'created':
+    case 'merged':
+    case 'closed': {
       const target = resolveDate(term.value, now)
       if (target === null) return false
-      const actual = Date.parse(term.key === 'updated' ? pr.updatedAt : pr.createdAt)
-      return compare(actual, term.op, target)
+      const source = {
+        updated: pr.updatedAt,
+        created: pr.createdAt,
+        merged: pr.mergedAt,
+        closed: pr.closedAt,
+      }[term.key]
+      // A PR that never reached this state cannot satisfy a bound on it.
+      if (!source) return false
+      return compare(Date.parse(source), term.op, target)
     }
     default:
       return false

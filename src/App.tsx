@@ -15,7 +15,7 @@ import type { RepoRef, SavedView, Settings } from './types'
 import type { Selection } from './lib/facets'
 import { DEFAULT_SELECTION, needsClosed, selectionQuery, selectionStages } from './lib/facets'
 import type { MenuSelection } from './lib/menus'
-import { menuOptions, menuStages } from './lib/menus'
+import { DEFAULT_PERIOD, menuOptions, menuStages } from './lib/menus'
 import FacetBar from './components/FacetBar'
 import FilterMenus from './components/FilterMenus'
 import SavedViews from './components/SavedViews'
@@ -32,6 +32,7 @@ export default function App() {
   const [selection, setSelection] = useState<Selection>(DEFAULT_SELECTION)
   const [menus, setMenus] = useState<MenuSelection>({})
   const [sort, setSort] = useState('')
+  const [period, setPeriod] = useState(DEFAULT_PERIOD)
   const [search, setSearch] = useState('')
   const [showRepos, setShowRepos] = useState(false)
 
@@ -75,8 +76,8 @@ export default function App() {
    * result instead of intersecting it.
    */
   const nonAxisStages = useMemo(
-    () => [...menuStages(menus, sort), search],
-    [menus, sort, search],
+    () => [...menuStages(menus, sort, period, withClosed), search],
+    [menus, sort, period, withClosed, search],
   )
   const allStages = useMemo(
     () => [...selectionStages(selection), ...nonAxisStages],
@@ -94,13 +95,23 @@ export default function App() {
    */
   const optionsFor = useMemo(
     () =>
-      menuOptions(applyStages(prs, [...selectionStages(selection), search], { viewer, now })),
-    [prs, selection, search, viewer, now],
+      menuOptions(
+        applyStages(
+          prs,
+          [...selectionStages(selection), menuStages({}, '', period, withClosed).join(' '), search],
+          { viewer, now },
+        ),
+      ),
+    [prs, selection, period, withClosed, search, viewer, now],
   )
 
   const combined = useMemo(
-    () => selectionQuery(selection, [...menuStages(menus, sort), search].join(' ')),
-    [selection, menus, sort, search],
+    () =>
+      selectionQuery(
+        selection,
+        [...menuStages(menus, sort, period, withClosed), search].filter(Boolean).join(' '),
+      ),
+    [selection, menus, sort, period, withClosed, search],
   )
 
   const viewCounts = useMemo(() => {
@@ -125,6 +136,7 @@ export default function App() {
     setSelection(DEFAULT_SELECTION)
     setMenus({})
     setSort('')
+    setPeriod(DEFAULT_PERIOD)
     setSearch(view.query)
   }
 
@@ -176,8 +188,11 @@ export default function App() {
             options={optionsFor}
             selection={menus}
             sort={sort}
+            period={period}
+            showPeriod={withClosed}
             onChange={setMenus}
             onSortChange={setSort}
+            onPeriodChange={setPeriod}
           />
           <SavedViews
             views={settings.views}
@@ -202,6 +217,15 @@ export default function App() {
       {query.error && (
         <p className="border-b border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-400">
           {query.error instanceof Error ? query.error.message : 'Could not reach GitHub.'}
+        </p>
+      )}
+
+      {withClosed && (query.data?.truncated.length ?? 0) > 0 && (
+        <p className="border-b border-neutral-200 bg-neutral-50 px-4 py-2 text-sm text-neutral-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">
+          Showing the 100 most recently updated closed pull requests per repository, so older
+          ones in this period may be missing from{' '}
+          <strong className="font-medium">{query.data?.truncated.join(', ')}</strong>. Narrow the
+          period, or filter to one repository, to see further back.
         </p>
       )}
 

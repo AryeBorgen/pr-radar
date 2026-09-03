@@ -87,6 +87,7 @@ interface RawPull {
   draft?: boolean
   state: string
   merged_at: string | null
+  closed_at: string | null
   created_at: string
   updated_at: string
   user: RawUser | null
@@ -116,6 +117,7 @@ function normalise(raw: RawPull, repo: string): PullRequest {
     repo,
     state: toState(raw),
     mergedAt: raw.merged_at,
+    closedAt: raw.closed_at,
     headSha: raw.head.sha,
     isDraft: Boolean(raw.draft),
     createdAt: raw.created_at,
@@ -137,6 +139,8 @@ export interface FetchResult {
   pullRequests: PullRequest[]
   /** Repositories that failed to load, with the reason. */
   errors: { repo: string; message: string }[]
+  /** Repositories whose closed PRs hit the per-repository page cap. */
+  truncated: string[]
 }
 
 /**
@@ -170,14 +174,19 @@ async function mapLimit<T, R>(
 }
 
 /**
- * Closed pull requests per repository.
+ * Closed pull requests fetched per repository: one page, no pagination.
  *
- * Lower than the open page size on purpose: closed PRs accumulate without
- * bound, they are for looking back rather than for triage, and every one of
- * them is a row to render. Fifty of the most recently updated per repository is
- * enough to answer "what shipped lately" across a whole organisation.
+ * Closed PRs accumulate without bound, so the scope is bounded twice over — by
+ * this cap and by the Period filter — and whichever bites first wins. One page
+ * of 100 keeps it to a single extra request per repository; going deeper would
+ * mean pagination per repository, which on a large organisation is hundreds of
+ * requests for history nobody scrolled to.
+ *
+ * When a repository fills this page and its oldest row is still inside the
+ * selected period, there may be more that were not fetched — `truncated` says
+ * so rather than letting the list look complete.
  */
-const CLOSED_PAGE_SIZE = 50
+const CLOSED_PAGE_SIZE = 100
 
 /**
  * Fetch pull requests across `repos`.
@@ -194,7 +203,7 @@ export async function fetchPullRequests(
   repos: RepoRef[],
   includeClosed = false,
 ): Promise<FetchResult> {
-  if (repos.length === 0) return { pullRequests: [], errors: [] }
+  if (repos.length === 0) return { pullRequests: [], errors: [], truncated: [] }
 
   const outcomes = await mapLimit(repos, MAX_CONCURRENT_REQUESTS, async (ref) => {
     const slug = `${ref.owner}/${ref.name}`
@@ -211,8 +220,11 @@ export async function fetchPullRequests(
           ),
         )
       }
-      const pages = await Promise.all(requests)
-      return { pulls: pages.flat().map((pull) => normalise(pull, slug)) }
+      const [open, closed] = await Promise.all(requests)
+      return {
+        pulls: [...open, ...(closed ?? [])].map((pull) => normalise(pull, slug)),
+        truncated: (closed?.length ?? 0) >= CLOSED_PAGE_SIZE ? slug : undefined,
+      }
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : 'Request failed.'
       return { error: { repo: slug, message } }
@@ -222,6 +234,7 @@ export async function fetchPullRequests(
   return {
     pullRequests: outcomes.flatMap((outcome) => outcome.pulls ?? []),
     errors: outcomes.flatMap((outcome) => (outcome.error ? [outcome.error] : [])),
+    truncated: outcomes.flatMap((outcome) => (outcome.truncated ? [outcome.truncated] : [])),
   }
 }
 

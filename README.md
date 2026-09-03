@@ -27,8 +27,10 @@ the place you notice things, not the place you do them.
   the options are whoever actually appears in the fetched list, ranked by how
   often, and each option carries its count. They are also narrowed by the other
   filters, so a choice that would lead to an empty list is not offered.
-- **Merge history.** The Status axis switches between open, merged, closed and
-  all. *Merged* sorts by merge date, newest first.
+- **Merge history, off by default.** Nothing closed is fetched until the Status
+  axis asks for it — the everyday view costs one request per repository. *Merged*
+  sorts by merge date, newest first, and a *Period* menu appears alongside it,
+  defaulting to the past month.
 - **Saved views for the rest.** Anything the axes and menus cannot express can
   be typed and saved as a named view with its own count.
 - **GitHub's filter syntax.** `is:draft author:@me -label:wip` means here what
@@ -90,7 +92,7 @@ The trade-off is worth stating plainly:
 | `review:` | `approved`, `changes-requested`, `required`, `none`, `unknown` | `unknown` = not fetched yet, which is not the same as `none` |
 | `checks:` | `success`, `failure`, `pending`, `none`, `unknown` | `status:` is an alias |
 | `no:` | `label`, `assignee`, `reviewer` | |
-| `updated:` / `created:` | `<7d`, `>2026-01-01`, `<=12h`, `>2w` | An age means *that long ago*, so `updated:<7d` is "untouched for over a week" |
+| `updated:` / `created:` / `merged:` / `closed:` | `<7d`, `>1mo`, `>2026-01-01`, `<=12h`, `>2w`, `>1y` | An age means *that long ago*, so `updated:<7d` is "untouched for over a week" and `closed:>1mo` is "closed within the last month". A month is 30 days, a year 365 |
 | `sort:` | `updated-desc` (default), `updated-asc`, `created-desc`, `created-asc`, `merged-desc`, `merged-asc` | Unmerged PRs sort last under a merge-date sort |
 
 Prefix any qualifier with `-` to negate it. Bare words match the title,
@@ -143,9 +145,15 @@ filter is never quietly wrong about a PR it has not finished loading.
 - One request per repository for the list, six at a time, plus two per pull
   request for review and check state.
 - Closed pull requests cost a second request per repository and are fetched
-  only when the Status axis asks for them, capped at the 50 most recently
-  updated per repository — they accumulate without bound and are for looking
-  back, not for triage.
+  only when the Status axis asks for them, capped at one page of the 100 most
+  recently updated per repository. Between that cap and the *Period* menu,
+  whichever bites first wins: a month of history where a repository is busy, the
+  last 100 where it is quiet. When a repository fills the page and its oldest row
+  is still inside the period, the app says so rather than looking complete.
+- The period is judged by when a PR *closed*, not when it was last updated.
+  GitHub can only sort closed PRs by update time, so an old merge that was
+  commented on yesterday arrives near the top of the page — and must still fall
+  outside a one-month window.
 - Only open pull requests are enriched with review and check state. On a merged
   PR that is history, and buying it would cost two requests each for a list
   that keeps growing.

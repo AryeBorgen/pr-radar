@@ -40,6 +40,28 @@ export const MENUS: MenuSpec[] = [
   { id: 'reviewer', label: 'Reviewer', qualifier: 'review-requested', multiple: true, searchable: true },
 ]
 
+/**
+ * How far back closed pull requests are shown.
+ *
+ * The default is one month, which together with the 100-per-repository page cap
+ * gives the smaller of the two — a month of history where a repository is busy,
+ * and the last 100 where it is quiet. `All time` is still bounded by that cap,
+ * and the UI says when a repository hit it.
+ */
+export const PERIOD_OPTIONS: { value: string; label: string; query: string }[] = [
+  { value: '7d', label: 'Past week', query: 'closed:>7d' },
+  { value: '1mo', label: 'Past month', query: 'closed:>1mo' },
+  { value: '3mo', label: 'Past 3 months', query: 'closed:>3mo' },
+  { value: '1y', label: 'Past year', query: 'closed:>1y' },
+  { value: 'all', label: 'All time', query: '' },
+]
+
+export const DEFAULT_PERIOD = '1mo'
+
+export function periodQuery(period: string): string {
+  return PERIOD_OPTIONS.find((option) => option.value === period)?.query ?? ''
+}
+
 export const SORT_OPTIONS: { value: string; label: string }[] = [
   { value: 'updated-desc', label: 'Recently updated' },
   { value: 'updated-asc', label: 'Least recently updated' },
@@ -106,12 +128,21 @@ function quote(value: string): string {
 /**
  * One filter stage per menu, so a menu narrows the axes instead of widening
  * them. Sort is its own stage because it filters nothing.
+ *
+ * The period stage is only added when closed PRs are in scope: applied to the
+ * open list it would filter everything out, since an open PR has no closed date.
  */
-export function menuStages(selection: MenuSelection, sort: string): string[] {
+export function menuStages(
+  selection: MenuSelection,
+  sort: string,
+  period = '',
+  withClosed = false,
+): string[] {
   const stages = MENUS.map((menu) => {
     const chosen = selection[menu.id] ?? []
     return chosen.map((value) => `${menu.qualifier}:${quote(value)}`).join(' ')
   })
+  if (withClosed) stages.push(periodQuery(period))
   return sort ? [...stages, `sort:${sort}`] : stages
 }
 

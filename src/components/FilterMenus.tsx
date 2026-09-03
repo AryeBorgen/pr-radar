@@ -1,13 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import type { MenuOption, MenuSelection } from '../lib/menus'
-import { MENUS, SORT_OPTIONS, toggle } from '../lib/menus'
+import { MENUS, PERIOD_OPTIONS, SORT_OPTIONS, toggle } from '../lib/menus'
 
 interface Props {
   options: Record<string, MenuOption[]>
   selection: MenuSelection
   sort: string
+  period: string
+  /** The period only means anything once closed PRs are in scope. */
+  showPeriod: boolean
   onChange: (selection: MenuSelection) => void
   onSortChange: (sort: string) => void
+  onPeriodChange: (period: string) => void
 }
 
 /** Show the search box only once scanning the list stops being practical. */
@@ -76,8 +80,11 @@ export default function FilterMenus({
   options,
   selection,
   sort,
+  period,
+  showPeriod,
   onChange,
   onSortChange,
+  onPeriodChange,
 }: Props) {
   const [search, setSearch] = useState<Record<string, string>>({})
 
@@ -178,6 +185,35 @@ export default function FilterMenus({
           </Dropdown>
         )
       })}
+
+      {showPeriod && (
+        <Dropdown
+          label={PERIOD_OPTIONS.find((option) => option.value === period)?.label ?? 'Period'}
+          active={0}
+        >
+          {(close) => (
+            <ul className="py-1">
+              {PERIOD_OPTIONS.map((option) => (
+                <li key={option.value}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onPeriodChange(option.value)
+                      close()
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                  >
+                    <span className="w-3 shrink-0 text-blue-600 dark:text-blue-400">
+                      {period === option.value ? '✓' : ''}
+                    </span>
+                    {option.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Dropdown>
+      )}
 
       <Dropdown label="Sort" active={0}>
         {(close) => (

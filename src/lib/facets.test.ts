@@ -24,6 +24,7 @@ function pr(overrides: Partial<PullRequest> = {}): PullRequest {
     repo: 'acme/web',
     state: 'OPEN',
     mergedAt: null,
+    closedAt: null,
     headSha: 'abc',
     isDraft: false,
     createdAt: new Date(NOW - day).toISOString(),

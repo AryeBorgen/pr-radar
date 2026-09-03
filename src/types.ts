@@ -47,6 +47,13 @@ export interface PullRequest {
   state: PullState
   /** Set only when merged; the sort key for browsing merge history. */
   mergedAt: string | null
+  /**
+   * When the PR left the open state, merged or not. This is the date a period
+   * filter has to use: GitHub can only sort closed PRs by `updated`, so a PR
+   * merged months ago but touched yesterday comes back near the top and would
+   * pass an update-based cutoff while having nothing to do with the period.
+   */
+  closedAt: string | null
   /** Head commit SHA: identifies what the review and check state belong to. */
   headSha: string
   isDraft: boolean
