@@ -13,7 +13,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "start": "node bin/pr-radar.js",
-    "prepublishOnly": "npm run typecheck && npm test && npm run build"
+    "prepublishOnly": "npm run typecheck && npm test && npm run build",
+    "test:browser": "playwright test",
+    "test:all": "npm run typecheck && npm test && npm run build && npm run test:browser"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.62.7",
@@ -21,6 +23,7 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/vite": "^4.0.0",
     "@types/node": "^26.4.1",
     "@types/react": "^19.0.2",

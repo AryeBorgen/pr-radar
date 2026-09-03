@@ -5,6 +5,40 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PR Radar</title>
     <meta name="description" content="Every open pull request across all your repositories, in one screen." />
+
+    <!--
+      The token pasted into this page is a live GitHub credential held in the
+      browser. `connect-src` is the line that matters: it names api.github.com
+      and nothing else, so a compromised dependency cannot post the token
+      anywhere, whatever else it manages to run. `script-src 'self'` is what
+      makes an injected <script> inert in the first place.
+
+      'unsafe-inline' appears only under style-src, because GitHub label colours
+      arrive as data and are applied as inline style attributes. Injected CSS is
+      a real but bounded problem; injected script is not.
+
+      frame-ancestors cannot be set from a meta tag. nginx and bin/pr-radar.js
+      send it as a header, and tests/security.spec.ts checks all of it.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="
+        default-src 'self';
+        script-src 'self';
+        style-src 'self' 'unsafe-inline';
+        img-src 'self' data: https://avatars.githubusercontent.com;
+        connect-src 'self' https://api.github.com;
+        font-src 'self';
+        manifest-src 'self';
+        worker-src 'self';
+        base-uri 'none';
+        form-action 'none';
+        object-src 'none';
+        frame-src 'none';
+        upgrade-insecure-requests
+      "
+    />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
   </head>
   <body>
     <div id="root"></div>

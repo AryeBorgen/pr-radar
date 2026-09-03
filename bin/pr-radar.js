@@ -53,6 +53,21 @@ if (args.includes('--help') || args.includes('-h')) {
 const host = flag('--host') ?? '127.0.0.1'
 const startPort = Number(flag('--port') ?? process.env.PORT ?? 4173)
 
+/**
+ * The page carries its own Content-Security-Policy in a meta tag, which covers
+ * everything a meta tag can. These are the parts it cannot: frame-ancestors is
+ * header-only, and the rest describe how the response itself may be treated.
+ * The container serves the identical set from docker/security-headers.conf --
+ * two install channels, one behaviour.
+ */
+const SECURITY_HEADERS = {
+  'Content-Security-Policy': "frame-ancestors 'none'",
+  'X-Frame-Options': 'DENY',
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'geolocation=(), camera=(), microphone=(), payment=(), usb=()',
+}
+
 const server = createServer((request, response) => {
   const path = decodeURIComponent(new URL(request.url, 'http://localhost').pathname)
 
@@ -69,7 +84,7 @@ const server = createServer((request, response) => {
   // the same way (`try_files $uri =404`); the two install channels have to
   // agree about what a missing file means.
   if (!found && path.startsWith('/assets/')) {
-    response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' })
+    response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', ...SECURITY_HEADERS })
     response.end('Not found\n')
     return
   }
@@ -83,6 +98,7 @@ const server = createServer((request, response) => {
     'Cache-Control': file.endsWith('index.html')
       ? 'no-cache'
       : 'public, max-age=31536000, immutable',
+    ...SECURITY_HEADERS,
   })
   createReadStream(file).pipe(response)
 })
