@@ -21,12 +21,20 @@ updates:
       interval: weekly
     commit-message:
       prefix: 'deps'
-    # One pull request for the routine bumps, separate ones for majors, which
-    # are the only ones that need reading rather than merging.
     groups:
+      # One pull request for the routine bumps.
       minor-and-patch:
         patterns: ['*']
         update-types: [minor, patch]
+      # Majors normally deserve separate pull requests, because they are the
+      # ones that need reading rather than merging. The build toolchain is the
+      # exception: vite, its React plugin and its Tailwind plugin gate each
+      # other on peer ranges, so a major for any one of them alone cannot even
+      # install. Raised separately, all three pull requests fail at `npm ci` and
+      # none of them says why. Grouped, the bump is testable.
+      build-toolchain:
+        patterns: ['vite', '@vitejs/*', '@tailwindcss/vite', 'tailwindcss', 'vitest']
+        update-types: [major]
     open-pull-requests-limit: 5
 
   - package-ecosystem: docker
