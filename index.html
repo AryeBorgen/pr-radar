@@ -56,6 +56,25 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="PR Radar" />
+
+    <!--
+      Link previews. These have to be absolute: a social network resolving a
+      relative path does it against its own domain and finds nothing. The origin
+      is substituted at build time from PR_RADAR_SITE.
+    -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="PR Radar" />
+    <meta property="og:title" content="PR Radar" />
+    <meta
+      property="og:description"
+      content="Every open pull request across all your repositories, on one screen. No backend, no database, bring your own repos."
+    />
+    <meta property="og:url" content="%PR_RADAR_SITE%/" />
+    <meta property="og:image" content="%PR_RADAR_SITE%/social.png" />
+    <meta property="og:image:width" content="1280" />
+    <meta property="og:image:height" content="640" />
+    <meta property="og:image:alt" content="The PR Radar rover beside the words PR Radar" />
+    <meta name="twitter:card" content="summary_large_image" />
   </head>
   <body>
     <div id="root"></div>
