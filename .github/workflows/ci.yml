@@ -62,3 +62,9 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: scripts/lint-workflows.sh
+      # A version on npm with no tag, or a tag with no release, breaks nothing --
+      # which is exactly why it goes unnoticed. 0.1.0 sat on the registry for
+      # hours with neither.
+      - run: scripts/check-releases.sh
+        env:
+          GH_TOKEN: ${{ github.token }}

@@ -122,10 +122,25 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+      # --generate-notes diffs against the previous release. Without one it lists
+      # every pull request the project has ever merged, which is what v0.1.1's
+      # notes did -- forty commits of history presented as the contents of a
+      # patch release.
       - name: Publish the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
-            --title "$GITHUB_REF_NAME" \
-            --generate-notes
+          previous=$(gh release list --limit 1 --json tagName --jq '.[0].tagName // ""')
+          if [ -n "$previous" ]; then
+            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" \
+              --generate-notes --notes-start-tag "$previous"
+          else
+            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes
+          fi
+
+      # The release exists and the package is published; make sure they agree
+      # before the job goes green.
+      - name: Versions must agree
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/check-releases.sh

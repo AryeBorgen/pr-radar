@@ -75,6 +75,22 @@ cycle; none of them are guesses.
 3. **A trusted publisher is configured on a package's page**, which does not
    exist until the package does. `0.1.0` was therefore published by hand and
    carries no provenance; everything from `0.1.1` comes through the workflow.
+4. **A hand-published version cannot be reproduced.** `0.1.0` was traced back to
+   `b76d04d`: the tarball's JavaScript is byte-identical to a build of it and the
+   HTML matches once asset hashes are normalised. The stylesheet is not. It
+   carries one rule, `.hidden{display:none}`, that no clean checkout of that
+   commit produces -- not in a worktree, not in a plain directory. Where it came
+   from is unknown, and that is the finding rather than a gap in it: it was built
+   from a working tree, and a working tree is not a commit. The tag says where
+   the source was and the release says the tag is not a guarantee.
+5. **npm versions and GitHub releases drift apart silently.** A version published
+   with no tag breaks nothing; a tag with no release breaks nothing. `0.1.0` had
+   neither for hours. `scripts/check-releases.sh` compares the registry against
+   the releases in both directions and runs on every pull request.
+6. **`--generate-notes` with no previous release lists the entire project.**
+   v0.1.1's notes presented forty commits of history as the contents of a patch
+   release, because there was no v0.1.0 tag to diff against. The release job now
+   passes `--notes-start-tag`.
 
 ## Hard-won facts about the container
 
