@@ -1,0 +1,135 @@
+import { expect, test } from '@playwright/test'
+import { mockGitHub } from './fixtures/github'
+
+/**
+ * The library, mounted the way a host would mount it.
+ *
+ * A plain page with no React of its own, because reaching hosts that are not
+ * React is the entire argument for an imperative function over a component. If
+ * that does not work, the design was wrong.
+ */
+
+/*
+ * The import map is not optional and is worth seeing here rather than reading
+ * about. The library leaves React to the host -- bundling it would put two
+ * copies of React in one page, which is the classic way to make hooks throw --
+ * so the built module imports `react` as a bare specifier. A page with a bundler
+ * resolves that already; a plain page needs to be told where React is.
+ */
+const page = (script: string) => `
+<!doctype html>
+<html><head>
+  <link rel="stylesheet" href="/style.css">
+  <script type="importmap">
+    {"imports": {
+      "react": "https://esm.sh/react@19",
+      "react-dom/client": "https://esm.sh/react-dom@19/client",
+      "react/jsx-runtime": "https://esm.sh/react@19/jsx-runtime"
+    }}
+  </script>
+</head>
+<body>
+  <h1 class="flex">A host with its own .flex</h1>
+  <style>.flex { display: block; color: rgb(1, 2, 3) }</style>
+  <div id="radar"></div>
+  <script type="module">${script}</script>
+</body></html>`
+
+/**
+ * `setContent` leaves the page on a blank origin, where `/render.js` cannot be
+ * resolved at all. Serving the host page from a real URL is what makes the
+ * import a genuine module load rather than a rehearsal of one.
+ */
+async function serve(p: import('@playwright/test').Page, html: string) {
+  await p.route('**/host.html', (route) =>
+    route.fulfill({ contentType: 'text/html', body: html }),
+  )
+  await p.goto('http://127.0.0.1:41730/host.html')
+}
+
+test.describe('embedded in a page that is not React', () => {
+  test.beforeEach(async ({ page: p }) => {
+    await mockGitHub(p)
+    // Serve the built library and stylesheet from the page's own origin, so the
+    // import is a real module load rather than a bundler illusion.
+    await p.route('**/render.js', (route) =>
+      route.fulfill({ path: 'dist-lib/render.js', contentType: 'text/javascript' }),
+    )
+    await p.route('**/style.css', (route) =>
+      route.fulfill({ path: 'dist-lib/pr-radar.css', contentType: 'text/css' }),
+    )
+  })
+
+  test('renders the dashboard into an element', async ({ page: p }) => {
+    await serve(p,
+      page(`
+        import { renderRadar } from '/render.js'
+        window.handle = renderRadar(document.getElementById('radar'), {
+          token: 'ghp_x', repos: [{ owner: 'acme', name: 'web' }],
+        })
+      `),
+    )
+    await expect(p.getByText('Add a keyboard shortcut for the filter box')).toBeVisible()
+  })
+
+  test('leaves the host stylesheet alone, and is left alone by it', async ({ page: p }) => {
+    // The prefix exists for this. Unprefixed, our `.flex` and the host's would be
+    // the same selector and one of them would lose.
+    await serve(p,
+      page(`
+        import { renderRadar } from '/render.js'
+        renderRadar(document.getElementById('radar'), {
+          token: 'ghp_x', repos: [{ owner: 'acme', name: 'web' }],
+        })
+      `),
+    )
+    await expect(p.getByText('Add a keyboard shortcut for the filter box')).toBeVisible()
+
+    const host = await p.locator('h1.flex').evaluate((el) => getComputedStyle(el).display)
+    expect(host, "the host's own .flex must still be block").toBe('block')
+  })
+
+  test('destroy empties the element and stops the polling', async ({ page: p }) => {
+    let requests = 0
+    await p.route('https://api.github.com/repos/**', async (route) => {
+      requests++
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
+    })
+
+    await serve(p,
+      page(`
+        import { renderRadar } from '/render.js'
+        window.handle = renderRadar(document.getElementById('radar'), {
+          token: 'ghp_x', repos: [{ owner: 'acme', name: 'web' }], refreshInterval: 1,
+        })
+      `),
+    )
+    await expect(p.locator('#radar')).not.toBeEmpty()
+
+    await p.evaluate(() => (window as never as { handle: { destroy(): void } }).handle.destroy())
+    await expect(p.locator('#radar')).toBeEmpty()
+
+    // A poll that outlives the element is the failure this is here to catch: it
+    // is invisible until a tab has been open an hour making a request a second.
+    const after = requests
+    await p.waitForTimeout(2500)
+    expect(requests, 'no request may be made after destroy').toBe(after)
+  })
+
+  test('setRepos changes the list without remounting', async ({ page: p }) => {
+    await serve(p,
+      page(`
+        import { renderRadar } from '/render.js'
+        window.handle = renderRadar(document.getElementById('radar'), {
+          token: 'ghp_x', repos: [],
+        })
+      `),
+    )
+    await p.evaluate(() =>
+      (window as never as { handle: { setRepos(r: unknown[]): void } }).handle.setRepos([
+        { owner: 'acme', name: 'web' },
+      ]),
+    )
+    await expect(p.getByText('Add a keyboard shortcut for the filter box')).toBeVisible()
+  })
+})

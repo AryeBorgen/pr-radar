@@ -115,9 +115,16 @@ shapes and React itself all stay free to change, and the freezing cost this
 document opens with is very nearly avoided rather than merely accepted.
 
 It is also imperative, so it works from Vue, from Angular and from a plain HTML
-page exactly as it works from React. That removes the web component from the plan
-entirely: it existed only to reach non-React hosts, it has the narrowest API of
-the three options, and it is the hardest to theme.
+page. That removes the web component from the plan entirely: it existed only to
+reach non-React hosts, it has the narrowest API of the three options, and it is
+the hardest to theme.
+
+**With one qualification, found by building it.** React is left to the host --
+bundling it would put two copies in one page, which is the classic way to make
+hooks throw -- so the built module imports `react` as a bare specifier. A host
+with a bundler resolves that already; a plain page needs an import map saying
+where React is. That is three lines in the page, and `tests/embed.spec.ts` mounts
+it exactly that way rather than describing it.
 
 **`destroy` is not optional politeness.** Without it the radar cannot be removed
 from a single-page application without leaking a React root, a poll and a

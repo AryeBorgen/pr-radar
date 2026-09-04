@@ -29,21 +29,21 @@ export default function SavedViews({ views, counts, onApply, onChange, draftQuer
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5 border-b border-neutral-200 px-4 py-1.5 dark:border-neutral-800">
-      <span className="w-14 shrink-0 text-xs font-medium tracking-wide text-neutral-400 uppercase dark:text-neutral-500">
+    <div className="pr:flex pr:flex-wrap pr:items-center pr:gap-1.5 pr:border-b pr:border-neutral-200 pr:px-4 pr:py-1.5 pr:dark:border-neutral-800">
+      <span className="pr:w-14 pr:shrink-0 pr:text-xs pr:font-medium pr:tracking-wide pr:text-neutral-400 pr:uppercase pr:dark:text-neutral-500">
         Views
       </span>
 
       {views.map((view) => (
-        <span key={view.id} className="flex items-center">
+        <span key={view.id} className="pr:flex pr:items-center">
           <button
             type="button"
             onClick={() => onApply(view)}
             title={view.query}
-            className="flex items-center gap-1.5 rounded-full border border-neutral-300 px-3 py-1 text-sm text-neutral-600 hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800"
+            className="pr:flex pr:items-center pr:gap-1.5 pr:rounded-full pr:border pr:border-neutral-300 pr:px-3 pr:py-1 pr:text-sm pr:text-neutral-600 pr:hover:bg-neutral-100 pr:dark:border-neutral-700 pr:dark:text-neutral-400 pr:dark:hover:bg-neutral-800"
           >
             {view.name}
-            <span className="rounded-full bg-neutral-100 px-1.5 text-xs tabular-nums dark:bg-neutral-800">
+            <span className="pr:rounded-full pr:bg-neutral-100 pr:px-1.5 pr:text-xs pr:tabular-nums pr:dark:bg-neutral-800">
               {counts[view.id] ?? 0}
             </span>
           </button>
@@ -51,7 +51,7 @@ export default function SavedViews({ views, counts, onApply, onChange, draftQuer
             type="button"
             onClick={() => onChange(views.filter((other) => other.id !== view.id))}
             aria-label={`Delete the "${view.name}" view`}
-            className="-ml-1 rounded-full px-1 text-neutral-400 hover:text-red-600"
+            className="pr:-ml-1 pr:rounded-full pr:px-1 pr:text-neutral-400 pr:hover:text-red-600"
           >
             ×
           </button>
@@ -59,7 +59,7 @@ export default function SavedViews({ views, counts, onApply, onChange, draftQuer
       ))}
 
       {naming ? (
-        <form onSubmit={save} className="flex items-center gap-1">
+        <form onSubmit={save} className="pr:flex pr:items-center pr:gap-1">
           <input
             autoFocus
             value={name}
@@ -67,9 +67,9 @@ export default function SavedViews({ views, counts, onApply, onChange, draftQuer
             onBlur={() => !name.trim() && setNaming(false)}
             placeholder="Name this view"
             aria-label="Name for the saved view"
-            className="w-36 rounded-full border border-neutral-300 bg-white px-3 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+            className="pr:w-36 pr:rounded-full pr:border pr:border-neutral-300 pr:bg-white pr:px-3 pr:py-1 pr:text-sm pr:dark:border-neutral-700 pr:dark:bg-neutral-900 pr:dark:text-neutral-100"
           />
-          <button type="submit" className="text-sm text-blue-600 dark:text-blue-400">
+          <button type="submit" className="pr:text-sm pr:text-blue-600 pr:dark:text-blue-400">
             Save
           </button>
         </form>
@@ -83,7 +83,7 @@ export default function SavedViews({ views, counts, onApply, onChange, draftQuer
               ? `Save the current filter: ${draftQuery}`
               : 'Choose a filter first, then save it as a view'
           }
-          className="rounded-full px-2.5 py-1 text-sm text-neutral-500 hover:bg-neutral-100 disabled:opacity-40 dark:hover:bg-neutral-800"
+          className="pr:rounded-full pr:px-2.5 pr:py-1 pr:text-sm pr:text-neutral-500 pr:hover:bg-neutral-100 pr:disabled:opacity-40 pr:dark:hover:bg-neutral-800"
         >
           + Save current
         </button>

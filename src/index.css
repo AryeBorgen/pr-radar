@@ -1,4 +1,14 @@
-@import 'tailwindcss';
+/*
+ * The prefix is what makes this shippable. Compiled without it the stylesheet
+ * carries `.flex` and `.mt-2` into somebody else's page, where a host with its
+ * own Tailwind -- or its own `.flex` -- collides with us and we with them.
+ * Prefixed, every utility and every custom property is namespaced, which is the
+ * case Tailwind's own documentation names for distributing a component library.
+ *
+ * Theming is by redeclaring the custom properties below, not by overriding
+ * classes: `--pr-color-canvas` and friends are the seam a host adjusts.
+ */
+@import 'tailwindcss' prefix(pr);
 
 /*
  * A deliberately small palette. The dashboard is a dense list, so the only

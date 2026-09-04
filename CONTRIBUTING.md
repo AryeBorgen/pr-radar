@@ -41,6 +41,35 @@ docker build -t pr-radar:x . && docker/smoke.sh pr-radar:x
 scripts/site-smoke.sh https://example.com/    # a deployed site, from the outside
 ```
 
+## The published package is tested as a package
+
+`npm run test:all` includes three checks that run against the built artifact
+rather than the source, because the source compiles fine in all the cases they
+catch:
+
+```bash
+npm run test:package    # publint, then are-the-types-wrong on a real npm pack
+npm run test:types      # a consumer compiled under moduleResolution: nodenext
+npx playwright test tests/surface.spec.ts
+```
+
+They exist because writing a library is not the same as publishing one. Both
+defects found so far were invisible to `tsc -b`: the emitted `render.d.ts`
+imported `./types` with no extension, which no consumer on `nodenext` can
+resolve, and it imported a stylesheet, which no consumer can resolve at all.
+`import type` is erased before the bundler sees it, so nothing failed to build
+-- the package was simply unusable by anyone who installed it.
+
+`tests/consumer/index.ts` is written almost entirely in `@ts-expect-error`. Each
+one is a negative test: TypeScript reports an unused directive, so the file goes
+red the moment an error *stops* happening. Making `token` optional in the
+declaration fails it; leaking `PullRequest` fails it. Both were injected and
+watched to fail before the file was committed, which is the only thing that
+distinguishes a negative test from a comment.
+
+`tests/render.d.ts.snapshot` is the public declaration, checked in whole, so a
+change to the API arrives as a diff a reviewer can read.
+
 ## What the tests are for
 
 The unit tests cover the parts with real logic — the filter language, the

@@ -2,7 +2,7 @@ import type { CheckState, PullState } from '../types'
 
 /** Octicon-derived glyphs, inlined so the app ships no icon dependency. */
 
-const base = 'shrink-0'
+const base = 'pr:shrink-0'
 
 const OPEN_PATH =
   'M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z'
@@ -17,14 +17,14 @@ const CLOSED_PATH =
 export function PrIcon({ state, draft }: { state: PullState; draft: boolean }) {
   const look =
     state === 'MERGED'
-      ? { path: MERGED_PATH, className: 'text-purple-600 dark:text-purple-400', label: 'Merged' }
+      ? { path: MERGED_PATH, className: 'pr:text-purple-600 pr:dark:text-purple-400', label: 'Merged' }
       : state === 'CLOSED'
-        ? { path: CLOSED_PATH, className: 'text-red-600 dark:text-red-500', label: 'Closed' }
+        ? { path: CLOSED_PATH, className: 'pr:text-red-600 pr:dark:text-red-500', label: 'Closed' }
         : draft
-          ? { path: OPEN_PATH, className: 'text-neutral-500', label: 'Draft' }
+          ? { path: OPEN_PATH, className: 'pr:text-neutral-500', label: 'Draft' }
           : {
               path: OPEN_PATH,
-              className: 'text-emerald-600 dark:text-emerald-500',
+              className: 'pr:text-emerald-600 pr:dark:text-emerald-500',
               label: 'Open',
             }
 
@@ -48,9 +48,9 @@ export function CheckIcon({ state }: { state: CheckState }) {
   if (state === 'NONE' || state === 'UNKNOWN') return null
 
   const look = {
-    SUCCESS: { className: 'text-emerald-600 dark:text-emerald-500', label: 'All checks passed' },
-    FAILURE: { className: 'text-red-600 dark:text-red-500', label: 'Some checks failed' },
-    PENDING: { className: 'text-amber-500', label: 'Checks running' },
+    SUCCESS: { className: 'pr:text-emerald-600 pr:dark:text-emerald-500', label: 'All checks passed' },
+    FAILURE: { className: 'pr:text-red-600 pr:dark:text-red-500', label: 'Some checks failed' },
+    PENDING: { className: 'pr:text-amber-500', label: 'Checks running' },
   }[state]
 
   const path = {

@@ -16,15 +16,15 @@ function labelTextColor(hex: string): string {
 const REVIEW_BADGE: Record<string, { text: string; className: string }> = {
   APPROVED: {
     text: 'Approved',
-    className: 'text-emerald-700 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-950',
+    className: 'pr:text-emerald-700 pr:bg-emerald-50 pr:dark:text-emerald-400 pr:dark:bg-emerald-950',
   },
   CHANGES_REQUESTED: {
     text: 'Changes requested',
-    className: 'text-red-700 bg-red-50 dark:text-red-400 dark:bg-red-950',
+    className: 'pr:text-red-700 pr:bg-red-50 pr:dark:text-red-400 pr:dark:bg-red-950',
   },
   REVIEW_REQUIRED: {
     text: 'Review required',
-    className: 'text-amber-700 bg-amber-50 dark:text-amber-400 dark:bg-amber-950',
+    className: 'pr:text-amber-700 pr:bg-amber-50 pr:dark:text-amber-400 pr:dark:bg-amber-950',
   },
 }
 
@@ -32,13 +32,13 @@ export default function PrRow({ pr, now }: { pr: PullRequest; now: number }) {
   const badge = pr.reviewDecision ? REVIEW_BADGE[pr.reviewDecision] : undefined
 
   return (
-    <li className="flex gap-3 border-b border-neutral-200 px-4 py-3 last:border-b-0 hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-900/60">
-      <div className="pt-0.5">
+    <li className="pr:flex pr:gap-3 pr:border-b pr:border-neutral-200 pr:px-4 pr:py-3 pr:last:border-b-0 pr:hover:bg-neutral-50 pr:dark:border-neutral-800 pr:dark:hover:bg-neutral-900/60">
+      <div className="pr:pt-0.5">
         <PrIcon state={pr.state} draft={pr.isDraft} />
       </div>
 
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+      <div className="pr:min-w-0 pr:flex-1">
+        <div className="pr:flex pr:flex-wrap pr:items-baseline pr:gap-x-2 pr:gap-y-1">
           {/*
             The whole point of the row: a click goes to GitHub. This app never
             tries to be the review surface, only the place you notice things.
@@ -47,29 +47,29 @@ export default function PrRow({ pr, now }: { pr: PullRequest; now: number }) {
             href={pr.url}
             target="_blank"
             rel="noreferrer"
-            className="font-semibold text-neutral-900 hover:text-blue-600 hover:underline dark:text-neutral-100 dark:hover:text-blue-400"
+            className="pr:font-semibold pr:text-neutral-900 pr:hover:text-blue-600 pr:hover:underline pr:dark:text-neutral-100 pr:dark:hover:text-blue-400"
           >
             {pr.title}
           </a>
           {pr.isDraft && pr.state === 'OPEN' && (
-            <span className="rounded-full border border-neutral-300 px-1.5 py-px text-xs text-neutral-500 dark:border-neutral-700">
+            <span className="pr:rounded-full pr:border pr:border-neutral-300 pr:px-1.5 pr:py-px pr:text-xs pr:text-neutral-500 pr:dark:border-neutral-700">
               Draft
             </span>
           )}
           {pr.state === 'MERGED' && (
-            <span className="rounded-full bg-purple-50 px-2 py-px text-xs font-medium text-purple-700 dark:bg-purple-950 dark:text-purple-300">
+            <span className="pr:rounded-full pr:bg-purple-50 pr:px-2 pr:py-px pr:text-xs pr:font-medium pr:text-purple-700 pr:dark:bg-purple-950 pr:dark:text-purple-300">
               Merged
             </span>
           )}
           {pr.state === 'CLOSED' && (
-            <span className="rounded-full bg-neutral-100 px-2 py-px text-xs font-medium text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
+            <span className="pr:rounded-full pr:bg-neutral-100 pr:px-2 pr:py-px pr:text-xs pr:font-medium pr:text-neutral-600 pr:dark:bg-neutral-800 pr:dark:text-neutral-400">
               Closed
             </span>
           )}
           {pr.labels.map((label) => (
             <span
               key={label.name}
-              className="rounded-full px-2 py-px text-xs font-medium"
+              className="pr:rounded-full pr:px-2 pr:py-px pr:text-xs pr:font-medium"
               style={{ backgroundColor: `#${label.color}`, color: labelTextColor(label.color) }}
             >
               {label.name}
@@ -77,8 +77,8 @@ export default function PrRow({ pr, now }: { pr: PullRequest; now: number }) {
           ))}
         </div>
 
-        <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-neutral-500 dark:text-neutral-400">
-          <span className="font-medium text-neutral-600 dark:text-neutral-300">{pr.repo}</span>
+        <div className="pr:mt-1 pr:flex pr:flex-wrap pr:items-center pr:gap-x-1.5 pr:text-xs pr:text-neutral-500 pr:dark:text-neutral-400">
+          <span className="pr:font-medium pr:text-neutral-600 pr:dark:text-neutral-300">{pr.repo}</span>
           <span>#{pr.number}</span>
           <span aria-hidden="true">·</span>
           <span title={absoluteTime(pr.createdAt)}>opened {relativeAge(pr.createdAt, now)} ago</span>
@@ -107,14 +107,14 @@ export default function PrRow({ pr, now }: { pr: PullRequest; now: number }) {
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-2 self-start pt-0.5">
+      <div className="pr:flex pr:shrink-0 pr:items-center pr:gap-2 pr:self-start pr:pt-0.5">
         {badge && (
-          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge.className}`}>
+          <span className={`pr:rounded-full pr:px-2 pr:py-0.5 pr:text-xs pr:font-medium ${badge.className}`}>
             {badge.text}
           </span>
         )}
         <CheckIcon state={pr.checkState} />
-        <div className="flex -space-x-1">
+        <div className="pr:flex pr:-space-x-1">
           {pr.assignees
             .filter((assignee) => assignee.avatarUrl)
             .slice(0, 3)
@@ -126,7 +126,7 @@ export default function PrRow({ pr, now }: { pr: PullRequest; now: number }) {
                 title={`Assigned: ${assignee.login}`}
                 width={20}
                 height={20}
-                className="rounded-full ring-1 ring-white dark:ring-neutral-950"
+                className="pr:rounded-full pr:ring-1 pr:ring-white pr:dark:ring-neutral-950"
               />
             ))}
         </div>

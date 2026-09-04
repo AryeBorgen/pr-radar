@@ -73,28 +73,28 @@ export default function RepoManager({ token, repos, onChange }: Props) {
   }
 
   return (
-    <div className="border-b border-neutral-200 bg-neutral-50 px-4 py-4 dark:border-neutral-800 dark:bg-neutral-900">
-      <form onSubmit={add} className="flex flex-wrap gap-2">
+    <div className="pr:border-b pr:border-neutral-200 pr:bg-neutral-50 pr:px-4 pr:py-4 pr:dark:border-neutral-800 pr:dark:bg-neutral-900">
+      <form onSubmit={add} className="pr:flex pr:flex-wrap pr:gap-2">
         <input
           value={input}
           onChange={(event) => setInput(event.target.value)}
           placeholder="owner/repo, a GitHub URL, or an org name to add all its repos"
           aria-label="Add a repository"
-          className="min-w-64 flex-1 rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-900 outline-none focus:border-blue-500 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+          className="pr:min-w-64 pr:flex-1 pr:rounded-md pr:border pr:border-neutral-300 pr:bg-white pr:px-3 pr:py-1.5 pr:text-sm pr:text-neutral-900 pr:outline-none pr:focus:border-blue-500 pr:dark:border-neutral-700 pr:dark:bg-neutral-950 pr:dark:text-neutral-100"
         />
         <button
           type="submit"
           disabled={busy}
-          className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium text-neutral-800 hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700"
+          className="pr:rounded-md pr:border pr:border-neutral-300 pr:bg-white pr:px-3 pr:py-1.5 pr:text-sm pr:font-medium pr:text-neutral-800 pr:hover:bg-neutral-100 pr:disabled:opacity-50 pr:dark:border-neutral-700 pr:dark:bg-neutral-800 pr:dark:text-neutral-100 pr:dark:hover:bg-neutral-700"
         >
           {busy ? 'Looking up…' : 'Add'}
         </button>
       </form>
 
-      {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="pr:mt-2 pr:text-sm pr:text-red-600 pr:dark:text-red-400">{error}</p>}
 
       {suggestions.length > 0 && (
-        <p className="mt-1.5 text-sm text-neutral-600 dark:text-neutral-400">
+        <p className="pr:mt-1.5 pr:text-sm pr:text-neutral-600 pr:dark:text-neutral-400">
           Did you mean{' '}
           {suggestions.map((name, index) => (
             <span key={name}>
@@ -106,7 +106,7 @@ export default function RepoManager({ token, repos, onChange }: Props) {
                   setError('')
                   setSuggestions([])
                 }}
-                className="font-medium text-blue-600 underline hover:text-blue-700 dark:text-blue-400"
+                className="pr:font-medium pr:text-blue-600 pr:underline pr:hover:text-blue-700 pr:dark:text-blue-400"
               >
                 {name}
               </button>
@@ -117,16 +117,16 @@ export default function RepoManager({ token, repos, onChange }: Props) {
       )}
 
       {repos.length > 0 && (
-        <ul className="mt-3 flex flex-wrap gap-1.5">
+        <ul className="pr:mt-3 pr:flex pr:flex-wrap pr:gap-1.5">
           {repos.map((ref) => (
             <li key={repoKey(ref)}>
-              <span className="flex items-center gap-1 rounded-full border border-neutral-300 bg-white py-0.5 pr-1 pl-2.5 text-xs text-neutral-700 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-300">
+              <span className="pr:flex pr:items-center pr:gap-1 pr:rounded-full pr:border pr:border-neutral-300 pr:bg-white pr:py-0.5 pr:pr-1 pr:pl-2.5 pr:text-xs pr:text-neutral-700 pr:dark:border-neutral-700 pr:dark:bg-neutral-950 pr:dark:text-neutral-300">
                 {ref.owner}/{ref.name}
                 <button
                   type="button"
                   onClick={() => onChange(repos.filter((r) => repoKey(r) !== repoKey(ref)))}
                   aria-label={`Remove ${ref.owner}/${ref.name}`}
-                  className="rounded-full px-1 text-neutral-400 hover:bg-neutral-200 hover:text-neutral-800 dark:hover:bg-neutral-700 dark:hover:text-neutral-100"
+                  className="pr:rounded-full pr:px-1 pr:text-neutral-400 pr:hover:bg-neutral-200 pr:hover:text-neutral-800 pr:dark:hover:bg-neutral-700 pr:dark:hover:text-neutral-100"
                 >
                   ×
                 </button>

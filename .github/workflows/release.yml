@@ -37,6 +37,7 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - run: npm run build:lib
       - run: scripts/cli-smoke.sh
 
   npm:
@@ -55,6 +56,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      - run: npm run build:lib
 
       # Node 24 above is not incidental. Trusted publishing needs npm 11.5.1 or
       # newer, and Node 22 bundles npm 10.9.8 -- which predates it, never
