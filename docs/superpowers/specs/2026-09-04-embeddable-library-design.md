@@ -37,10 +37,10 @@ and to be deliberate about which side of the line each thing sits on.
 **One package, subpath exports.** Not `pr-radar-react` beside `pr-radar-core`.
 
 ```
-pr-radar            the CLI, unchanged
-pr-radar/core       the pure logic
-pr-radar/react      the components
-pr-radar/style.css  the compiled stylesheet
+pr-radar             the CLI, unchanged
+pr-radar/core        the pure logic
+pr-radar/render      renderRadar, one function
+pr-radar/style.css   the compiled stylesheet
 ```
 
 Separate packages would each need their own trusted publisher configured by hand
@@ -92,37 +92,58 @@ the *normalised type* without the fetcher is the deliberate half: it lets somebo
 map their own data into the shape the engine understands without freezing how we
 get ours.
 
-## What `pr-radar/react` exports
+## What `pr-radar/render` exports
 
-Two levels, because a host wants one or the other and rarely both.
+One function.
 
-**The whole thing, as one component.** For a host that wants the dashboard on a
-page and no decisions:
+```js
+import { renderRadar } from 'pr-radar/render'
+import 'pr-radar/style.css'
 
-```tsx
-<PrRadar token={token} repos={[{ owner: 'acme', name: 'web' }]} />
+const radar = renderRadar(element, { token, repos })
+
+radar.setRepos([{ owner: 'acme', name: 'web' }])
+radar.destroy()
 ```
 
-It owns its own state and asks the host for nothing but a token and a list of
-repositories.
+Not a component library. The whole contract is an element, a token, a list of
+repositories and a handle back -- which means the components, the hooks, the prop
+shapes and React itself all stay free to change, and the freezing cost this
+document opens with is very nearly avoided rather than merely accepted.
 
-**The pieces, for a host that wants to arrange them itself.** `FacetBar`,
-`FilterBar`, `FilterMenus`, `PrRow`, `SavedViews` -- each already a pure
-presentational component -- plus the hook that produces what they need:
+It is also imperative, so it works from Vue, from Angular and from a plain HTML
+page exactly as it works from React. That removes the web component from the plan
+entirely: it existed only to reach non-React hosts, it has the narrowest API of
+the three options, and it is the hardest to theme.
 
-```tsx
-const radar = usePrRadar({ token, repos })
-// radar.pullRequests, radar.counts, radar.selection, radar.setSelection
+**`destroy` is not optional politeness.** Without it the radar cannot be removed
+from a single-page application without leaking a React root, a poll and a
+notification subscription. Once a handle is being returned, `setRepos` costs
+almost nothing and answers the obvious next question -- showing the radar already
+narrowed to whatever the host's user just clicked.
+
+### Why the options are an object
+
+`renderRadar(element, options)` rather than `renderRadar(element, token, repos)`,
+and the reason is a feature that does not exist yet.
+
+The intended next step is for a host to supply its own components, so the radar
+adopts that application's design rather than bringing its own:
+
+```js
+renderRadar(element, { token, repos, components: { Row, Chip, Button } })
 ```
 
-Extracting `usePrRadar` from `App.tsx` is the only real refactor in this work.
-App becomes a thin caller of it, which is a structural improvement whether or not
-anybody embeds anything.
+With an options object that is a new optional key -- a minor release, nothing
+breaks. With positional arguments it is a third parameter grafted on beside two
+others, and every future addition makes the signature worse. **The shape is
+chosen now for a change that lands later**, which is the only reason it looks
+like more ceremony than two arguments need.
 
-`TokenGate`, `Welcome` and `RepoManager` are **not** exported. They are onboarding
-for a standalone page; a host that embeds this already knows who its user is and
-which repositories matter, and would be actively harmed by a component that
-writes to `sessionStorage` behind its back.
+Nothing else is exported from here. `TokenGate`, `Welcome` and `RepoManager` stay
+internal: a host embedding this already knows who its user is and which
+repositories matter, and would be actively harmed by a component that writes to
+`sessionStorage` behind its back.
 
 ## Styling
 
@@ -150,24 +171,32 @@ library that cannot be unloaded.
 
 ## What has to be true before this ships
 
-- **The prefixed build renders identically to the app.** The same 37 browser
-  tests, run against a page that imports the library rather than the app.
-- **A host with its own Tailwind is unharmed.** A browser test mounting the
-  library inside a page that defines a conflicting `.flex`, asserting both keep
-  their own layout.
-- **The public surface is exactly the list above.** A test that imports the
+- **The prefixed build renders identically to the app.** The same browser tests,
+  run against a page that calls `renderRadar` rather than against the app.
+- **A host with its own Tailwind is unharmed.** A browser test mounting the radar
+  inside a page that defines a conflicting `.flex`, asserting both keep their own
+  layout.
+- **`destroy` leaves nothing behind.** Mount, destroy, and assert the element is
+  empty, the poll has stopped and no listener survives. This is the one that
+  decides whether the library is usable in a single-page application at all, and
+  it is invisible until somebody's tab has been open for an hour.
+- **The public surface is exactly the two entry points.** A test that imports the
   package and compares its exported names against a checked-in list, so widening
   the contract is a deliberate edit rather than a side effect.
 - **`core` carries no React.** A test asserting the core entry point has no
   dependency on react, so it stays usable from a script or a server.
+- **It works from a host that is not React.** A browser test mounting it from a
+  plain HTML page, since that reach is the whole argument for an imperative
+  function over a component.
 
 ## Order
 
 1. `pr-radar/core` and the export-surface test. No refactor; the code is already
    pure. Immediate value, no risk to anything.
-2. `usePrRadar` extracted from `App.tsx`, with the app rewritten on top of it and
-   the existing tests unchanged as the proof.
-3. `pr-radar/react`, the prefixed stylesheet, and the collision test.
-4. A web component only if a host appears that is not React. It is the narrowest
-   API of the three and the hardest to theme, which is the opposite of what was
-   asked for here.
+2. `renderRadar` and the prefixed stylesheet, with the collision test and a
+   mount-and-destroy test that asserts nothing is left behind.
+3. `components` in the options, once there is a host whose design it has to
+   adopt. The option object exists from day one so that this is additive.
+
+No web component. `renderRadar` already reaches every host one would have
+reached, with a wider API and less to maintain.
