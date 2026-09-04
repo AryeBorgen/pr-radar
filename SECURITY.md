@@ -57,22 +57,32 @@ is against the pipeline that builds and publishes it.
   attacker-controlled text -- a pull request title, a comment body, a branch
   name -- into a shell command. Both are checked mechanically, because both are
   the kind of thing a hurried edit reintroduces.
-- **Published artifacts carry provenance.** The container image is built with
-  `provenance: mode=max` and an SBOM; the npm package is published with
-  `--provenance`. Either can be traced back to the workflow run and commit that
-  produced it.
+- **Published artifacts carry provenance**, in two forms that are easy to
+  confuse. The image is built with `provenance: mode=max` and an SBOM, which
+  BuildKit attaches to the image, *and* it is attested to this repository with
+  `actions/attest-build-provenance`, which is the record `gh attestation verify`
+  reads. They are separate systems: an earlier version of this file documented
+  the second while the workflow produced only the first, so the command below
+  answered 404. The npm package publishes with `--provenance`.
 - **CodeQL** runs on every pull request and weekly, so a rule written after a
   merge still gets a chance to find something.
 - **Secret scanning and push protection** are enabled on the repository.
 
 ## Verifying what you install
 
-The container image:
+The container image, two independent ways:
 
 ```bash
-docker buildx imagetools inspect ghcr.io/aryeborgen/pr-radar:latest
+# GitHub's attestation: which workflow, at which commit, built this digest.
 gh attestation verify oci://ghcr.io/aryeborgen/pr-radar:latest --owner AryeBorgen
+
+# BuildKit's own record, carried inside the image.
+docker buildx imagetools inspect ghcr.io/aryeborgen/pr-radar:latest \
+  --format '{{json .Provenance}}'
 ```
+
+The first works for images published after 2026-09-04; earlier digests carry
+only the second.
 
 The npm package publishes with provenance, which npm displays on the package
 page and `npm view pr-radar` reports.

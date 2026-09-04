@@ -68,6 +68,21 @@ jobs:
           provenance: mode=max
           sbom: true
 
+      # `provenance: mode=max` above records how the image was built and attaches
+      # that to the image itself, readable with
+      # `docker buildx imagetools inspect --format '{{json .Provenance}}'`.
+      # It is not the same thing as a GitHub attestation, which lives in this
+      # repository and is what `gh attestation verify` looks for. SECURITY.md
+      # documented the second while the workflow produced only the first, so the
+      # command it told people to run returned a 404. This step produces the
+      # second as well.
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        if: github.event_name != 'pull_request'
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
       # build-push-action does not load the image into the local daemon, so the
       # smoke test builds its own copy; the layers are already cached.
       - name: Check the image actually serves the app
