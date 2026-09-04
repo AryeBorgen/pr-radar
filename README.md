@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="public/icons/icon-192.png" alt="" width="88" height="88">
+<img src="media/mascot.svg" alt="" width="112">
 
 # PR Radar
 

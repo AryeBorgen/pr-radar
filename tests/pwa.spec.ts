@@ -41,7 +41,13 @@ test.describe('the web app manifest', () => {
 
     // Android crops an icon to the platform's shape. Without a maskable variant
     // it crops the plain one and takes the edges of the artwork with it.
-    const maskable = manifest.icons.filter((i: { purpose: string }) => i.purpose === 'maskable')
+    //
+    // `purpose` is a space-separated list, so an icon drawn for the crop can
+    // declare "any maskable" and serve both. Matching the whole string would
+    // read that as no maskable icon at all.
+    const maskable = manifest.icons.filter((i: { purpose?: string }) =>
+      (i.purpose ?? 'any').split(/\s+/).includes('maskable'),
+    )
     expect(maskable.length).toBeGreaterThan(0)
   })
 
