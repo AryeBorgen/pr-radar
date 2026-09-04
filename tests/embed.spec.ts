@@ -47,16 +47,25 @@ async function serve(p: import('@playwright/test').Page, html: string) {
   await p.goto('http://127.0.0.1:41730/host.html')
 }
 
+/*
+ * Which build to mount. `dist-lib` is this working tree's; setting PR_RADAR_LIB
+ * points the same four tests at a copy installed from the registry, which is how
+ * `scripts/published-smoke.sh` asks whether what we shipped actually works. A
+ * working tree is not a release, and the tests are the same either way on
+ * purpose -- a separate suite for the published package would drift.
+ */
+const LIB = process.env.PR_RADAR_LIB ?? 'dist-lib'
+
 test.describe('embedded in a page that is not React', () => {
   test.beforeEach(async ({ page: p }) => {
     await mockGitHub(p)
     // Serve the built library and stylesheet from the page's own origin, so the
     // import is a real module load rather than a bundler illusion.
     await p.route('**/render.js', (route) =>
-      route.fulfill({ path: 'dist-lib/render.js', contentType: 'text/javascript' }),
+      route.fulfill({ path: `${LIB}/render.js`, contentType: 'text/javascript' }),
     )
     await p.route('**/style.css', (route) =>
-      route.fulfill({ path: 'dist-lib/pr-radar.css', contentType: 'text/css' }),
+      route.fulfill({ path: `${LIB}/pr-radar.css`, contentType: 'text/css' }),
     )
   })
 

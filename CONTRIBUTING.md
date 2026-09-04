@@ -182,8 +182,25 @@ there is no previous state for it to inherit. A working tree is not a commit, an
 nothing published from one can be verified afterwards.
 
 `scripts/check-releases.sh` runs on every pull request and requires every npm
-version to have a tag and a release, and every release to be on npm. They drift
-apart quietly otherwise, because neither direction breaks anything.
+version to have a tag and a release, every release to be on npm, and the release
+marked "Latest" to be the highest version. They drift apart quietly otherwise,
+because none of it breaks anything. GitHub picked v0.1.0 as Latest over v0.1.1
+purely because those two releases were cut out of order, and the releases page
+offered a stale version to anyone who landed on it.
+
+After publishing, the release workflow installs the package **from the registry**
+and mounts it in a browser:
+
+```bash
+scripts/published-smoke.sh 0.2.0    # or `latest`
+```
+
+It runs `tests/embed.spec.ts` against the installed copy rather than a separate
+suite, so the two cannot drift. This is the last line of defence and it is not
+theoretical: the library's first build referenced `process.env.NODE_ENV`, a Node
+global, and threw `process is not defined` in any page without a bundler --
+which is the exact case an imperative `renderRadar` exists to serve. The
+compiler, the unit tests, the type tests and the bundle all passed.
 
 ## Style
 
