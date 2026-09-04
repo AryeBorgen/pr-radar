@@ -146,7 +146,10 @@ sentence around them was doing.
 This issue was lost to it twice in an hour. The first commit explained why the
 rule should not demand a closing keyword on every pull request, and quoted one as
 an example. The second warned against exactly that -- and its own message opened
-with "GitHub clos​ed #26 because...", which closed it again.
+with "GitHub closed #26 because...", which shut it a second time.
+
+(That sentence is safe here: GitHub scans commit messages and pull request
+descriptions, not the files in them. A commit message containing it is not.)
 
 If you need to refer to one in writing, describe it ("a closing keyword") or put
 the number somewhere else in the sentence. `Refs #26` on its own line is the
