@@ -57,6 +57,16 @@ cycle; none of them are guesses.
    it cannot authenticate with **`404 Not Found`** rather than a 401 -- so the
    error reads `'pr-radar@0.1.1' is not in this registry` and says nothing about
    authentication at all. The workflows run Node 24, which bundles npm 11.19.
+
+   This one cost a tag and a failed release, so it is now checked three times
+   rather than remembered. `scripts/lint-workflows.sh` reads `node-version` out
+   of any workflow that runs `npm publish`, looks up the npm that Node bundles,
+   and fails the pull request -- before anybody tags anything. The release job
+   asserts `npm --version` before publishing, so the failure names the cause
+   instead of blaming a missing package. And after publishing it asks the
+   registry whether the version is actually there **and carries an attestation**,
+   because trusted publishing attaches one automatically: a publish that lands
+   without provenance did not go through OIDC, whatever its exit code said.
 2. **A CI publish with a token needs that token to bypass two-factor
    authentication**, because nothing in a workflow can answer a 2FA prompt. npm's
    own token screen marks that option a security risk and points automation at
