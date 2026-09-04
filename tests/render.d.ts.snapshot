@@ -1,0 +1,35 @@
+import type { RepoRef } from './types.js';
+export type { RepoRef };
+export interface RadarOptions {
+    /** A GitHub token. It is used and never stored: see the note in `renderRadar`. */
+    token: string;
+    repos: RepoRef[];
+    /** Seconds between background refetches. 0 disables polling. Defaults to 120. */
+    refreshInterval?: number;
+}
+export interface RadarHandle {
+    /** Change which repositories are shown, without remounting. */
+    setRepos(repos: RepoRef[]): void;
+    /** Unmount and release everything. Not optional -- see below. */
+    destroy(): void;
+}
+/**
+ * Render the dashboard into an element.
+ *
+ * Imperative on purpose. A React host could take a component, but Vue, Angular
+ * and a plain HTML page cannot, and a function reaches all of them -- which is
+ * why there is no web component here and no plan for one.
+ *
+ * **Nothing is stored.** The standalone page keeps a token in sessionStorage and
+ * settings in localStorage; this does neither. A host has its own idea of who
+ * the user is, and a widget that writes to storage in a page you did not write
+ * is a widget you cannot reason about.
+ *
+ * The options are an object rather than positional arguments because of a
+ * feature that does not exist yet: supplying your own components, so the radar
+ * adopts your design instead of bringing its own. As a new optional key that is
+ * a minor release; as a third parameter it is a signature that gets worse with
+ * every addition.
+ */
+export declare function renderRadar(element: Element, options: RadarOptions): RadarHandle;
+//# sourceMappingURL=render.d.ts.map

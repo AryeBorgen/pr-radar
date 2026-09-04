@@ -14,12 +14,12 @@ interface Props {
 
 export default function FacetBar({ prs, selection, stages, viewer, now, onChange }: Props) {
   return (
-    <div className="border-b border-neutral-200 dark:border-neutral-800">
+    <div className="pr:border-b pr:border-neutral-200 pr:dark:border-neutral-800">
       {FACETS.map((facet) => {
         const counts = facetCounts(prs, facet, selection, stages, viewer, now)
         return (
-          <div key={facet.id} className="flex flex-wrap items-center gap-1.5 px-4 py-1.5">
-            <span className="w-14 shrink-0 text-xs font-medium tracking-wide text-neutral-400 uppercase dark:text-neutral-500">
+          <div key={facet.id} className="pr:flex pr:flex-wrap pr:items-center pr:gap-1.5 pr:px-4 pr:py-1.5">
+            <span className="pr:w-14 pr:shrink-0 pr:text-xs pr:font-medium pr:tracking-wide pr:text-neutral-400 pr:uppercase pr:dark:text-neutral-500">
               {facet.legend}
             </span>
             {facet.options.map((option) => {
@@ -32,7 +32,7 @@ export default function FacetBar({ prs, selection, stages, viewer, now, onChange
                   onClick={() => onChange({ ...selection, [facet.id]: option.id })}
                   aria-pressed={active}
                   title={option.query || 'No filter on this axis'}
-                  className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-sm transition-colors ${
+                  className={`pr:flex pr:items-center pr:gap-1.5 pr:rounded-full pr:px-3 pr:py-1 pr:text-sm pr:transition-colors ${
                     active
                       ? 'bg-neutral-900 font-medium text-white dark:bg-neutral-100 dark:text-neutral-900'
                       : count === 0
@@ -42,7 +42,7 @@ export default function FacetBar({ prs, selection, stages, viewer, now, onChange
                 >
                   {option.label}
                   <span
-                    className={`rounded-full px-1.5 text-xs tabular-nums ${
+                    className={`pr:rounded-full pr:px-1.5 pr:text-xs pr:tabular-nums ${
                       active
                         ? 'bg-white/20 dark:bg-neutral-900/15'
                         : 'bg-neutral-100 dark:bg-neutral-800'

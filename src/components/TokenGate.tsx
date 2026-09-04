@@ -33,16 +33,16 @@ export default function TokenGate({ onToken }: { onToken: (token: string) => voi
   }
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-16">
-      <h1 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">PR Radar</h1>
-      <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+    <div className="pr:mx-auto pr:max-w-lg pr:px-4 pr:py-16">
+      <h1 className="pr:text-2xl pr:font-semibold pr:text-neutral-900 pr:dark:text-neutral-100">PR Radar</h1>
+      <p className="pr:mt-2 pr:text-sm pr:text-neutral-600 pr:dark:text-neutral-400">
         Every open pull request across all your repositories, on one screen.
       </p>
 
-      <form onSubmit={submit} className="mt-8">
+      <form onSubmit={submit} className="pr:mt-8">
         <label
           htmlFor="token"
-          className="block text-sm font-medium text-neutral-900 dark:text-neutral-100"
+          className="pr:block pr:text-sm pr:font-medium pr:text-neutral-900 pr:dark:text-neutral-100"
         >
           GitHub personal access token
         </label>
@@ -53,30 +53,30 @@ export default function TokenGate({ onToken }: { onToken: (token: string) => voi
           value={value}
           onChange={(event) => setValue(event.target.value)}
           placeholder="ghp_… or github_pat_…"
-          className="mt-2 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-blue-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+          className="pr:mt-2 pr:w-full pr:rounded-md pr:border pr:border-neutral-300 pr:bg-white pr:px-3 pr:py-2 pr:text-sm pr:text-neutral-900 pr:outline-none pr:focus:border-blue-500 pr:dark:border-neutral-700 pr:dark:bg-neutral-900 pr:dark:text-neutral-100"
         />
-        {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
+        {error && <p className="pr:mt-2 pr:text-sm pr:text-red-600 pr:dark:text-red-400">{error}</p>}
         <button
           type="submit"
           disabled={checking || !value.trim()}
-          className="mt-4 rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+          className="pr:mt-4 pr:rounded-md pr:bg-emerald-600 pr:px-4 pr:py-2 pr:text-sm pr:font-medium pr:text-white pr:hover:bg-emerald-700 pr:disabled:opacity-50"
         >
           {checking ? 'Verifying…' : 'Continue'}
         </button>
       </form>
 
-      <div className="mt-8 rounded-md border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">
+      <div className="pr:mt-8 pr:rounded-md pr:border pr:border-neutral-200 pr:bg-neutral-50 pr:p-4 pr:text-sm pr:text-neutral-600 pr:dark:border-neutral-800 pr:dark:bg-neutral-900 pr:dark:text-neutral-400">
         <p>
-          <a href={SCOPE_URL} target="_blank" rel="noreferrer" className="text-blue-600 underline dark:text-blue-400">
+          <a href={SCOPE_URL} target="_blank" rel="noreferrer" className="pr:text-blue-600 pr:underline pr:dark:text-blue-400">
             Create a token
           </a>{' '}
-          with <code className="font-mono">repo</code> (private repositories) and{' '}
-          <code className="font-mono">read:org</code> (to expand an organisation into its repos).
+          with <code className="pr:font-mono">repo</code> (private repositories) and{' '}
+          <code className="pr:font-mono">read:org</code> (to expand an organisation into its repos).
           Public repositories alone need no scopes at all.
         </p>
-        <p className="mt-3">
-          The token is kept in this tab's <code className="font-mono">sessionStorage</code> and is
-          sent only to <code className="font-mono">api.github.com</code>. This page has no server:
+        <p className="pr:mt-3">
+          The token is kept in this tab's <code className="pr:font-mono">sessionStorage</code> and is
+          sent only to <code className="pr:font-mono">api.github.com</code>. This page has no server:
           nothing you enter leaves your browser except to GitHub itself.
         </p>
       </div>

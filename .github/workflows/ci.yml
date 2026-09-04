@@ -29,6 +29,13 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - run: npm run build:lib
+      # A library compiles fine and is still unusable once installed: the
+      # emitted .d.ts imported `./types` with no extension and a stylesheet,
+      # neither of which a consumer can resolve, and neither of which `tsc -b`
+      # or the bundler complains about. These two check the artifact.
+      - run: npm run test:package
+      - run: npm run test:types
       # `npx pr-radar` is a documented install path, so it gets checked like
       # one: packed, installed from the tarball and talked to over HTTP.
       - run: scripts/cli-smoke.sh
@@ -47,6 +54,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
+      # tests/surface.spec.ts and tests/embed.spec.ts run against the built
+      # library, not the source.
+      - run: npm run build:lib
       - run: npm run test:browser
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()

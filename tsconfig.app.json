@@ -27,6 +27,8 @@
     "noUncheckedSideEffectImports": true,
     "skipLibCheck": true,
     "isolatedModules": true,
+    /* Lets `import './index.css'` resolve against src/index.css.d.ts. */
+    "allowArbitraryExtensions": true,
     "verbatimModuleSyntax": true,
     "noEmit": true,
     "types": ["vitest/globals"]

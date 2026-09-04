@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "noEmit": true,
+    "strict": true,
+    "skipLibCheck": false,
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "target": "es2022",
+    "lib": [
+      "es2022",
+      "dom"
+    ],
+    "types": [],
+    "paths": {
+      "pr-radar/render": [
+        "./dist-lib/types/render.d.ts"
+      ]
+    }
+  },
+  "include": [
+    "tests/consumer/**/*.ts"
+  ]
+}

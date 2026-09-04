@@ -45,12 +45,12 @@ function Dropdown({
   }, [open])
 
   return (
-    <div ref={container} className="relative">
+    <div ref={container} className="pr:relative">
       <button
         type="button"
         onClick={() => setOpen((was) => !was)}
         aria-expanded={open}
-        className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800 ${
+        className={`pr:flex pr:items-center pr:gap-1 pr:rounded-md pr:px-2.5 pr:py-1 pr:text-sm pr:hover:bg-neutral-100 pr:dark:hover:bg-neutral-800 ${
           active > 0
             ? 'font-medium text-neutral-900 dark:text-neutral-100'
             : 'text-neutral-600 dark:text-neutral-400'
@@ -58,17 +58,17 @@ function Dropdown({
       >
         {label}
         {active > 0 && (
-          <span className="rounded-full bg-neutral-900 px-1.5 text-xs text-white tabular-nums dark:bg-neutral-100 dark:text-neutral-900">
+          <span className="pr:rounded-full pr:bg-neutral-900 pr:px-1.5 pr:text-xs pr:text-white pr:tabular-nums pr:dark:bg-neutral-100 pr:dark:text-neutral-900">
             {active}
           </span>
         )}
-        <span aria-hidden="true" className="text-[10px]">
+        <span aria-hidden="true" className="pr:text-[10px]">
           ▾
         </span>
       </button>
 
       {open && (
-        <div className="absolute right-0 z-20 mt-1 w-72 overflow-hidden rounded-md border border-neutral-300 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-900">
+        <div className="pr:absolute pr:right-0 pr:z-20 pr:mt-1 pr:w-72 pr:overflow-hidden pr:rounded-md pr:border pr:border-neutral-300 pr:bg-white pr:shadow-lg pr:dark:border-neutral-700 pr:dark:bg-neutral-900">
           {children(() => setOpen(false))}
         </div>
       )}
@@ -89,7 +89,7 @@ export default function FilterMenus({
   const [search, setSearch] = useState<Record<string, string>>({})
 
   return (
-    <div className="flex flex-wrap items-center justify-end gap-1 border-b border-neutral-200 px-4 py-1.5 dark:border-neutral-800">
+    <div className="pr:flex pr:flex-wrap pr:items-center pr:justify-end pr:gap-1 pr:border-b pr:border-neutral-200 pr:px-4 pr:py-1.5 pr:dark:border-neutral-800">
       {MENUS.map((menu) => {
         const all = options[menu.id] ?? []
         const chosen = selection[menu.id] ?? []
@@ -102,13 +102,13 @@ export default function FilterMenus({
           <Dropdown key={menu.id} label={menu.label} active={chosen.length}>
             {() => (
               <>
-                <div className="flex items-center justify-between border-b border-neutral-200 px-3 py-2 dark:border-neutral-700">
-                  <span className="text-sm font-semibold">Filter by {menu.label.toLowerCase()}</span>
+                <div className="pr:flex pr:items-center pr:justify-between pr:border-b pr:border-neutral-200 pr:px-3 pr:py-2 pr:dark:border-neutral-700">
+                  <span className="pr:text-sm pr:font-semibold">Filter by {menu.label.toLowerCase()}</span>
                   {chosen.length > 0 && (
                     <button
                       type="button"
                       onClick={() => onChange({ ...selection, [menu.id]: [] })}
-                      className="text-xs text-blue-600 dark:text-blue-400"
+                      className="pr:text-xs pr:text-blue-600 pr:dark:text-blue-400"
                     >
                       Clear
                     </button>
@@ -116,7 +116,7 @@ export default function FilterMenus({
                 </div>
 
                 {menu.searchable && all.length >= SEARCH_THRESHOLD && (
-                  <div className="border-b border-neutral-200 p-2 dark:border-neutral-700">
+                  <div className="pr:border-b pr:border-neutral-200 pr:p-2 pr:dark:border-neutral-700">
                     <input
                       autoFocus
                       value={search[menu.id] ?? ''}
@@ -125,14 +125,14 @@ export default function FilterMenus({
                       }
                       placeholder={`Filter ${menu.label.toLowerCase()}`}
                       aria-label={`Search ${menu.label.toLowerCase()}`}
-                      className="w-full rounded-md border border-neutral-300 bg-white px-2 py-1 text-sm outline-none focus:border-blue-500 dark:border-neutral-600 dark:bg-neutral-950"
+                      className="pr:w-full pr:rounded-md pr:border pr:border-neutral-300 pr:bg-white pr:px-2 pr:py-1 pr:text-sm pr:outline-none pr:focus:border-blue-500 pr:dark:border-neutral-600 pr:dark:bg-neutral-950"
                     />
                   </div>
                 )}
 
-                <ul className="max-h-72 overflow-y-auto py-1">
+                <ul className="pr:max-h-72 pr:overflow-y-auto pr:py-1">
                   {shown.length === 0 && (
-                    <li className="px-3 py-2 text-sm text-neutral-500">
+                    <li className="pr:px-3 pr:py-2 pr:text-sm pr:text-neutral-500">
                       Nothing here matches the current filters.
                     </li>
                   )}
@@ -150,9 +150,9 @@ export default function FilterMenus({
                               [menu.id]: toggle(chosen, option.value, menu.multiple),
                             })
                           }
-                          className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                          className="pr:flex pr:w-full pr:items-center pr:gap-2 pr:px-3 pr:py-1.5 pr:text-left pr:text-sm pr:hover:bg-neutral-100 pr:dark:hover:bg-neutral-800"
                         >
-                          <span className="w-3 shrink-0 text-blue-600 dark:text-blue-400">
+                          <span className="pr:w-3 pr:shrink-0 pr:text-blue-600 pr:dark:text-blue-400">
                             {on ? '✓' : ''}
                           </span>
                           {option.avatarUrl ? (
@@ -161,18 +161,18 @@ export default function FilterMenus({
                               alt=""
                               width={18}
                               height={18}
-                              className="rounded-full"
+                              className="pr:rounded-full"
                             />
                           ) : null}
                           {option.color && (
                             <span
                               aria-hidden="true"
-                              className="h-3 w-3 shrink-0 rounded-full"
+                              className="pr:h-3 pr:w-3 pr:shrink-0 pr:rounded-full"
                               style={{ backgroundColor: `#${option.color}` }}
                             />
                           )}
-                          <span className="truncate">{option.label}</span>
-                          <span className="ml-auto shrink-0 text-xs text-neutral-400 tabular-nums">
+                          <span className="pr:truncate">{option.label}</span>
+                          <span className="pr:ml-auto pr:shrink-0 pr:text-xs pr:text-neutral-400 pr:tabular-nums">
                             {option.count}
                           </span>
                         </button>
@@ -192,7 +192,7 @@ export default function FilterMenus({
           active={0}
         >
           {(close) => (
-            <ul className="py-1">
+            <ul className="pr:py-1">
               {PERIOD_OPTIONS.map((option) => (
                 <li key={option.value}>
                   <button
@@ -201,9 +201,9 @@ export default function FilterMenus({
                       onPeriodChange(option.value)
                       close()
                     }}
-                    className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                    className="pr:flex pr:w-full pr:items-center pr:gap-2 pr:px-3 pr:py-1.5 pr:text-left pr:text-sm pr:hover:bg-neutral-100 pr:dark:hover:bg-neutral-800"
                   >
-                    <span className="w-3 shrink-0 text-blue-600 dark:text-blue-400">
+                    <span className="pr:w-3 pr:shrink-0 pr:text-blue-600 pr:dark:text-blue-400">
                       {period === option.value ? '✓' : ''}
                     </span>
                     {option.label}
@@ -217,7 +217,7 @@ export default function FilterMenus({
 
       <Dropdown label="Sort" active={0}>
         {(close) => (
-          <ul className="py-1">
+          <ul className="pr:py-1">
             {SORT_OPTIONS.map((option) => (
               <li key={option.value}>
                 <button
@@ -226,9 +226,9 @@ export default function FilterMenus({
                     onSortChange(option.value)
                     close()
                   }}
-                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                  className="pr:flex pr:w-full pr:items-center pr:gap-2 pr:px-3 pr:py-1.5 pr:text-left pr:text-sm pr:hover:bg-neutral-100 pr:dark:hover:bg-neutral-800"
                 >
-                  <span className="w-3 shrink-0 text-blue-600 dark:text-blue-400">
+                  <span className="pr:w-3 pr:shrink-0 pr:text-blue-600 pr:dark:text-blue-400">
                     {sort === option.value ? '✓' : ''}
                   </span>
                   {option.label}

@@ -105,11 +105,20 @@ test.describe('the service worker', () => {
     await mockGitHub(page)
     await page.goto('/')
 
-    const state = await page.evaluate(async () => {
-      const registration = await navigator.serviceWorker.ready
-      return registration.active?.state ?? 'none'
-    })
-    expect(state).toBe('activated')
+    // `serviceWorker.ready` resolves as soon as there is an active worker, which
+    // is not the same as that worker having finished activating -- it can still
+    // be 'activating' at that instant. Reading the state once caught it there
+    // about one run in ten. Poll for the state instead of trusting a moment.
+    await expect
+      .poll(
+        () =>
+          page.evaluate(async () => {
+            const registration = await navigator.serviceWorker.ready
+            return registration.active?.state ?? 'none'
+          }),
+        { message: 'the service worker never reached "activated"' },
+      )
+      .toBe('activated')
   })
 
   test('serves the shell with no network at all', async ({ page, context }) => {
