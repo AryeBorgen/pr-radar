@@ -49,6 +49,23 @@ cycle; none of them are guesses.
    live on the single-PR endpoint, a third request each. They were dropped
    rather than bought.
 
+## Hard-won facts about publishing
+
+1. **Trusted publishing needs npm 11.5.1, and `node-version: 22` does not have
+   it.** Node 22 bundles npm 10.9.8, which predates the feature: it never
+   attempts OIDC and sends an unauthenticated request instead. npm answers a PUT
+   it cannot authenticate with **`404 Not Found`** rather than a 401 -- so the
+   error reads `'pr-radar@0.1.1' is not in this registry` and says nothing about
+   authentication at all. The workflows run Node 24, which bundles npm 11.19.
+2. **A CI publish with a token needs that token to bypass two-factor
+   authentication**, because nothing in a workflow can answer a 2FA prompt. npm's
+   own token screen marks that option a security risk and points automation at
+   trusted publishing, and it is restricting such tokens for direct publishing.
+   Do not create one to work around an ordering problem.
+3. **A trusted publisher is configured on a package's page**, which does not
+   exist until the package does. `0.1.0` was therefore published by hand and
+   carries no provenance; everything from `0.1.1` comes through the workflow.
+
 ## Hard-won facts about the container
 
 1. **`localhost` inside the container is not one address.** `/etc/hosts` maps it
