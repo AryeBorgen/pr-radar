@@ -189,9 +189,15 @@ bin/pr-radar.js      dependency-free static server, so `npx pr-radar` works
 
 1. **Publish an npm release.** `.github/workflows/release.yml` builds, verifies,
    refuses a tag that disagrees with `package.json`, and publishes with
-   `--provenance`. It has never run, and it cannot until an `NPM_TOKEN` secret
-   exists on the repository. Until then the README says `npx pr-radar` *will*
-   work rather than that it does, which is the honest tense.
+   `--provenance`. It has never run. Until it does the README says `npx pr-radar`
+   *will* work rather than that it does, which is the honest tense.
+
+   The intended end state is **trusted publishing**: npm accepts the workflow's
+   OIDC identity and no credential is stored here at all. That cannot cover the
+   first publish, because it is configured on a package page that does not exist
+   until the package does. So `NPM_TOKEN` carries release one and is deleted
+   after it; the publish step already prefers OIDC when it is available, so
+   removing the secret is the whole of the migration.
 2. **Editing the built-in axes.** Saved views can be created and deleted, but a
    built-in axis option cannot be edited. The workaround is typing into the
    filter box and saving a view.
