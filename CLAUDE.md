@@ -77,12 +77,20 @@ cycle; none of them are guesses.
    carries no provenance; everything from `0.1.1` comes through the workflow.
 4. **A hand-published version cannot be reproduced.** `0.1.0` was traced back to
    `b76d04d`: the tarball's JavaScript is byte-identical to a build of it and the
-   HTML matches once asset hashes are normalised. The stylesheet is not. It
+   HTML matches once asset hashes are normalised. The stylesheet is not -- it
    carries one rule, `.hidden{display:none}`, that no clean checkout of that
-   commit produces -- not in a worktree, not in a plain directory. Where it came
-   from is unknown, and that is the finding rather than a gap in it: it was built
-   from a working tree, and a working tree is not a commit. The tag says where
-   the source was and the release says the tag is not a guarantee.
+   commit produces, in a worktree or a plain directory with no git at all.
+
+   It came from a build that had failed part-way through and left the tree in an
+   intermediate state, which the hand-publish then packed. Worth knowing that the
+   build itself is not at fault: running it twice in a row over its own output
+   produces byte-identical CSS, so `dist/` is not being scanned and the output
+   does not depend on the previous run. That was checked, because it was the
+   obvious suspect and it was wrong.
+
+   The tag says where the source was; the release says the tag is not a
+   guarantee. A working tree is not a commit, and a release built from one cannot
+   be verified afterwards -- which is the whole argument for the workflow.
 5. **npm versions and GitHub releases drift apart silently.** A version published
    with no tag breaks nothing; a tag with no release breaks nothing. `0.1.0` had
    neither for hours. `scripts/check-releases.sh` compares the registry against

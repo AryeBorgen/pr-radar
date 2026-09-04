@@ -99,8 +99,10 @@ scoped to what changed since the previous tag.
 
 **Do not publish by hand.** `0.1.0` was, and it cannot be reproduced: its
 JavaScript matches a build of `b76d04d` byte for byte, and its stylesheet carries
-a rule no clean checkout of that commit produces. A working tree is not a commit,
-and nothing published from one can be verified afterwards.
+a rule no clean checkout of that commit produces -- it was packed from a tree a
+failed build had left half-written. The workflow builds from a fresh checkout, so
+there is no previous state for it to inherit. A working tree is not a commit, and
+nothing published from one can be verified afterwards.
 
 `scripts/check-releases.sh` runs on every pull request and requires every npm
 version to have a tag and a release, and every release to be on npm. They drift
