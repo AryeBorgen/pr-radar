@@ -120,6 +120,49 @@ cycle; none of them are guesses.
    so CI passes `--wait-timeout`. A hang and a red build are not the same
    signal.
 
+## Signing in
+
+The device flow is built, and the thing worth remembering is *why it did not
+need a backend*.
+
+1. **GitHub's OAuth endpoints still refuse a browser**, measured on 2026-09-04
+   with the app's own CSP taken out of the picture -- otherwise the policy's
+   `connect-src` gets mistaken for GitHub's answer. A form-encoded POST to
+   `github.com/login/device/code` is rejected; the same request in `no-cors`
+   mode is *delivered* but comes back opaque. That second one is what settles
+   it: the browser will never hand the page the device code, so no clever
+   transport helps. `api.github.com` answers CORS happily and does not serve
+   those endpoints -- `404`. All three are pinned in
+   `tests/reachability.spec.ts`, which is the file that will tell us the day
+   this stops being true.
+2. **The relay lives where a server already runs.** `npx pr-radar` starts one
+   and `docker run` starts nginx; neither is a service anyone operates. So the
+   forwarder that sees the token in transit is the user's own machine, which is
+   the objection to a hosted backend rather than an acceptance of it. GitHub
+   Pages has no server, has no sign-in, and says so.
+3. **The device flow needs no client secret.** That is why a page can use it and
+   why nothing here holds a credential. A client id is public by design; do not
+   let anyone "fix" this by adding a secret.
+4. **One policy, two adapters.** `bin/relay-policy.js` holds every rule and is
+   loaded verbatim by both Node and nginx's JavaScript module. A second
+   implementation of security-sensitive code is the thing that drifts silently,
+   and `tests/node/conformance.test.js` asks both servers the same questions and
+   compares their answers *to each other* -- a difference is a failure even when
+   both answers look reasonable. It has already caught three: nginx passes no
+   environment variable to a worker unless it is named with `env`, its own
+   `client_max_body_size` answers 413 as HTML rather than as the relay's JSON,
+   and a `return 404` carries no `Cache-Control` unless told to.
+5. **njs is not Node.** It supports a default export only -- a named export is a
+   startup error. `ngx.fetch` resolves through nginx's `resolver`, which is DNS
+   and never reads `/etc/hosts`, so `--add-host` and `host.docker.internal` are
+   invisible to it. And it needs `js_fetch_trusted_certificate` or every HTTPS
+   call fails the handshake.
+6. **On Docker Desktop the default route is not the host.** `ip route` gives the
+   bridge inside the VM (`172.17.0.1`); the host is `192.168.65.254`, which is
+   what `--add-host host.docker.internal:host-gateway` resolves to. A test that
+   takes the route gets a connection refused from something that is not the
+   machine it meant.
+
 ## Decisions worth not re-litigating
 
 **Filter sources are separate stages, not one concatenated query.** The filter
@@ -279,16 +322,8 @@ would unlock things that genuinely cannot be done from a static page:
 
 - **Real push**, so notifications arrive with the tab closed. Web Push needs a
   server holding VAPID keys.
-- **OAuth**, replacing the pasted token. Re-verified in a real browser on
-  2026-09-04, because the CORS note above it turned out to have expired and this
-  one deserved the same scrutiny: it has not. `github.com/login/device/code`
-  refuses a browser both as a preflighted request and as a simple form POST that
-  triggers no preflight, and no GitHub OAuth endpoint sends
-  `Access-Control-Allow-Origin`. The device flow needs no client secret, so the
-  blocker is purely CORS -- which means the smallest thing that would unlock it
-  is a stateless forwarder rather than a full OAuth backend. It would still see
-  the resulting access token in the response body, which is the part worth
-  arguing about before anyone writes it.
+- **OAuth** was on this list. It is now built, and it did not need the backend
+  this section is about -- see *Signing in* below.
 - **Server-side polling**, shared caching across a team, and history beyond what
   a page can hold.
 

@@ -193,24 +193,51 @@ Whichever way you run it, the first screen asks for a
 Public repositories need no scopes at all; add `repo` for private ones and
 `read:org` to expand an organisation into its repositories in one step.
 
-## Why a token and not a login
+## Signing in with a GitHub account
 
-There is no "Sign in with GitHub" button. That is a consequence of having no
-backend, not an oversight, and it was re-checked on 2026-09-04 rather than taken
-on trust: a real browser asking `github.com/login/device/code` for a device code
-is refused outright, both as a preflighted request and as a simple form POST that
-needs no preflight. GitHub sends no `Access-Control-Allow-Origin` on any of its
-OAuth endpoints, so a page cannot complete the exchange no matter how it asks.
+Where something is serving this that can relay two requests -- `npx pr-radar`,
+or the container -- there is a **Sign in with GitHub** button above the token
+field. You get a short code, type it at `github.com/login/device`, and that is
+the whole thing.
 
-Adding a "Sign in with GitHub" button therefore means adding a server, and the
-cost of that server is not the hosting. It is that the server would handle other
-people's GitHub tokens -- turning a page with no attack surface into a system
-with a serious one, and replacing `docker run` with something to deploy, operate
-and keep patched. If it is ever built it will be optional: the static app stays
-the default and works exactly as it does now.
+It needs a GitHub App or OAuth App with device flow enabled, and its client id:
 
-A token you create yourself keeps the whole thing deployable as static files
-with no secret held anywhere. The trade-off is worth stating plainly:
+```bash
+npx pr-radar --client-id Iv1.your_client_id
+# or
+docker run -p 8080:80 -e PR_RADAR_CLIENT_ID=Iv1.your_client_id ghcr.io/aryeborgen/pr-radar
+```
+
+A client id is **not a secret**. The device flow authenticates with the id
+alone, which is exactly why a page can use it, and why nothing here holds a
+credential of any kind. The relay parses no token, keeps no session and writes
+nothing; the access token passes through to your browser, which is where a
+pasted one lives too. And it runs on your own machine.
+
+Two routes exist and nothing else. Each one's upstream is a constant in the
+source, four body fields are forwarded after being matched against patterns, no
+header from your request is passed on, and the reply is rebuilt from the fields
+the flow needs. Every one of those is tested by attempting to get past it, and
+the container and the CLI are asked the same questions and required to give the
+same answers.
+
+The hosted page on GitHub Pages has no server, so it has no sign-in. It says so
+rather than showing a button that could not work.
+
+## Why a token is still here
+
+Signing in needs a relay, and a relay needs a server. That is measured rather
+than assumed, on every test run: a real browser asking
+`github.com/login/device/code` for a device code is refused outright, both as a
+preflighted request and as a simple form POST that needs no preflight, because
+GitHub sends no `Access-Control-Allow-Origin` on any of its OAuth endpoints.
+
+So the token stays, and not as a fallback. It works on **every** deployment,
+including the hosted page, which has no server to relay through. It needs no
+GitHub App configured by anyone. And it is the only way in that involves no
+third piece of software at all.
+
+The trade-off is worth stating plainly, and it applies to both ways in:
 
 - The token is kept in **`sessionStorage`**, so it is gone when the tab closes.
   It is never written to disk by this app and never sent anywhere except
