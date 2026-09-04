@@ -84,8 +84,10 @@ function tally(values: { value: string; label?: string; avatarUrl?: string; colo
       seen.set(key, {
         value: entry.value,
         label: entry.label ?? entry.value,
-        avatarUrl: entry.avatarUrl,
-        color: entry.color,
+        // Spread rather than assigned: an optional field left out is not the
+        // same as one present and undefined, and absent is what is meant.
+        ...(entry.avatarUrl ? { avatarUrl: entry.avatarUrl } : {}),
+        ...(entry.color ? { color: entry.color } : {}),
         count: 1,
       })
   }

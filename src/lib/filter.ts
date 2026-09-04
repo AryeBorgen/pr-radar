@@ -125,8 +125,9 @@ export function parseQuery(query: string): ParsedQuery {
         unknown.push(token)
         continue
       }
-      op = match[1] as Term['op']
-      value = value.slice(match[1].length)
+      const [, operator = ''] = match
+      op = operator as Term['op']
+      value = value.slice(operator.length)
     }
 
     terms.push({ key, op, value: value.toLowerCase(), negated })
@@ -227,7 +228,7 @@ function matchTerm(pr: PullRequest, term: Term, viewer: string, now: number): bo
     case 'repo':
       return pr.repo.toLowerCase() === value
     case 'org':
-      return pr.repo.split('/')[0].toLowerCase() === value
+      return (pr.repo.split('/')[0] ?? '').toLowerCase() === value
     case 'review': {
       const wanted = value === 'required' ? 'review_required' : value
       return pr.reviewDecision === wanted.replace(/-/g, '_').toUpperCase()
