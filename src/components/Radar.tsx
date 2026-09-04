@@ -1,4 +1,5 @@
 import type { SavedView } from '../types'
+import { reference } from '../lib/actions'
 import { messageFor, messageForKey } from '../i18n/errors'
 import { useT } from '../i18n/useLocale'
 // Pulled in so the library build emits the stylesheet; the host imports it
@@ -6,6 +7,7 @@ import { useT } from '../i18n/useLocale'
 import '../index.css'
 import { useLocale } from '../i18n/useLocale'
 import type { PrRadarState } from '../lib/usePrRadar'
+import type { PrActions } from '../lib/usePrActions'
 import FacetBar from './FacetBar'
 import FilterMenus from './FilterMenus'
 import SavedViews from './SavedViews'
@@ -29,12 +31,20 @@ export interface RadarProps {
    */
   views?: SavedView[]
   onViewsChange?: (views: SavedView[]) => void
+  /**
+   * Merging and closing, when the caller wants them.
+   *
+   * Absent by default, and absent is the safe default: a panel embedded in
+   * somebody else's application listing pull requests is a different
+   * proposition from one that can merge branches. The host opts in.
+   */
+  actions?: PrActions
 }
 
 const NOTE = 'pr:border-b pr:border-neutral-200 pr:bg-neutral-50 pr:px-4 pr:py-2 pr:text-sm pr:text-neutral-600 pr:dark:border-neutral-800 pr:dark:bg-neutral-900 pr:dark:text-neutral-400'
 const EMPTY = 'pr:px-4 pr:py-12 pr:text-center pr:text-sm pr:text-neutral-500 pr:dark:text-neutral-400'
 
-export default function Radar({ radar, views, onViewsChange }: RadarProps) {
+export default function Radar({ radar, views, onViewsChange, actions }: RadarProps) {
   const t = useT()
   const { dir } = useLocale()
   return (
@@ -96,6 +106,43 @@ export default function Radar({ radar, views, onViewsChange }: RadarProps) {
         </p>
       )}
 
+      {/*
+        What happened, said once and dismissible.
+        A failed merge must never be silent: the row was updated optimistically
+        and then put back, and a row that changes and changes back with no
+        explanation is worse than one that never moved.
+      */}
+      {actions?.outcome && (
+        <p
+          role="status"
+          className={
+            actions.outcome.error
+              ? 'pr:flex pr:items-center pr:gap-3 pr:border-b pr:border-red-200 pr:bg-red-50 pr:px-4 pr:py-2 pr:text-sm pr:text-red-800 pr:dark:border-red-900 pr:dark:bg-red-950 pr:dark:text-red-300'
+              : 'pr:flex pr:items-center pr:gap-3 pr:border-b pr:border-emerald-200 pr:bg-emerald-50 pr:px-4 pr:py-2 pr:text-sm pr:text-emerald-800 pr:dark:border-emerald-900 pr:dark:bg-emerald-950 pr:dark:text-emerald-300'
+          }
+        >
+          <span>
+            {actions.outcome.error
+              ? t(actions.outcome.error)
+              : t(
+                  actions.outcome.kind === 'merge'
+                    ? 'action.merged'
+                    : actions.outcome.kind === 'close'
+                      ? 'action.closed'
+                      : 'action.reopened',
+                  { pr: reference(actions.outcome.pr) },
+                )}
+          </span>
+          <button
+            type="button"
+            onClick={actions.dismiss}
+            className="pr:ms-auto pr:text-xs pr:underline"
+          >
+            {t('action.cancel')}
+          </button>
+        </p>
+      )}
+
       {/* A repo that failed on its own must not look like it has no PRs. */}
       {radar.failures.map((failure) => (
         <p
@@ -118,7 +165,7 @@ export default function Radar({ radar, views, onViewsChange }: RadarProps) {
       ) : (
         <ul>
           {radar.visible.map((pr) => (
-            <PrRow key={pr.id} pr={pr} now={radar.now} />
+            <PrRow key={pr.id} pr={pr} now={radar.now} {...(actions ? { actions } : {})} />
           ))}
         </ul>
       )}

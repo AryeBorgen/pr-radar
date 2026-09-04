@@ -163,3 +163,40 @@ test.describe('right-to-left layout', () => {
     expect(overflow, 'the page scrolls horizontally in Hebrew').toBeLessThanOrEqual(0)
   })
 })
+
+test.describe('a Latin value inside a Hebrew sentence', () => {
+  /*
+   * Found in a screenshot, not in a test: the merge confirmation read
+   * `?acme/web #1 למזג את` -- the question mark had jumped to the far end,
+   * because the bidirectional algorithm attached it to the Latin run rather
+   * than to the Hebrew sentence around it.
+   *
+   * Every interpolated value is isolated now. This checks the rendered box
+   * rather than the string, because the string was never the thing that looked
+   * wrong.
+   */
+  test('does not drag the sentence\'s punctuation to the wrong end', async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'languages', { get: () => ['he-IL'] })
+      localStorage.setItem(
+        'pr-radar.settings.v1',
+        JSON.stringify({ repos: [{ owner: 'acme', name: 'web' }], views: [], refreshInterval: 0 }),
+      )
+      localStorage.setItem('pr-radar.intro.v1', 'seen')
+      sessionStorage.setItem('pr-radar.token.v1', 'ghp_test')
+    })
+    await mockGitHub(page)
+    await page.goto('/')
+    await page.getByRole('button', { name: 'פעולות' }).first().click()
+    await page.getByRole('menuitem', { name: 'יצירת קומיט מיזוג' }).click()
+
+    const question = page.getByRole('dialog').locator('p').first()
+    const text = await question.textContent()
+
+    // The question mark is the last character of the sentence, and the value is
+    // isolated so the browser keeps it there.
+    expect(text?.trimEnd().endsWith('?')).toBe(true)
+    expect(text).toContain('\u2068acme/web #1\u2069')
+  })
+})
+

@@ -49,10 +49,32 @@ function pluralFormFor(locale: Locale, count: number): string {
  * happens if it is reached anyway -- a visible `{name}` is a bug report, and
  * `undefined` in a sentence is a mystery.
  */
+/**
+ * First-strong isolate, and its terminator.
+ *
+ * Every substituted value is wrapped in these. Without them a Hebrew sentence
+ * ending in an interpolated Latin value puts its own punctuation in the wrong
+ * place: `למזג את acme/web #1?` renders with the question mark at the *left*
+ * end, because the bidirectional algorithm attaches it to the Latin run rather
+ * than to the Hebrew sentence it belongs to.
+ *
+ * Isolating the value fixes it for every message in every language at once,
+ * rather than sprinkling directional marks through the catalogues by hand and
+ * discovering the ones that were missed in a screenshot. They render as
+ * nothing; `plain()` strips them where a test wants to compare words.
+ */
+const FSI = '\u2068'
+const PDI = '\u2069'
+
+/** Strip bidi control characters, for comparing text rather than layout. */
+export function plain(text: string): string {
+  return text.replace(/[\u2066-\u2069\u200e\u200f]/g, '')
+}
+
 function fill(template: string, values: Readonly<Record<string, string | number>>): string {
   return template.replace(/\{(\w+)\}/g, (whole, name: string) => {
     const value = values[name]
-    return value === undefined ? whole : String(value)
+    return value === undefined ? whole : FSI + String(value) + PDI
   })
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CATALOGUES, directionOf, isLocale, LOCALES, translate } from './translate'
+import { CATALOGUES, directionOf, isLocale, LOCALES, plain, translate } from './translate'
 import { preferredLocale } from './useLocale'
 import { en } from './en'
 import type { Locale } from './types'
@@ -53,20 +53,29 @@ describe('the catalogues', () => {
   })
 })
 
+/*
+ * Substituted values carry bidi isolates, so the words are compared with those
+ * stripped. What they do -- keep a sentence's punctuation on the correct side
+ * when the value is in the other script -- is asserted in its own block below,
+ * and in the browser suite where it can actually be seen.
+ */
+const words = (locale: 'en' | 'he', key: string, values?: Record<string, string | number>) =>
+  plain(translate(locale, key, values))
+
 describe('plurals', () => {
   it('picks the English forms', () => {
-    expect(translate('en', 'header.repositories', { count: 1 })).toBe('1 repository')
-    expect(translate('en', 'header.repositories', { count: 2 })).toBe('2 repositories')
-    expect(translate('en', 'header.repositories', { count: 0 })).toBe('0 repositories')
+    expect(words('en', 'header.repositories', { count: 1 })).toBe('1 repository')
+    expect(words('en', 'header.repositories', { count: 2 })).toBe('2 repositories')
+    expect(words('en', 'header.repositories', { count: 0 })).toBe('0 repositories')
   })
 
   // The reason plural categories are per locale rather than one-and-other.
   // "שני מאגרים" is a form English has nowhere to put, and rendering the plural
   // form for two would be wrong in a way only a Hebrew reader would notice.
   it('picks the Hebrew two-form, which English does not have', () => {
-    expect(translate('he', 'header.repositories', { count: 1 })).toBe('מאגר אחד')
-    expect(translate('he', 'header.repositories', { count: 2 })).toBe('שני מאגרים')
-    expect(translate('he', 'header.repositories', { count: 7 })).toBe('7 מאגרים')
+    expect(words('he', 'header.repositories', { count: 1 })).toBe('מאגר אחד')
+    expect(words('he', 'header.repositories', { count: 2 })).toBe('שני מאגרים')
+    expect(words('he', 'header.repositories', { count: 7 })).toBe('7 מאגרים')
   })
 
   it('agrees with Intl for every count it will realistically see', () => {
@@ -76,7 +85,7 @@ describe('plurals', () => {
         const message = CATALOGUES[locale]['header.repositories'] as Record<string, string>
         const expected = message[form]
         expect(expected, `${locale} has no ${form} form`).toBeDefined()
-        expect(translate(locale, 'header.repositories', { count: n })).toBe(
+        expect(words(locale, 'header.repositories', { count: n })).toBe(
           expected!.replace('{count}', String(n)),
         )
       }
@@ -86,13 +95,13 @@ describe('plurals', () => {
 
 describe('filling in a message', () => {
   it('substitutes a placeholder', () => {
-    expect(translate('en', 'header.repositories', { count: 12 })).toBe('12 repositories')
+    expect(words('en', 'header.repositories', { count: 12 })).toBe('12 repositories')
   })
 
   // `undefined` in a sentence is a mystery; a visible {count} is a bug report.
   // Unreachable through t(), which is typed -- this is what happens anyway.
   it('leaves a placeholder alone rather than rendering undefined', () => {
-    expect(translate('en', 'header.repositories', {})).toContain('{count}')
+    expect(words('en', 'header.repositories', {})).toContain('{count}')
   })
 
   it('falls back to English rather than showing a key', () => {
@@ -138,5 +147,36 @@ describe('direction', () => {
     expect(isLocale('he')).toBe(true)
     expect(isLocale('fr')).toBe(false)
     expect(isLocale(null)).toBe(false)
+  })
+})
+
+describe('a value in the other script', () => {
+  /*
+   * The bug this exists for, seen in a screenshot: `למזג את acme/web #1?`
+   * rendered with the question mark at the *left* end, because the
+   * bidirectional algorithm attached it to the Latin run rather than to the
+   * Hebrew sentence it belongs to. Isolating the value keeps the punctuation
+   * where the sentence put it.
+   */
+  it('is isolated, so the sentence keeps its own punctuation', () => {
+    const text = translate('he', 'action.confirmMerge', { pr: 'acme/web #1' })
+
+    expect(text, 'the value must be wrapped in FSI…PDI').toContain('\u2068acme/web #1\u2069')
+    expect(text.endsWith('?'), 'the question mark belongs to the Hebrew sentence').toBe(true)
+  })
+
+  // Two values, so two isolates -- and each keeps its own run intact.
+  it('isolates every value, not only the first', () => {
+    const text = translate('he', 'row.waitingOn', { who: 'octocat' })
+    const other = translate('he', 'header.repositories', { count: 42 })
+
+    expect(text).toContain('\u2068octocat\u2069')
+    expect(other).toContain('\u206842\u2069')
+  })
+
+  // Isolates render as nothing, so the words are unchanged in every language.
+  it('changes no word anywhere', () => {
+    expect(plain(translate('en', 'action.confirmMerge', { pr: 'acme/web #1' })))
+      .toBe('Merge acme/web #1?')
   })
 })
