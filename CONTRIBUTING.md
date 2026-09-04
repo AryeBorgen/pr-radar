@@ -138,12 +138,22 @@ that out from the files rather than asking. Run over this repository's own
 history it excuses roughly half of what has been merged. For the rare change that
 genuinely does not warrant an issue, a maintainer applies the `no-issue` label.
 
-**Never write a closing keyword in prose, not even as an example.** GitHub's own
-parser scans the whole commit message and does not care that you were quoting.
-The commit that taught this check to accept a non-closing reference explained the
-problem by quoting `Fixes #26`, and GitHub closed #26 -- while the same commit's
-real reference, `Refs #26`, correctly did not. If you need to name one in
-writing, describe it ('a closing keyword') or break it up.
+**Never put a closing keyword next to an issue number in prose.** GitHub matches
+`close`, `closes`, `closed`, `fix`, `fixes`, `fixed`, `resolve`, `resolves` and
+`resolved` anywhere in a commit message, in any tense, and does not care what the
+sentence around them was doing.
+
+This issue was lost to it twice in an hour. The first commit explained why the
+rule should not demand a closing keyword on every pull request, and quoted one as
+an example. The second warned against exactly that -- and its own message opened
+with "GitHub closed #26 because...", which shut it a second time.
+
+(That sentence is safe here: GitHub scans commit messages and pull request
+descriptions, not the files in them. A commit message containing it is not.)
+
+If you need to refer to one in writing, describe it ("a closing keyword") or put
+the number somewhere else in the sentence. `Refs #26` on its own line is the
+reference; everything else is prose, and prose is where this bites.
 
 The decision lives in `src/lib/issueLink.ts` with unit tests, not inside the
 workflow, so it can be argued with and corrected without opening a pull request

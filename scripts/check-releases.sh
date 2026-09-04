@@ -57,6 +57,22 @@ for r in $releases; do
   fi
 done
 
+# GitHub picks "Latest" for itself unless told, and it picks by creation date.
+# v0.1.0's release was cut after v0.1.1's, so the releases page offered 0.1.0 to
+# anyone who landed on it -- pointing at a version one release out of date, with
+# nothing broken anywhere to say so.
+echo 'The release marked Latest is the highest version'
+latest=$(gh release list --repo "$REPO" --limit 100 --json tagName,isLatest \
+  --jq '.[] | select(.isLatest) | .tagName' || true)
+highest=$(printf '%s\n' "$releases" | sed 's/^v//' | sort -V | tail -1)
+if [ -z "$latest" ]; then
+  fail 'no release is marked Latest'
+elif [ "$latest" = "v$highest" ]; then
+  pass "$latest is both the highest version and the one marked Latest"
+else
+  fail "$latest is marked Latest but v$highest is higher"
+fi
+
 printf '\n'
 if [ "$failures" -eq 0 ]; then
   echo 'Versions agree.'

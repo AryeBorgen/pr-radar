@@ -132,12 +132,19 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          previous=$(gh release list --limit 1 --json tagName --jq '.[0].tagName // ""')
+          # By version, not by creation date. `gh release list --limit 1` returns
+          # the most recently *created* release, and those can arrive out of
+          # order: v0.1.0's release was cut after v0.1.1's, so that query
+          # answered "v0.1.0" and the next release's notes would have diffed
+          # against it -- re-listing everything v0.1.1 already shipped.
+          previous=$(git tag --sort=-v:refname | grep -vFx "$GITHUB_REF_NAME" | head -1)
+          # And say outright which release is current, for the same reason:
+          # left to decide for itself, GitHub marked v0.1.0 latest over v0.1.1.
           if [ -n "$previous" ]; then
-            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" \
+            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --latest \
               --generate-notes --notes-start-tag "$previous"
           else
-            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes
+            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --latest --generate-notes
           fi
 
       # The release exists and the package is published; make sure they agree

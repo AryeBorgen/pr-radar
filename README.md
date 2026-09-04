@@ -134,6 +134,58 @@ Serve `dist/` from anything -- GitHub Pages, Netlify, S3, nginx. When the site
 lives under a path rather than at the root, build with `PR_RADAR_BASE=/that/path/`;
 the included Pages workflow does it for you.
 
+## Putting it inside something you already have
+
+If you already run a dashboard, the radar can be a panel in it rather than
+another tab to remember.
+
+```bash
+npm install pr-radar react react-dom
+```
+
+```js
+import { renderRadar } from 'pr-radar/render'
+import 'pr-radar/style.css'
+
+const radar = renderRadar(document.querySelector('#radar'), {
+  token,
+  repos: [{ owner: 'octocat', name: 'hello-world' }],
+})
+```
+
+That is the whole API. `renderRadar` returns a handle with `setRepos(repos)`,
+for when the surrounding page decides what to show, and `destroy()`, for when it
+goes away. React and react-dom are peer dependencies, so your copy is the only
+copy.
+
+It is a function rather than a component on purpose: a component only reaches
+React, and a function reaches Vue, Angular and a plain HTML page too. From a page
+with no build step, React arrives through an import map:
+
+```html
+<script type="importmap">
+  { "imports": {
+    "react": "https://esm.sh/react@19",
+    "react-dom/client": "https://esm.sh/react-dom@19/client",
+    "react/jsx-runtime": "https://esm.sh/react@19/jsx-runtime"
+  } }
+</script>
+```
+
+**It stores nothing.** The standalone page keeps a token in `sessionStorage` and
+settings in `localStorage`; the embedded radar does neither, because a widget
+that writes to storage in a page you did not write is a widget you cannot reason
+about. The token you pass is used and forgotten. Every class name is prefixed
+`pr:`, so the stylesheet cannot reach your markup and yours cannot reach it.
+
+Four names are exported and nothing else: `renderRadar`, `RadarOptions`,
+`RadarHandle` and `RepoRef`. The internals are free to change because they were
+never promised -- which is what let the data layer move from GraphQL to REST
+without anything outside one module noticing.
+
+Bringing your own components, so the radar adopts your design instead of its own,
+is the next piece of [#26](https://github.com/AryeBorgen/pr-radar/issues/26).
+
 ## The token
 
 Whichever way you run it, the first screen asks for a
