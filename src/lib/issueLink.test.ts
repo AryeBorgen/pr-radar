@@ -98,6 +98,11 @@ describe('issueReferences', () => {
     // Tense is not a distinction worth making: "relates to" and "related to"
     // mean the same thing to the person typing them.
     expect(issueReferences('Related to #26')).toEqual([26])
+    // The phrasing that actually got typed, on the pull request that added the
+    // rule's multi-part support. A vocabulary that does not include the words
+    // people reach for is a vocabulary they work around.
+    expect(issueReferences('Step 0 of #26')).toEqual([26])
+    expect(issueReferences('Step 2 of #26.')).toEqual([26])
   })
 
   it('still ignores a bare mention', () => {

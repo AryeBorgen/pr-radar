@@ -73,7 +73,7 @@ export function issueReferences(body: string | null | undefined, repo = ''): num
     .replace(/^\s*>.*$/gm, '')
 
   const closing = 'close[sd]?|fix(?:e[sd])?|resolve[sd]?'
-  const referring = 'refs?|references?|part of|towards?|relate[sd]? to|see also'
+  const referring = 'refs?|references?|part of|step \\d+ of|towards?|relate[sd]? to|see also'
   const keyword = `(?:${closing}|${referring})`
   const found = new Set<number>()
 
