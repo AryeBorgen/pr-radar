@@ -24,8 +24,11 @@ test.describe('the first visit', () => {
     await mockGitHub(page)
     await page.goto('/')
 
-    await expect(page.getByText(/api\.github\.com/)).toBeVisible()
-    await expect(page.getByText(/no server|no backend/i).first()).toBeVisible()
+    // Plain strings rather than patterns: these are looking for text on a page,
+    // and an unanchored regex that resembles a host is both less precise and
+    // something CodeQL will flag as a URL check that can be fooled.
+    await expect(page.getByText('api.github.com')).toBeVisible()
+    await expect(page.getByText('no server').first()).toBeVisible()
   })
 
   test('the button reveals the token field', async ({ page }) => {
