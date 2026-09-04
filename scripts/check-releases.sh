@@ -7,8 +7,17 @@
 # breaks anything, so neither is noticed -- 0.1.0 sat on the registry for hours
 # with no tag and no notes.
 #
-# Usage: scripts/check-releases.sh [package] [owner/repo]
+# Usage: scripts/check-releases.sh [--expect <version>] [package] [owner/repo]
 set -eu
+
+# --expect <version>: wait for that version to appear on the registry before
+# comparing. Parsed before the positional arguments, or it would be read as the
+# package name. Only the release workflow passes it.
+EXPECT=''
+if [ "${1:-}" = '--expect' ]; then
+  EXPECT=$2
+  shift 2
+fi
 
 PKG=${1:-pr-radar}
 REPO=${2:-AryeBorgen/pr-radar}
@@ -24,11 +33,35 @@ if ! command -v gh >/dev/null 2>&1 || ! gh auth status >/dev/null 2>&1; then
   exit 0
 fi
 
-npm_versions=$(curl -sf "https://registry.npmjs.org/$PKG" \
-  | tr ',' '\n' | sed -n 's/.*"\([0-9][0-9.]*\)":{"name".*/\1/p' | sort -V || true)
-if [ -z "$npm_versions" ]; then
-  npm_versions=$(curl -sf "https://registry.npmjs.org/$PKG" \
-    | python3 -c 'import json,sys; print("\n".join(sorted(json.load(sys.stdin)["versions"])))' || true)
+# Read the registry, optionally waiting for a version that was just published.
+#
+# npm answers a successful `publish` before the public registry serves the new
+# version. Run straight afterwards -- which is exactly when the release workflow
+# runs it -- this saw the GitHub release and not the package, and reported a
+# disagreement that resolved itself a few seconds later. 0.3.0 was published
+# correctly and the release job still went red.
+#
+# So the release passes `--expect <version>` and this waits for it. Without the
+# flag, on a pull request, there is nothing to wait for and it reads once.
+read_registry() {
+  _raw=$(curl -sf "https://registry.npmjs.org/$PKG" || true)
+  printf '%s' "$_raw" | tr ',' '\n' | sed -n 's/.*"\([0-9][0-9.]*\)":{"name".*/\1/p' | sort -V
+}
+
+npm_versions=$(read_registry)
+if [ -n "$EXPECT" ]; then
+  _waited=0
+  while ! printf '%s\n' "$npm_versions" | grep -qx "$EXPECT"; do
+    if [ "$_waited" -ge 120 ]; then
+      echo "  note  waited ${_waited}s for $PKG@$EXPECT to reach the registry; it has not"
+      _waited=-1
+      break
+    fi
+    sleep 5
+    _waited=$((_waited + 5))
+    npm_versions=$(read_registry)
+  done
+  [ "$_waited" -gt 0 ] && echo "  note  waited ${_waited}s for $PKG@$EXPECT to reach the registry"
 fi
 releases=$(gh release list --repo "$REPO" --limit 100 --json tagName --jq '.[].tagName' || true)
 tags=$(git ls-remote --tags "https://github.com/$REPO" 2>/dev/null \
