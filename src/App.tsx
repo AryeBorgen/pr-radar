@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { usePrRadar } from './lib/usePrRadar'
+import { usePrActions } from './lib/usePrActions'
 import {
   DEFAULT_SETTINGS,
   introSeen,
@@ -45,6 +46,8 @@ export default function App() {
     views: settings.views,
     refreshInterval: settings.refreshInterval,
   })
+
+  const actions = usePrActions(token)
 
   // Watches the whole fetched list, not the filtered view: a notification you
   // only get when the right tab is selected is not a notification.
@@ -108,7 +111,7 @@ export default function App() {
           {t('repos.empty')}
         </p>
       ) : (
-        <Radar radar={radar} views={settings.views} onViewsChange={setViews} />
+        <Radar radar={radar} views={settings.views} onViewsChange={setViews} actions={actions} />
       )}
     </div>
   )

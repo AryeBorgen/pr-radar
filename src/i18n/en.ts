@@ -184,6 +184,39 @@ export const en = {
   'row.merged': 'merged {when}',
   'filter.openCount': '{count} open',
   'filter.ofTotal': '{shown} of {total}',
+  'action.menu': 'Actions',
+  'action.merge': 'Merge',
+  'action.close': 'Close',
+  'action.reopen': 'Reopen',
+  'action.cancel': 'Cancel',
+  'action.working': 'Working…',
+
+  'action.notOpen': 'Only an open pull request can be changed from here.',
+  'action.isDraft': 'A draft cannot be merged. Mark it ready for review on GitHub first.',
+  'action.mergeabilityUnknown': 'GitHub is still working out whether this can merge.',
+  'action.hasConflicts': 'This branch has conflicts that must be resolved first.',
+  'action.blocked': 'A required review or check has not passed yet.',
+  'action.behind': 'This branch is behind its base and must be updated first.',
+  'action.notMergeable': 'GitHub says this cannot be merged right now.',
+
+  'action.method.merge': 'Create a merge commit',
+  'action.method.squash': 'Squash and merge',
+  'action.method.rebase': 'Rebase and merge',
+
+  'action.confirmMerge': 'Merge {pr}?',
+  'action.confirmMergeBody': 'This lands the commits on the base branch. It cannot be undone from here.',
+  'action.confirmClose': 'Close {pr}?',
+  'action.confirmCloseBody': 'Nothing is merged. It can be reopened again from here.',
+
+  'action.failed.forbidden': 'This token is not allowed to write to that repository.',
+  'action.failed.notFound': 'That pull request is no longer visible to this token.',
+  'action.failed.notMergeable': 'GitHub refused the merge. The branch may have become unmergeable.',
+  'action.failed.changed': 'Someone pushed to the branch while this was open. Refresh and look again.',
+  'action.failed.rejected': 'GitHub rejected the request. A branch rule may forbid it.',
+  'action.failed.unknown': 'The action did not complete.',
+  'action.merged': 'Merged {pr}.',
+  'action.closed': 'Closed {pr}.',
+  'action.reopened': 'Reopened {pr}.',
 } as const
 
 export type MessageKey = keyof typeof en

@@ -49,6 +49,8 @@ describe('no untranslated text in a component', () => {
     'sessionStorage', 'localStorage', 'repo', 'read:org',
     // Identifiers and protocol constants, not prose.
     'GitHubError', 'Promise', 'Content-Type', 'Authorization', 'Accept',
+    // KeyboardEvent.key values. Named by the platform, never shown to anyone.
+    'Escape', 'Enter', 'Tab', 'ArrowUp', 'ArrowDown', 'Backspace',
   ])
 
   /*

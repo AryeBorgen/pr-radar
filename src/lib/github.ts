@@ -1,3 +1,4 @@
+import type { MergeMethod, Mergeability } from './actions'
 import type {
   Actor,
   CheckState,
@@ -93,6 +94,128 @@ async function rest<T>(token: string, path: string): Promise<T> {
     })
   }
   return response.json() as Promise<T>
+}
+
+/**
+ * A write.
+ *
+ * Separate from `rest` on purpose, and not because of the method. A read that
+ * fails costs a refresh; a write that fails has either happened or not, and the
+ * caller has to be able to tell which. So this returns the status alongside the
+ * body rather than throwing on every non-2xx, and lets the caller decide what
+ * 405 or 409 mean -- they mean quite different things, and `actions.ts` is where
+ * that judgement lives.
+ *
+ * There is no retry. Retrying a read is free; retrying a merge that may already
+ * have landed is how a branch gets merged twice.
+ */
+async function write<T>(
+  token: string,
+  path: string,
+  method: 'POST' | 'PATCH' | 'PUT',
+  body: unknown,
+): Promise<T> {
+  let response: Response
+  try {
+    response = await fetch(`${API}${path}`, {
+      method,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+      body: JSON.stringify(body),
+    })
+  } catch {
+    throw new GitHubError('error.unreachable')
+  }
+
+  if (!response.ok) {
+    // The status is what the caller reasons about; the message is a fallback
+    // for a status nobody has a sentence for yet.
+    throw new GitHubError('error.status', response.status, {
+      status: response.status,
+      statusText: response.statusText,
+    })
+  }
+  return response.json() as Promise<T>
+}
+
+/* ------------------------------------------------------------------ actions */
+
+interface RawSinglePull {
+  mergeable: boolean | null
+  mergeable_state?: string
+}
+
+interface RawRepo {
+  allow_merge_commit?: boolean
+  allow_squash_merge?: boolean
+  allow_rebase_merge?: boolean
+}
+
+/**
+ * Whether one pull request can be merged, and how this repository allows it.
+ *
+ * Two requests, made when somebody opens one pull request's menu -- never for a
+ * list. The list endpoint carries neither answer (see CLAUDE.md on what REST's
+ * list omits), and fetching them per row would cost two requests per pull
+ * request per poll for a question nobody has asked.
+ */
+export async function fetchMergeability(
+  token: string,
+  repo: string,
+  number: number,
+): Promise<Mergeability> {
+  const [pull, repository] = await Promise.all([
+    rest<RawSinglePull>(token, `/repos/${repo}/pulls/${number}`),
+    rest<RawRepo>(token, `/repos/${repo}`),
+  ])
+
+  const allowed: MergeMethod[] = []
+  // `undefined` is not `false`: an older response that omits the field should
+  // not silently remove a merge method the repository actually allows.
+  if (repository.allow_merge_commit !== false) allowed.push('merge')
+  if (repository.allow_squash_merge !== false) allowed.push('squash')
+  if (repository.allow_rebase_merge !== false) allowed.push('rebase')
+
+  return {
+    mergeable: pull.mergeable ?? null,
+    state: pull.mergeable_state ?? 'unknown',
+    allowed,
+  }
+}
+
+/**
+ * Merge one pull request.
+ *
+ * `sha` is not optional here even though GitHub allows it to be. It tells
+ * GitHub which commit this merge was decided about, and GitHub answers 409 if
+ * the branch has moved since -- which is exactly the case worth catching, since
+ * the menu may have been open for a while. Without it, a merge would quietly
+ * land a commit nobody in front of the screen has seen.
+ */
+export async function mergePullRequest(
+  token: string,
+  repo: string,
+  number: number,
+  method: MergeMethod,
+  sha: string,
+): Promise<void> {
+  await write(token, `/repos/${repo}/pulls/${number}/merge`, 'PUT', {
+    merge_method: method,
+    sha,
+  })
+}
+
+export async function setPullRequestState(
+  token: string,
+  repo: string,
+  number: number,
+  state: 'closed' | 'open',
+): Promise<void> {
+  await write(token, `/repos/${repo}/pulls/${number}`, 'PATCH', { state })
 }
 
 /* ------------------------------------------------------------------ listing */

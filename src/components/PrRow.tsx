@@ -1,5 +1,7 @@
 import type { PullRequest } from '../types'
 import { useLocale } from '../i18n/useLocale'
+import PrActions from './PrActions'
+import type { PrActions as Actions } from '../lib/usePrActions'
 import type { MessageKey } from '../i18n/en'
 import { absoluteTime, relativeTime } from '../lib/time'
 import { CheckIcon, PrIcon } from './icons'
@@ -30,7 +32,20 @@ const REVIEW_BADGE: Record<string, { text: MessageKey; className: string }> = {
   },
 }
 
-export default function PrRow({ pr, now }: { pr: PullRequest; now: number }) {
+export default function PrRow({
+  pr,
+  now,
+  actions,
+}: {
+  pr: PullRequest
+  now: number
+  /*
+   * Absent where nothing can be done: the embedded radar is a panel in
+   * somebody else's application, and a widget that merges branches is a
+   * different proposition from one that lists them. A host opts in.
+   */
+  actions?: Actions
+}) {
   const { t, locale } = useLocale()
   const badge = pr.reviewDecision ? REVIEW_BADGE[pr.reviewDecision] : undefined
 
@@ -136,6 +151,11 @@ export default function PrRow({ pr, now }: { pr: PullRequest; now: number }) {
             ))}
         </div>
       </div>
+      {actions && (
+        <div className="pr:shrink-0 pr:pt-0.5">
+          <PrActions pr={pr} actions={actions} />
+        </div>
+      )}
     </li>
   )
 }

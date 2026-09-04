@@ -188,6 +188,19 @@ need a backend*.
    single words and string literals inside JSX expressions -- `{busy ? 'Looking
    up…' : 'Add'}` is invisible to anything that only reads between tags.
 
+5. **Isolate every interpolated value, in the translator.** A Latin value at
+   the end of a Hebrew sentence drags the sentence's punctuation with it: the
+   merge confirmation rendered `?acme/web #1 למזג את` with the question mark
+   past the number. `fill()` now wraps every substituted value in `U+2068`/
+   `U+2069` (first-strong isolate), which fixes it for every message in every
+   language at once instead of sprinkling directional marks through the
+   catalogues by hand and finding the ones that were missed in a screenshot.
+6. **And isolate the whole run, not its pieces.** With `{repo}` and `{number}`
+   as separate values the `#` between them sat outside both isolates, took the
+   paragraph's direction, and rendered `#1` as `1#`. `reference()` builds
+   `acme/web #7` as one string so it is one run. Both were found by looking at a
+   screenshot; neither showed up in a passing test.
+
 ## Decisions worth not re-litigating
 
 **Filter sources are separate stages, not one concatenated query.** The filter
@@ -223,6 +236,25 @@ invalidate it — that is what makes a two-minute poll cost nothing when nothing
 changed. Notification identity must survive a push, or every commit would
 announce the PR as new; keying on repo and number is what lets "CI went red on
 the new commit" fire correctly.
+
+**Writes ask first, and are never bulk.** Merging is the only thing this app
+does that cannot be undone by refreshing, so nothing happens on the first click:
+the menu opens, and the destructive item opens a confirmation naming the
+repository and the number. "Are you sure?" confirms nothing -- it is agreed to
+without being read, and the row it refers to is the only part worth checking.
+There is no multi-select and no bulk merge; it reads well in a changelog and
+goes wrong once, expensively.
+
+**The head SHA goes with a merge.** GitHub allows it to be omitted. Sending it
+is what makes GitHub answer `409` when the branch moved while the menu was open,
+instead of quietly landing a commit nobody in front of the screen has seen.
+
+**Mergeability is fetched per menu-open, never per row.** The list endpoint does
+not carry it (fact 5 above), so it costs two requests -- and two requests per
+row per poll would dwarf everything else in the budget. `undefined` mergeability
+means nobody has asked yet and the action stays available; `null` means GitHub
+was asked and is still computing. Same UNKNOWN-is-not-NONE rule as everywhere
+else.
 
 **Only open PRs are enriched.** Review and check state on a merged PR is
 history, and the list of merged PRs grows without bound.
