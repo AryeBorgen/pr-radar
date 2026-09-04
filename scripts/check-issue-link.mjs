@@ -12,28 +12,31 @@ import { closingReferences, exemption, templateHeadings, verdict } from '../src/
 
 const event = JSON.parse(readFileSync(process.argv[2], 'utf8'))
 const pr = event.pull_request
-const repo = event.repository.full_name
 const token = process.env.GITHUB_TOKEN
 
-// Every value that reaches this URL came out of the event file, and part of that
-// file -- the pull request's body -- is written by whoever opened it. The issue
-// numbers are captured by `\d+` so nothing but digits can survive, but "the
-// regex upstream is careful" is an argument rather than a defence, and CodeQL
-// was right to say so. The URL is assembled from validated pieces instead.
-const OWNER_REPO = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/
+// The runner tells us which repository this is. The event file says so too, but
+// that file is parsed here and part of it -- the pull request body -- is written
+// by whoever opened it, so taking the value from the environment removes the
+// path from file data to a network call entirely rather than guarding it.
+const repo = process.env.GITHUB_REPOSITORY
+if (!repo || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo)) {
+  throw new Error(`GITHUB_REPOSITORY is not a usable owner/name: ${repo}`)
+}
 
-const api = async (segments, search = '') => {
-  if (!OWNER_REPO.test(repo)) throw new Error(`refusing to call out for repository "${repo}"`)
-  for (const segment of segments) {
-    if (!/^[A-Za-z0-9_.-]+$/.test(String(segment))) {
-      throw new Error(`refusing to build a request path from "${segment}"`)
-    }
-  }
+// The only values from the event file that reach a URL are issue and pull request
+// numbers, and they arrive as numbers rather than as text: anything that is not a
+// non-negative integer is refused before it can be interpolated. Together with
+// taking the repository from the environment, nothing read from the file reaches
+// the network as a string.
+const number = (value) => {
+  const n = Number(value)
+  if (!Number.isInteger(n) || n < 0) throw new Error(`not an issue number: ${String(value)}`)
+  return n
+}
 
-  const url = new URL(`https://api.github.com/repos/${repo}/${segments.join('/')}${search}`)
-  if (url.origin !== 'https://api.github.com') throw new Error('refusing to leave api.github.com')
-
-  const response = await fetch(url, {
+const api = async (kind, id, search = '') => {
+  const path = kind === 'files' ? `pulls/${number(id)}/files` : `issues/${number(id)}`
+  const response = await fetch(`https://api.github.com/repos/${repo}/${path}${search}`, {
     headers: {
       Authorization: `Bearer ${token}`,
       Accept: 'application/vnd.github+json',
@@ -51,7 +54,7 @@ const say = (markdown) => {
   }
 }
 
-const files = (await api(['pulls', pr.number, 'files'], '?per_page=100') ?? []).map(
+const files = (await api('files', pr.number, '?per_page=100') ?? []).map(
   (f) => f.filename,
 )
 
@@ -101,15 +104,15 @@ const headings = readdirSync(dir)
   .filter((set) => set.length > 0)
 
 const problems = []
-for (const number of refs) {
-  const issue = await api(['issues', number])
+for (const ref of refs) {
+  const issue = await api('issue', ref)
   // The issues endpoint also answers for pull requests; one is not an issue.
   const result = verdict({ issue: issue?.pull_request ? null : issue, headings })
   if (result.ok) {
-    say(`### Issue found\n\nThis pull request closes [#${number}](https://github.com/${repo}/issues/${number}).`)
+    say(`### Issue found\n\nThis pull request closes [#${ref}](https://github.com/${repo}/issues/${ref}).`)
     process.exit(0)
   }
-  problems.push(`- **#${number}**: ${result.reason}`)
+  problems.push(`- **#${ref}**: ${result.reason}`)
 }
 
 say(`### The linked issue is not usable\n\n${problems.join('\n')}\n${howToFix}`)
