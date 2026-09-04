@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useT } from '../i18n/useLocale'
 import { NOTIFY_RULES } from '../lib/notifications'
 import { permissionOf } from '../lib/useNotifications'
 
@@ -8,6 +9,7 @@ interface Props {
 }
 
 export default function NotifyMenu({ enabled, onChange }: Props) {
+  const t = useT()
   const [open, setOpen] = useState(false)
   const [permission, setPermission] = useState(permissionOf)
   const container = useRef<HTMLDivElement>(null)
@@ -39,16 +41,16 @@ export default function NotifyMenu({ enabled, onChange }: Props) {
         type="button"
         onClick={() => setOpen((was) => !was)}
         aria-expanded={open}
-        title={on ? 'Notifications are on' : 'Notifications are off'}
+        title={on ? t('notify.on') : t('notify.off')}
         className="pr:rounded-md pr:px-2 pr:py-1 pr:text-sm pr:text-neutral-600 pr:hover:bg-neutral-100 pr:dark:text-neutral-400 pr:dark:hover:bg-neutral-800"
       >
         <span aria-hidden="true">{on ? '🔔' : '🔕'}</span>
-        <span className="pr:sr-only">Notifications</span>
+        <span className="pr:sr-only">{t('notify.label')}</span>
       </button>
 
       {open && (
-        <div className="pr:absolute pr:right-0 pr:z-20 pr:mt-1 pr:w-80 pr:rounded-md pr:border pr:border-neutral-300 pr:bg-white pr:p-3 pr:shadow-lg pr:dark:border-neutral-700 pr:dark:bg-neutral-900">
-          <p className="pr:text-sm pr:font-semibold">Notify me when…</p>
+        <div className="pr:absolute pr:end-0 pr:z-20 pr:mt-1 pr:w-80 pr:rounded-md pr:border pr:border-neutral-300 pr:bg-white pr:p-3 pr:shadow-lg pr:dark:border-neutral-700 pr:dark:bg-neutral-900">
+          <p className="pr:text-sm pr:font-semibold">{t('notify.heading')}</p>
 
           <ul className="pr:mt-2 pr:space-y-1">
             {NOTIFY_RULES.map((rule) => (
@@ -61,7 +63,7 @@ export default function NotifyMenu({ enabled, onChange }: Props) {
                       onChange({ ...enabled, [rule.id]: event.target.checked })
                     }
                   />
-                  {rule.label}
+                  {t(rule.label)}
                 </label>
               </li>
             ))}
@@ -69,13 +71,11 @@ export default function NotifyMenu({ enabled, onChange }: Props) {
 
           {permission === 'unsupported' ? (
             <p className="pr:mt-3 pr:text-xs pr:text-neutral-500 pr:dark:text-neutral-400">
-              This browser does not support notifications. The tab title still shows how many
-              pull requests are waiting on you.
+              {t('notify.unsupported')}
             </p>
           ) : permission === 'granted' ? (
             <p className="pr:mt-3 pr:text-xs pr:text-neutral-500 pr:dark:text-neutral-400">
-              Notifications are on. They arrive while this tab is open — there is no server here
-              to push to you when it is closed. The tab title always shows the count.
+              {t('notify.granted')}
             </p>
           ) : (
             <>
@@ -85,7 +85,7 @@ export default function NotifyMenu({ enabled, onChange }: Props) {
                 disabled={permission === 'denied'}
                 className="pr:mt-3 pr:w-full pr:rounded-md pr:bg-emerald-600 pr:px-3 pr:py-1.5 pr:text-sm pr:font-medium pr:text-white pr:hover:bg-emerald-700 pr:disabled:opacity-50"
               >
-                {permission === 'denied' ? 'Blocked by the browser' : 'Enable notifications'}
+                {permission === 'denied' ? t('notify.blocked') : t('notify.enable')}
               </button>
               <p className="pr:mt-2 pr:text-xs pr:text-neutral-500 pr:dark:text-neutral-400">
                 {permission === 'denied'

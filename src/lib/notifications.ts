@@ -1,4 +1,5 @@
 import type { PullRequest } from '../types'
+import type { MessageKey } from '../i18n/en'
 import { applyStages } from './filter'
 
 /**
@@ -12,35 +13,35 @@ import { applyStages } from './filter'
 
 export interface NotifyRule {
   id: string
-  label: string
+  label: MessageKey
   /** Wording for the notification body; the PR title follows. */
-  headline: string
+  headline: MessageKey
   query: string
 }
 
 export const NOTIFY_RULES: NotifyRule[] = [
   {
     id: 'review-requested',
-    label: 'Someone asks for my review',
-    headline: 'Review requested',
+    label: 'notifyRule.reviewRequested',
+    headline: 'notifyHeadline.reviewRequested',
     query: 'is:open review-requested:@me',
   },
   {
     id: 'approved',
-    label: 'My PR is approved',
-    headline: 'Approved',
+    label: 'notifyRule.approved',
+    headline: 'notifyHeadline.approved',
     query: 'is:open author:@me review:approved',
   },
   {
     id: 'changes-requested',
-    label: 'Changes requested on my PR',
-    headline: 'Changes requested',
+    label: 'notifyRule.changesRequested',
+    headline: 'notifyHeadline.changesRequested',
     query: 'is:open author:@me review:changes-requested',
   },
   {
     id: 'ci-failed',
-    label: 'CI fails on my PR',
-    headline: 'Checks failed',
+    label: 'notifyRule.ciFailed',
+    headline: 'notifyHeadline.ciFailed',
     query: 'is:open author:@me checks:failure',
   },
 ]

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { fetchPullRequests, fetchViewer } from './github'
+import { fetchPullRequests, fetchViewer, type RepoFailure } from './github'
 import { useEnrichment } from './useEnrichment'
 import { applyStages, parseQuery } from './filter'
 import { repoKey } from './storage'
@@ -70,7 +70,7 @@ export interface PrRadarState {
   /** Repositories whose closed list was cut off by the page size. */
   truncated: string[]
   /** Repositories that failed on their own, reported by name. */
-  failures: { repo: string; message: string }[]
+  failures: RepoFailure[]
   refetch: () => void
 
   /** Reset the axes and put a saved view's query in the box. */

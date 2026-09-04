@@ -1,5 +1,7 @@
 import type { PullRequest } from '../types'
-import { absoluteTime, relativeAge } from '../lib/time'
+import { useLocale } from '../i18n/useLocale'
+import type { MessageKey } from '../i18n/en'
+import { absoluteTime, relativeTime } from '../lib/time'
 import { CheckIcon, PrIcon } from './icons'
 
 /** Perceived-luminance pick so a label's text stays legible on its own colour. */
@@ -13,22 +15,23 @@ function labelTextColor(hex: string): string {
 }
 
 /** NONE and UNKNOWN get no badge: absence of a verdict is not a verdict. */
-const REVIEW_BADGE: Record<string, { text: string; className: string }> = {
+const REVIEW_BADGE: Record<string, { text: MessageKey; className: string }> = {
   APPROVED: {
-    text: 'Approved',
+    text: 'review.approved',
     className: 'pr:text-emerald-700 pr:bg-emerald-50 pr:dark:text-emerald-400 pr:dark:bg-emerald-950',
   },
   CHANGES_REQUESTED: {
-    text: 'Changes requested',
+    text: 'review.changesRequested',
     className: 'pr:text-red-700 pr:bg-red-50 pr:dark:text-red-400 pr:dark:bg-red-950',
   },
   REVIEW_REQUIRED: {
-    text: 'Review required',
+    text: 'review.required',
     className: 'pr:text-amber-700 pr:bg-amber-50 pr:dark:text-amber-400 pr:dark:bg-amber-950',
   },
 }
 
 export default function PrRow({ pr, now }: { pr: PullRequest; now: number }) {
+  const { t, locale } = useLocale()
   const badge = pr.reviewDecision ? REVIEW_BADGE[pr.reviewDecision] : undefined
 
   return (
@@ -53,17 +56,17 @@ export default function PrRow({ pr, now }: { pr: PullRequest; now: number }) {
           </a>
           {pr.isDraft && pr.state === 'OPEN' && (
             <span className="pr:rounded-full pr:border pr:border-neutral-300 pr:px-1.5 pr:py-px pr:text-xs pr:text-neutral-500 pr:dark:border-neutral-700">
-              Draft
+              {t('state.draft')}
             </span>
           )}
           {pr.state === 'MERGED' && (
             <span className="pr:rounded-full pr:bg-purple-50 pr:px-2 pr:py-px pr:text-xs pr:font-medium pr:text-purple-700 pr:dark:bg-purple-950 pr:dark:text-purple-300">
-              Merged
+              {t('state.merged')}
             </span>
           )}
           {pr.state === 'CLOSED' && (
             <span className="pr:rounded-full pr:bg-neutral-100 pr:px-2 pr:py-px pr:text-xs pr:font-medium pr:text-neutral-600 pr:dark:bg-neutral-800 pr:dark:text-neutral-400">
-              Closed
+              {t('state.closed')}
             </span>
           )}
           {pr.labels.map((label) => (
@@ -81,27 +84,29 @@ export default function PrRow({ pr, now }: { pr: PullRequest; now: number }) {
           <span className="pr:font-medium pr:text-neutral-600 pr:dark:text-neutral-300">{pr.repo}</span>
           <span>#{pr.number}</span>
           <span aria-hidden="true">·</span>
-          <span title={absoluteTime(pr.createdAt)}>opened {relativeAge(pr.createdAt, now)} ago</span>
+          <span title={absoluteTime(pr.createdAt, locale)}>
+            {t('row.opened', { when: relativeTime(pr.createdAt, now, locale) })}
+          </span>
           {pr.author && (
             <>
               <span aria-hidden="true">·</span>
-              <span>by {pr.author.login}</span>
+              <span>{t('row.by', { author: pr.author.login })}</span>
             </>
           )}
           <span aria-hidden="true">·</span>
           {pr.mergedAt ? (
-            <span title={absoluteTime(pr.mergedAt)}>
-              merged {relativeAge(pr.mergedAt, now)} ago
+            <span title={absoluteTime(pr.mergedAt, locale)}>
+              {t('row.merged', { when: relativeTime(pr.mergedAt, now, locale) })}
             </span>
           ) : (
-            <span title={absoluteTime(pr.updatedAt)}>
-              updated {relativeAge(pr.updatedAt, now)} ago
+            <span title={absoluteTime(pr.updatedAt, locale)}>
+              {t('row.updated', { when: relativeTime(pr.updatedAt, now, locale) })}
             </span>
           )}
           {pr.requestedReviewers.length > 0 && (
             <>
               <span aria-hidden="true">·</span>
-              <span>waiting on {pr.requestedReviewers.join(', ')}</span>
+              <span>{t('row.waitingOn', { who: pr.requestedReviewers.join(', ') })}</span>
             </>
           )}
         </div>
@@ -110,7 +115,7 @@ export default function PrRow({ pr, now }: { pr: PullRequest; now: number }) {
       <div className="pr:flex pr:shrink-0 pr:items-center pr:gap-2 pr:self-start pr:pt-0.5">
         {badge && (
           <span className={`pr:rounded-full pr:px-2 pr:py-0.5 pr:text-xs pr:font-medium ${badge.className}`}>
-            {badge.text}
+            {t(badge.text)}
           </span>
         )}
         <CheckIcon state={pr.checkState} />

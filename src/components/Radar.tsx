@@ -1,7 +1,10 @@
 import type { SavedView } from '../types'
+import { messageFor, messageForKey } from '../i18n/errors'
+import { useT } from '../i18n/useLocale'
 // Pulled in so the library build emits the stylesheet; the host imports it
 // explicitly, since injecting <style> into someone else's page is not ours to do.
 import '../index.css'
+import { useLocale } from '../i18n/useLocale'
 import type { PrRadarState } from '../lib/usePrRadar'
 import FacetBar from './FacetBar'
 import FilterMenus from './FilterMenus'
@@ -32,8 +35,14 @@ const NOTE = 'pr:border-b pr:border-neutral-200 pr:bg-neutral-50 pr:px-4 pr:py-2
 const EMPTY = 'pr:px-4 pr:py-12 pr:text-center pr:text-sm pr:text-neutral-500 pr:dark:text-neutral-400'
 
 export default function Radar({ radar, views, onViewsChange }: RadarProps) {
+  const t = useT()
+  const { dir } = useLocale()
   return (
-    <>
+    // `dir` lives here, not on <html>: embedded, the document belongs to the
+    // host, and flipping their whole page because a panel is Hebrew would
+    // re-lay-out an application nobody asked us to touch. Standalone, the
+    // provider sets <html dir> as well and this agrees with it.
+    <div dir={dir} className="pr:contents">
       <FacetBar
         prs={radar.pullRequests}
         selection={radar.selection}
@@ -74,7 +83,7 @@ export default function Radar({ radar, views, onViewsChange }: RadarProps) {
 
       {radar.error && (
         <p className="pr:border-b pr:border-red-200 pr:bg-red-50 pr:px-4 pr:py-3 pr:text-sm pr:text-red-700 pr:dark:border-red-900 pr:dark:bg-red-950 pr:dark:text-red-400">
-          {radar.error.message}
+          {messageFor(t, radar.error, 'error.status')}
         </p>
       )}
 
@@ -94,17 +103,17 @@ export default function Radar({ radar, views, onViewsChange }: RadarProps) {
           className="pr:border-b pr:border-amber-200 pr:bg-amber-50 pr:px-4 pr:py-2 pr:text-sm pr:text-amber-800 pr:dark:border-amber-900 pr:dark:bg-amber-950 pr:dark:text-amber-400"
         >
           {failure.repo ? <strong className="pr:font-medium">{failure.repo}: </strong> : null}
-          {failure.message}
+          {messageForKey(t, failure.message, failure.values, 'error.requestFailed')}
         </p>
       ))}
 
       {radar.isPending ? (
-        <p className={EMPTY}>Loading pull requests…</p>
+        <p className={EMPTY}>{t('radar.loading')}</p>
       ) : radar.visible.length === 0 ? (
         <p className={EMPTY}>
           {radar.pullRequests.length === 0
-            ? 'No open pull requests in these repositories.'
-            : 'No pull requests match this filter.'}
+            ? t('radar.noneOpen')
+            : t('radar.noMatch')}
         </p>
       ) : (
         <ul>
@@ -113,6 +122,6 @@ export default function Radar({ radar, views, onViewsChange }: RadarProps) {
           ))}
         </ul>
       )}
-    </>
+    </div>
   )
 }

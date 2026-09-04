@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { useT } from '../i18n/useLocale'
 import type { PullRequest } from '../types'
 import type { NotifyState } from './notifications'
 import { EMPTY_NOTIFY_STATE, evaluate, waitingCount } from './notifications'
@@ -42,6 +43,18 @@ export function useNotifications(
   enabled: Record<string, boolean>,
   active: boolean,
 ): void {
+  /*
+   * Through a ref, not the closure.
+   *
+   * `t` is not in the effect's dependencies, and must not be: adding it would
+   * re-run the effect when the language changes, and re-running it announces
+   * every pull request again. Captured directly it would be the translator from
+   * the first render, so a notification arriving after a language switch would
+   * be in the old language. The ref is current without being a dependency.
+   */
+  const translate = useT()
+  const t = useRef(translate)
+  t.current = translate
   const state = useRef<NotifyState | null>(null)
 
   useEffect(() => {
@@ -58,7 +71,7 @@ export function useNotifications(
     if (!active || permissionOf() !== 'granted') return
 
     for (const { rule, pr } of fires) {
-      const notification = new Notification(`${rule.headline} · ${pr.repo}`, {
+      const notification = new Notification(`${t.current(rule.headline)} · ${pr.repo}`, {
         body: pr.title,
         // Collapses repeat announcements for the same PR and rule instead of
         // stacking them if the tab has been open a long time.

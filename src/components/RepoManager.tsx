@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { messageFor } from '../i18n/errors'
+import { useT } from '../i18n/useLocale'
 import type { RepoRef } from '../types'
 import { fetchOwnerRepos, fetchViewerOrgs, suggestOwners } from '../lib/github'
 import { parseRepoInput, repoKey } from '../lib/storage'
@@ -10,6 +12,7 @@ interface Props {
 }
 
 export default function RepoManager({ token, repos, onChange }: Props) {
+  const t = useT()
   const [input, setInput] = useState('')
   const [error, setError] = useState('')
   const [suggestions, setSuggestions] = useState<string[]>([])
@@ -60,7 +63,7 @@ export default function RepoManager({ token, repos, onChange }: Props) {
           setSuggestions(await fetchViewerOrgs(token).then((orgs) => suggestOwners(raw, orgs)).catch(() => []))
         }
       } catch (cause) {
-        setError(cause instanceof Error ? cause.message : 'Lookup failed.')
+        setError(messageFor(t, cause, 'repos.lookupFailed'))
         setSuggestions([])
       } finally {
         setBusy(false)
@@ -78,8 +81,8 @@ export default function RepoManager({ token, repos, onChange }: Props) {
         <input
           value={input}
           onChange={(event) => setInput(event.target.value)}
-          placeholder="owner/repo, a GitHub URL, or an org name to add all its repos"
-          aria-label="Add a repository"
+          placeholder={t('repos.placeholder')}
+          aria-label={t('repos.add')}
           className="pr:min-w-64 pr:flex-1 pr:rounded-md pr:border pr:border-neutral-300 pr:bg-white pr:px-3 pr:py-1.5 pr:text-sm pr:text-neutral-900 pr:outline-none pr:focus:border-blue-500 pr:dark:border-neutral-700 pr:dark:bg-neutral-950 pr:dark:text-neutral-100"
         />
         <button
@@ -87,7 +90,7 @@ export default function RepoManager({ token, repos, onChange }: Props) {
           disabled={busy}
           className="pr:rounded-md pr:border pr:border-neutral-300 pr:bg-white pr:px-3 pr:py-1.5 pr:text-sm pr:font-medium pr:text-neutral-800 pr:hover:bg-neutral-100 pr:disabled:opacity-50 pr:dark:border-neutral-700 pr:dark:bg-neutral-800 pr:dark:text-neutral-100 pr:dark:hover:bg-neutral-700"
         >
-          {busy ? 'Looking up…' : 'Add'}
+          {busy ? t('action.lookingUp') : t('action.add')}
         </button>
       </form>
 
@@ -120,7 +123,7 @@ export default function RepoManager({ token, repos, onChange }: Props) {
         <ul className="pr:mt-3 pr:flex pr:flex-wrap pr:gap-1.5">
           {repos.map((ref) => (
             <li key={repoKey(ref)}>
-              <span className="pr:flex pr:items-center pr:gap-1 pr:rounded-full pr:border pr:border-neutral-300 pr:bg-white pr:py-0.5 pr:pr-1 pr:pl-2.5 pr:text-xs pr:text-neutral-700 pr:dark:border-neutral-700 pr:dark:bg-neutral-950 pr:dark:text-neutral-300">
+              <span className="pr:flex pr:items-center pr:gap-1 pr:rounded-full pr:border pr:border-neutral-300 pr:bg-white pr:py-0.5 pr:pe-1 pr:ps-2.5 pr:text-xs pr:text-neutral-700 pr:dark:border-neutral-700 pr:dark:bg-neutral-950 pr:dark:text-neutral-300">
                 {ref.owner}/{ref.name}
                 <button
                   type="button"

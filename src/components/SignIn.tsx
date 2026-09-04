@@ -1,5 +1,7 @@
 import { useDeviceLogin } from '../lib/useDeviceLogin'
 import type { AuthFailure } from '../lib/deviceAuth'
+import { useT } from '../i18n/useLocale'
+import type { MessageKey } from '../i18n/en'
 
 /**
  * Signing in with a GitHub account, where the deployment can relay it.
@@ -17,22 +19,23 @@ import type { AuthFailure } from '../lib/deviceAuth'
  * user caused reads differently from one they did not: "you cancelled" and
  * "GitHub is unreachable" deserve different offers.
  */
-const MESSAGES: Record<AuthFailure, string> = {
-  denied: 'Sign-in was cancelled on GitHub.',
-  expired: 'That code expired. Codes last about fifteen minutes.',
-  unsupported: 'This deployment cannot sign in with a GitHub account.',
-  network: 'Could not reach GitHub.',
-  unknown: 'Sign-in did not complete.',
+const MESSAGES: Record<AuthFailure, MessageKey> = {
+  denied: 'signIn.failed.denied',
+  expired: 'signIn.failed.expired',
+  unsupported: 'signIn.failed.unsupported',
+  network: 'signIn.failed.network',
+  unknown: 'signIn.failed.unknown',
 }
 
 export default function SignIn({ onToken }: { onToken: (token: string) => void }) {
+  const t = useT()
   const { state, start, cancel } = useDeviceLogin(onToken)
 
   if (state.status === 'waiting') {
     return (
       <div className="pr:rounded-md pr:border pr:border-neutral-200 pr:bg-neutral-50 pr:p-4 pr:dark:border-neutral-800 pr:dark:bg-neutral-900">
         <p className="pr:text-sm pr:text-neutral-600 pr:dark:text-neutral-400">
-          Enter this code at{' '}
+          {t('signIn.enterCodeAt')}{' '}
           <a
             href={state.code.verificationUri}
             target="_blank"
@@ -51,14 +54,14 @@ export default function SignIn({ onToken }: { onToken: (token: string) => void }
           {state.code.userCode}
         </p>
         <p className="pr:mt-3 pr:text-sm pr:text-neutral-500 pr:dark:text-neutral-500">
-          Waiting for you to approve it…
+          {t('signIn.waiting')}
         </p>
         <button
           type="button"
           onClick={cancel}
           className="pr:mt-3 pr:text-sm pr:text-neutral-500 pr:underline pr:hover:text-neutral-900 pr:dark:hover:text-neutral-100"
         >
-          Cancel
+          {t('signIn.cancel')}
         </button>
       </div>
     )
@@ -72,11 +75,11 @@ export default function SignIn({ onToken }: { onToken: (token: string) => void }
         disabled={state.status === 'starting'}
         className="pr:w-full pr:rounded-md pr:bg-neutral-900 pr:px-4 pr:py-2.5 pr:text-sm pr:font-medium pr:text-white pr:hover:bg-neutral-800 pr:disabled:opacity-50 pr:dark:bg-neutral-100 pr:dark:text-neutral-900 pr:dark:hover:bg-white"
       >
-        {state.status === 'starting' ? 'Starting…' : 'Sign in with GitHub'}
+        {state.status === 'starting' ? t('gate.signInStarting') : t('gate.signIn')}
       </button>
       {state.status === 'failed' && (
         <p role="alert" className="pr:mt-2 pr:text-sm pr:text-red-600 pr:dark:text-red-400">
-          {MESSAGES[state.reason]}
+          {t(MESSAGES[state.reason])}
         </p>
       )}
     </div>

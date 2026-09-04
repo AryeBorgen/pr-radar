@@ -1,4 +1,5 @@
 import type { PullRequest } from '../types'
+import type { MessageKey } from '../i18n/en'
 
 /**
  * The GitHub-style dropdown menus.
@@ -9,6 +10,11 @@ import type { PullRequest } from '../types'
  */
 export interface MenuOption {
   value: string
+  /*
+   * A repository name, an author's login, a GitHub label. Data from the API,
+   * not something this project wrote, so it is never translated -- unlike the
+   * *menu's* own label, below, which is.
+   */
   label: string
   /** Shown next to the label where GitHub shows an avatar. */
   avatarUrl?: string
@@ -19,7 +25,7 @@ export interface MenuOption {
 
 export interface MenuSpec {
   id: string
-  label: string
+  label: MessageKey
   /** The qualifier this menu writes, e.g. `author`. */
   qualifier: string
   /**
@@ -33,11 +39,11 @@ export interface MenuSpec {
 }
 
 export const MENUS: MenuSpec[] = [
-  { id: 'repo', label: 'Repository', qualifier: 'repo', multiple: true, searchable: true },
-  { id: 'author', label: 'Author', qualifier: 'author', multiple: true, searchable: true },
-  { id: 'label', label: 'Label', qualifier: 'label', multiple: true, searchable: true },
-  { id: 'assignee', label: 'Assignee', qualifier: 'assignee', multiple: true, searchable: true },
-  { id: 'reviewer', label: 'Reviewer', qualifier: 'review-requested', multiple: true, searchable: true },
+  { id: 'repo', label: 'menu.repository', qualifier: 'repo', multiple: true, searchable: true },
+  { id: 'author', label: 'menu.author', qualifier: 'author', multiple: true, searchable: true },
+  { id: 'label', label: 'menu.label', qualifier: 'label', multiple: true, searchable: true },
+  { id: 'assignee', label: 'menu.assignee', qualifier: 'assignee', multiple: true, searchable: true },
+  { id: 'reviewer', label: 'menu.reviewer', qualifier: 'review-requested', multiple: true, searchable: true },
 ]
 
 /**
@@ -48,12 +54,12 @@ export const MENUS: MenuSpec[] = [
  * and the last 100 where it is quiet. `All time` is still bounded by that cap,
  * and the UI says when a repository hit it.
  */
-export const PERIOD_OPTIONS: { value: string; label: string; query: string }[] = [
-  { value: '7d', label: 'Past week', query: 'closed:>7d' },
-  { value: '1mo', label: 'Past month', query: 'closed:>1mo' },
-  { value: '3mo', label: 'Past 3 months', query: 'closed:>3mo' },
-  { value: '1y', label: 'Past year', query: 'closed:>1y' },
-  { value: 'all', label: 'All time', query: '' },
+export const PERIOD_OPTIONS: { value: string; label: MessageKey; query: string }[] = [
+  { value: '7d', label: 'period.week', query: 'closed:>7d' },
+  { value: '1mo', label: 'period.month', query: 'closed:>1mo' },
+  { value: '3mo', label: 'period.threeMonths', query: 'closed:>3mo' },
+  { value: '1y', label: 'period.year', query: 'closed:>1y' },
+  { value: 'all', label: 'period.all', query: '' },
 ]
 
 export const DEFAULT_PERIOD = '1mo'
@@ -62,13 +68,13 @@ export function periodQuery(period: string): string {
   return PERIOD_OPTIONS.find((option) => option.value === period)?.query ?? ''
 }
 
-export const SORT_OPTIONS: { value: string; label: string }[] = [
-  { value: 'updated-desc', label: 'Recently updated' },
-  { value: 'updated-asc', label: 'Least recently updated' },
-  { value: 'created-desc', label: 'Newest' },
-  { value: 'created-asc', label: 'Oldest' },
-  { value: 'merged-desc', label: 'Recently merged' },
-  { value: 'merged-asc', label: 'First merged' },
+export const SORT_OPTIONS: { value: string; label: MessageKey }[] = [
+  { value: 'updated-desc', label: 'sort.updatedDesc' },
+  { value: 'updated-asc', label: 'sort.updatedAsc' },
+  { value: 'created-desc', label: 'sort.createdDesc' },
+  { value: 'created-asc', label: 'sort.createdAsc' },
+  { value: 'merged-desc', label: 'sort.mergedDesc' },
+  { value: 'merged-asc', label: 'sort.mergedAsc' },
 ]
 
 /** Selected values per menu id. */

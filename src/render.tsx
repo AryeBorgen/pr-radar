@@ -3,13 +3,15 @@ import { createRoot, type Root } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { usePrRadar } from './lib/usePrRadar'
 import Radar from './components/Radar'
+import { LocaleProvider } from './i18n/useLocale'
 // `.js`, not `./types`, and deliberately: a consumer on `moduleResolution:
 // nodenext` cannot resolve an extensionless relative import in a `.d.ts`, and
 // tsc emits the specifier exactly as written. Type-only, so nothing reaches the
 // bundle. Pinned by tests/surface.spec.ts.
 import type { RepoRef } from './types.js'
+import type { Locale } from './i18n/types.js'
 
-export type { RepoRef }
+export type { RepoRef, Locale }
 
 export interface RadarOptions {
   /** A GitHub token. It is used and never stored: see the note in `renderRadar`. */
@@ -17,6 +19,12 @@ export interface RadarOptions {
   repos: RepoRef[]
   /** Seconds between background refetches. 0 disables polling. Defaults to 120. */
   refreshInterval?: number
+  /**
+   * Which language to render in. Defaults to the reader's browser preference.
+   * The host almost always knows better than the radar does what the page
+   * around it is written in, and Hebrew brings right-to-left with it.
+   */
+  locale?: Locale
 }
 
 export interface RadarHandle {
@@ -68,9 +76,17 @@ export function renderRadar(element: Element, options: RadarOptions): RadarHandl
   const draw = () =>
     root.render(
       <StrictMode>
-        <QueryClientProvider client={client}>
-          <Mounted options={current} />
-        </QueryClientProvider>
+        {/*
+         * `applyToDocument` is off: the document belongs to the host. The radar
+         * puts `dir` on its own root instead, so a Hebrew panel reads correctly
+         * without re-laying-out an English page around it. Nothing is stored
+         * either, for the same reason nothing else here is.
+         */}
+        <LocaleProvider applyToDocument={false} {...(current.locale === undefined ? {} : { initial: current.locale })}>
+          <QueryClientProvider client={client}>
+            <Mounted options={current} />
+          </QueryClientProvider>
+        </LocaleProvider>
       </StrictMode>,
     )
 

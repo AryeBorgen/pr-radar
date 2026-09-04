@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useT } from '../i18n/useLocale'
 import type { MenuOption, MenuSelection } from '../lib/menus'
 import { MENUS, PERIOD_OPTIONS, SORT_OPTIONS, toggle } from '../lib/menus'
 
@@ -68,7 +69,7 @@ function Dropdown({
       </button>
 
       {open && (
-        <div className="pr:absolute pr:right-0 pr:z-20 pr:mt-1 pr:w-72 pr:overflow-hidden pr:rounded-md pr:border pr:border-neutral-300 pr:bg-white pr:shadow-lg pr:dark:border-neutral-700 pr:dark:bg-neutral-900">
+        <div className="pr:absolute pr:end-0 pr:z-20 pr:mt-1 pr:w-72 pr:overflow-hidden pr:rounded-md pr:border pr:border-neutral-300 pr:bg-white pr:shadow-lg pr:dark:border-neutral-700 pr:dark:bg-neutral-900">
           {children(() => setOpen(false))}
         </div>
       )}
@@ -86,6 +87,7 @@ export default function FilterMenus({
   onSortChange,
   onPeriodChange,
 }: Props) {
+  const t = useT()
   const [search, setSearch] = useState<Record<string, string>>({})
 
   return (
@@ -99,18 +101,20 @@ export default function FilterMenus({
           : all
 
         return (
-          <Dropdown key={menu.id} label={menu.label} active={chosen.length}>
+          <Dropdown key={menu.id} label={t(menu.label)} active={chosen.length}>
             {() => (
               <>
                 <div className="pr:flex pr:items-center pr:justify-between pr:border-b pr:border-neutral-200 pr:px-3 pr:py-2 pr:dark:border-neutral-700">
-                  <span className="pr:text-sm pr:font-semibold">Filter by {menu.label.toLowerCase()}</span>
+                  <span className="pr:text-sm pr:font-semibold">
+                    {t('menus.filterBy', { what: t(menu.label).toLowerCase() })}
+                  </span>
                   {chosen.length > 0 && (
                     <button
                       type="button"
                       onClick={() => onChange({ ...selection, [menu.id]: [] })}
                       className="pr:text-xs pr:text-blue-600 pr:dark:text-blue-400"
                     >
-                      Clear
+                      {t('action.clear')}
                     </button>
                   )}
                 </div>
@@ -123,8 +127,8 @@ export default function FilterMenus({
                       onChange={(event) =>
                         setSearch({ ...search, [menu.id]: event.target.value })
                       }
-                      placeholder={`Filter ${menu.label.toLowerCase()}`}
-                      aria-label={`Search ${menu.label.toLowerCase()}`}
+                      placeholder={t('menus.filterThe', { what: t(menu.label).toLowerCase() })}
+                      aria-label={t('menus.searchIn', { what: t(menu.label).toLowerCase() })}
                       className="pr:w-full pr:rounded-md pr:border pr:border-neutral-300 pr:bg-white pr:px-2 pr:py-1 pr:text-sm pr:outline-none pr:focus:border-blue-500 pr:dark:border-neutral-600 pr:dark:bg-neutral-950"
                     />
                   </div>
@@ -133,7 +137,7 @@ export default function FilterMenus({
                 <ul className="pr:max-h-72 pr:overflow-y-auto pr:py-1">
                   {shown.length === 0 && (
                     <li className="pr:px-3 pr:py-2 pr:text-sm pr:text-neutral-500">
-                      Nothing here matches the current filters.
+                      {t('menus.noMatch')}
                     </li>
                   )}
                   {shown.map((option) => {
@@ -150,7 +154,7 @@ export default function FilterMenus({
                               [menu.id]: toggle(chosen, option.value, menu.multiple),
                             })
                           }
-                          className="pr:flex pr:w-full pr:items-center pr:gap-2 pr:px-3 pr:py-1.5 pr:text-left pr:text-sm pr:hover:bg-neutral-100 pr:dark:hover:bg-neutral-800"
+                          className="pr:flex pr:w-full pr:items-center pr:gap-2 pr:px-3 pr:py-1.5 pr:text-start pr:text-sm pr:hover:bg-neutral-100 pr:dark:hover:bg-neutral-800"
                         >
                           <span className="pr:w-3 pr:shrink-0 pr:text-blue-600 pr:dark:text-blue-400">
                             {on ? '✓' : ''}
@@ -172,7 +176,7 @@ export default function FilterMenus({
                             />
                           )}
                           <span className="pr:truncate">{option.label}</span>
-                          <span className="pr:ml-auto pr:shrink-0 pr:text-xs pr:text-neutral-400 pr:tabular-nums">
+                          <span className="pr:ms-auto pr:shrink-0 pr:text-xs pr:text-neutral-400 pr:tabular-nums">
                             {option.count}
                           </span>
                         </button>
@@ -188,7 +192,7 @@ export default function FilterMenus({
 
       {showPeriod && (
         <Dropdown
-          label={PERIOD_OPTIONS.find((option) => option.value === period)?.label ?? 'Period'}
+          label={t(PERIOD_OPTIONS.find((option) => option.value === period)?.label ?? 'menus.period')}
           active={0}
         >
           {(close) => (
@@ -201,12 +205,12 @@ export default function FilterMenus({
                       onPeriodChange(option.value)
                       close()
                     }}
-                    className="pr:flex pr:w-full pr:items-center pr:gap-2 pr:px-3 pr:py-1.5 pr:text-left pr:text-sm pr:hover:bg-neutral-100 pr:dark:hover:bg-neutral-800"
+                    className="pr:flex pr:w-full pr:items-center pr:gap-2 pr:px-3 pr:py-1.5 pr:text-start pr:text-sm pr:hover:bg-neutral-100 pr:dark:hover:bg-neutral-800"
                   >
                     <span className="pr:w-3 pr:shrink-0 pr:text-blue-600 pr:dark:text-blue-400">
                       {period === option.value ? '✓' : ''}
                     </span>
-                    {option.label}
+                    {t(option.label)}
                   </button>
                 </li>
               ))}
@@ -215,7 +219,7 @@ export default function FilterMenus({
         </Dropdown>
       )}
 
-      <Dropdown label="Sort" active={0}>
+      <Dropdown label={t('menu.sort')} active={0}>
         {(close) => (
           <ul className="pr:py-1">
             {SORT_OPTIONS.map((option) => (
@@ -226,12 +230,12 @@ export default function FilterMenus({
                     onSortChange(option.value)
                     close()
                   }}
-                  className="pr:flex pr:w-full pr:items-center pr:gap-2 pr:px-3 pr:py-1.5 pr:text-left pr:text-sm pr:hover:bg-neutral-100 pr:dark:hover:bg-neutral-800"
+                  className="pr:flex pr:w-full pr:items-center pr:gap-2 pr:px-3 pr:py-1.5 pr:text-start pr:text-sm pr:hover:bg-neutral-100 pr:dark:hover:bg-neutral-800"
                 >
                   <span className="pr:w-3 pr:shrink-0 pr:text-blue-600 pr:dark:text-blue-400">
                     {sort === option.value ? '✓' : ''}
                   </span>
-                  {option.label}
+                  {t(option.label)}
                 </button>
               </li>
             ))}

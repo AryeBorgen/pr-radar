@@ -13,7 +13,10 @@ import { expect, test } from '@playwright/test'
  * the same commit. That edit is the record that the contract moved.
  */
 
-const EXPECTED = ['RadarHandle', 'RadarOptions', 'RepoRef', 'renderRadar'].sort()
+// `Locale` joined this list when the radar learned Hebrew: a host that renders
+// the panel in a language needs the type of the value it passes. Deliberate,
+// and additive -- see the snapshot diff in the same commit.
+const EXPECTED = ['Locale', 'RadarHandle', 'RadarOptions', 'RepoRef', 'renderRadar'].sort()
 
 test('the library exports exactly what it promises', async () => {
   const declaration = readFileSync('dist-lib/types/render.d.ts', 'utf8')

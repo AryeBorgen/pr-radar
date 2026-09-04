@@ -24,10 +24,31 @@ const API = 'https://api.github.com'
  * state, so those are fetched per PR in a second pass. See `fetchEnrichment`.
  */
 
+/**
+ * A failure with a message the reader will see.
+ *
+ * `message` is a translation key, not a sentence: this module is the data layer
+ * and has no React in it, so it cannot translate anything, and a sentence built
+ * here would render in English to a Hebrew reader. `values` carries whatever
+ * the sentence interpolates. `messageFor` in i18n/errors.ts turns the pair back
+ * into words at the point one is displayed.
+ *
+ * `Error.message` still holds the key, which is what a stack trace and a
+ * console log want -- those are for developers, and a key names the case
+ * exactly.
+ */
+/** One repository's failure, as a key plus whatever its sentence interpolates. */
+export interface RepoFailure {
+  repo: string
+  message: string
+  values?: Readonly<Record<string, string | number>>
+}
+
 export class GitHubError extends Error {
   constructor(
     message: string,
     readonly status?: number,
+    readonly values?: Readonly<Record<string, string | number>>,
   ) {
     super(message)
     this.name = 'GitHubError'
@@ -47,27 +68,29 @@ async function rest<T>(token: string, path: string): Promise<T> {
   } catch {
     // `fetch` rejects only for network-level failures: offline, DNS, blocked by
     // an extension, or a CORS preflight that never passed.
-    throw new GitHubError(
-      'Could not reach api.github.com. Check your connection, and whether a browser extension is blocking the request.',
-    )
+    throw new GitHubError('error.unreachable')
   }
 
   if (response.status === 401) {
-    throw new GitHubError('GitHub rejected the token. It may be expired or revoked.', 401)
+    // A key, not a sentence. This module is the data layer and has no React in
+    // it; the component that shows the error is where a translator exists.
+    throw new GitHubError('error.tokenRejected', 401)
   }
   if (response.status === 403 || response.status === 429) {
     if (response.headers.get('x-ratelimit-remaining') === '0') {
       const reset = Number(response.headers.get('x-ratelimit-reset'))
-      const when = Number.isFinite(reset) ? new Date(reset * 1000).toLocaleTimeString() : 'shortly'
-      throw new GitHubError(`GitHub rate limit reached. It resets at ${when}.`, response.status)
+      const when = Number.isFinite(reset)
+        ? new Date(reset * 1000).toLocaleTimeString()
+        : 'error.rateLimitSoon'
+      throw new GitHubError('error.rateLimit', response.status, { when })
     }
-    throw new GitHubError(
-      'GitHub refused the request. The token may lack the scopes for this repository.',
-      response.status,
-    )
+    throw new GitHubError('error.forbidden', response.status)
   }
   if (!response.ok) {
-    throw new GitHubError(`GitHub returned ${response.status} ${response.statusText}`, response.status)
+    throw new GitHubError('error.status', response.status, {
+      status: response.status,
+      statusText: response.statusText,
+    })
   }
   return response.json() as Promise<T>
 }
@@ -138,7 +161,7 @@ function normalise(raw: RawPull, repo: string): PullRequest {
 export interface FetchResult {
   pullRequests: PullRequest[]
   /** Repositories that failed to load, with the reason. */
-  errors: { repo: string; message: string }[]
+  errors: RepoFailure[]
   /** Repositories whose closed PRs hit the per-repository page cap. */
   truncated: string[]
 }
@@ -229,8 +252,10 @@ export async function fetchPullRequests(
         truncated: (closed?.length ?? 0) >= CLOSED_PAGE_SIZE ? slug : undefined,
       }
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : 'Request failed.'
-      return { error: { repo: slug, message } }
+      // The key and its values, not a sentence: same reason as GitHubError.
+      const message = cause instanceof Error ? cause.message : 'error.requestFailed'
+      const values = (cause as { values?: Readonly<Record<string, string | number>> })?.values
+      return { error: { repo: slug, message, ...(values ? { values } : {}) } }
     }
   })
 
@@ -341,7 +366,7 @@ export async function fetchEnrichment(token: string, pr: PullRequest): Promise<E
 /** Verify a token and return the login it belongs to. */
 export async function fetchViewer(token: string): Promise<string> {
   const user = await rest<{ login: string }>(token, '/user')
-  if (!user.login) throw new GitHubError('Token accepted but no user could be read from it.')
+  if (!user.login) throw new GitHubError('error.noUserRead')
   return user.login
 }
 
@@ -380,7 +405,7 @@ export async function fetchOwnerRepos(token: string, login: string): Promise<Own
       repos = await rest<RawRepo[]>(token, `/users/${login}/repos?type=owner&${query}`)
     } catch (inner) {
       if (inner instanceof GitHubError && inner.status === 404) {
-        throw new GitHubError(`No user or organisation named "${login}" is visible to this token.`)
+        throw new GitHubError('error.noSuchOwner', undefined, { login })
       }
       throw inner
     }
