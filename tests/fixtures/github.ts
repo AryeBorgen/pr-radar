@@ -105,12 +105,21 @@ export async function mockGitHub(page: Page, options: MockOptions = {}) {
   })
 }
 
+/**
+ * Mark the introduction as read. Most specs are not about the first-run screen
+ * and should start where a returning visitor starts.
+ */
+export async function skipIntro(page: Page) {
+  await page.addInitScript(() => localStorage.setItem('pr-radar.intro.v1', 'yes'))
+}
+
 /** Put the app past the token gate with one repository already configured. */
 export async function signIn(page: Page, repos = [{ owner: 'acme', name: 'web' }]) {
   await page.addInitScript(
     ([token, settings]) => {
       sessionStorage.setItem('pr-radar.token.v1', token as string)
       localStorage.setItem('pr-radar.settings.v1', settings as string)
+      localStorage.setItem('pr-radar.intro.v1', 'yes')
     },
     ['ghp_testtoken', JSON.stringify({ repos, views: [], refreshInterval: 120 })],
   )

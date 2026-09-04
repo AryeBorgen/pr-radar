@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { mockGitHub, signIn } from './fixtures/github'
+import { mockGitHub, signIn, skipIntro } from './fixtures/github'
 
 /**
  * The Content-Security-Policy is only worth having if it is strict enough to
@@ -105,6 +105,7 @@ test.describe('the token', () => {
     const context = await browser.newContext()
     const page = await context.newPage()
     await mockGitHub(page)
+    await skipIntro(page)
     await page.goto('/')
     await page.getByLabel('GitHub personal access token').fill('ghp_good')
     await page.getByRole('button', { name: 'Continue' }).click()
@@ -116,6 +117,7 @@ test.describe('the token', () => {
     const second = await browser.newContext()
     const fresh = await second.newPage()
     await mockGitHub(fresh)
+    await skipIntro(fresh)
     await fresh.goto('/')
     await expect(fresh.getByLabel('GitHub personal access token')).toBeVisible()
     await second.close()

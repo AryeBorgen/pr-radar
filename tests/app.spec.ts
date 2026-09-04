@@ -1,7 +1,13 @@
 import { expect, test } from '@playwright/test'
-import { DEFAULT_PULLS, VIEWER, mockGitHub, pull, signIn } from './fixtures/github'
+import { DEFAULT_PULLS, VIEWER, mockGitHub, pull, signIn, skipIntro } from './fixtures/github'
 
 test.describe('the token gate', () => {
+  // These are about the credential screen, which a returning visitor lands on
+  // directly. The first-run introduction in front of it has its own spec.
+  test.beforeEach(async ({ page }) => {
+    await skipIntro(page)
+  })
+
   test('asks for a token before showing anything', async ({ page }) => {
     await mockGitHub(page)
     await page.goto('/')
