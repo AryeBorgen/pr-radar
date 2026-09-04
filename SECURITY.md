@@ -63,7 +63,19 @@ is against the pipeline that builds and publishes it.
   `actions/attest-build-provenance`, which is the record `gh attestation verify`
   reads. They are separate systems: an earlier version of this file documented
   the second while the workflow produced only the first, so the command below
-  answered 404. The npm package publishes with `--provenance`.
+  answered 404.
+- **The npm release stores no credential.** npm accepts the release workflow's
+  OIDC identity through trusted publishing, so there is no token here to leak and
+  provenance is attached without being asked for. The alternative was a token
+  permitted to bypass two-factor authentication -- which a CI publish requires,
+  since nothing in a workflow can answer a 2FA prompt -- and npm's own token
+  screen calls that a security risk and points automation at trusted publishing
+  instead.
+
+  One consequence, stated rather than hidden: trusted publishing is configured on
+  a package's page, and there is no page until the package exists. **Version
+  0.1.0 was published by hand and carries no provenance attestation.** Every
+  release after it does. If you are verifying a tarball, verify 0.1.1 or later.
 - **CodeQL** runs on every pull request and weekly, so a rule written after a
   merge still gets a chance to find something.
 - **Secret scanning and push protection** are enabled on the repository.

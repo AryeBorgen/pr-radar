@@ -57,29 +57,21 @@ jobs:
       - run: npm ci
       - run: npm run build
 
-      # Two ways in, and the first one that works wins.
+      # No credential is stored for this. npm accepts the workflow's own OIDC
+      # identity through trusted publishing, which is why the job has
+      # `id-token: write` above and no `NODE_AUTH_TOKEN` below, and why
+      # provenance is attached without the flag being passed.
       #
-      # Trusted publishing is the one to end up on: npm accepts the workflow's
-      # OIDC identity directly, so there is no long-lived credential in this
-      # repository at all, and provenance is attached without asking. It has to
-      # be enabled on the package's own page at npmjs.com, which means it cannot
-      # be used for a package's first publish -- there is no page yet.
+      # npm's own token screen says it plainly: a token that bypasses 2FA -- and
+      # one has to, since no CI can answer a 2FA prompt -- carries security
+      # risks, and automation should use trusted publishing instead. So this
+      # repository stores nothing.
       #
-      # So NPM_TOKEN carries the first release and nothing after it. Once the
-      # package exists and its trusted publisher is configured, delete the secret
-      # and revoke the token: the npm CLI prefers OIDC whenever it is available,
-      # so this step keeps working with nothing set.
-      - run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Say which credential was used
-        run: |
-          if [ -n "${{ secrets.NPM_TOKEN }}" ]; then
-            echo "::warning::Published with NPM_TOKEN. Configure a trusted publisher for this package at npmjs.com, then delete the NPM_TOKEN secret and revoke the token -- this workflow keeps working without it."
-          else
-            echo "Published through trusted publishing. No stored credential was used."
-          fi
+      # The cost is that trusted publishing is configured on a package's page at
+      # npmjs.com, and there is no page until the package exists. Version 0.1.0
+      # was therefore published by hand, from a laptop, against a real 2FA
+      # prompt. Every release after it comes through here. See SECURITY.md.
+      - run: npm publish --access public
 
   release:
     needs: [verify, npm]

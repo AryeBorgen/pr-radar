@@ -187,17 +187,23 @@ bin/pr-radar.js      dependency-free static server, so `npx pr-radar` works
 
 ## Open work, roughly in order of value
 
-1. **Publish an npm release.** `.github/workflows/release.yml` builds, verifies,
-   refuses a tag that disagrees with `package.json`, and publishes with
-   `--provenance`. It has never run. Until it does the README says `npx pr-radar`
-   *will* work rather than that it does, which is the honest tense.
+1. **Publish an npm release.** `.github/workflows/release.yml` builds, verifies
+   and refuses a tag that disagrees with `package.json`. It has never run. Until
+   it does the README says `npx pr-radar` *will* work rather than that it does,
+   which is the honest tense.
 
-   The intended end state is **trusted publishing**: npm accepts the workflow's
-   OIDC identity and no credential is stored here at all. That cannot cover the
-   first publish, because it is configured on a package page that does not exist
-   until the package does. So `NPM_TOKEN` carries release one and is deleted
-   after it; the publish step already prefers OIDC when it is available, so
-   removing the secret is the whole of the migration.
+   **It stores no npm credential, and should not be given one.** A CI publish
+   with a token needs that token to bypass two-factor authentication, because
+   nothing in a workflow can answer a 2FA prompt -- and npm's own token screen
+   flags exactly that option as a security risk and points automation at trusted
+   publishing instead. Trusted publishing hands npm the workflow's OIDC identity
+   and attaches provenance without the flag.
+
+   The catch is order of operations: it is configured on a package's page, which
+   does not exist until the package does. So **0.1.0 is published by hand**, from
+   a machine that can answer the 2FA prompt, and carries no provenance; the
+   trusted publisher is configured after it, and every release from 0.1.1 onward
+   comes through the workflow. Do not solve this by creating a bypass token.
 2. **Editing the built-in axes.** Saved views can be created and deleted, but a
    built-in axis option cannot be edited. The workaround is typing into the
    filter box and saving a view.
