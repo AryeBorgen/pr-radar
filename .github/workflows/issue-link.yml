@@ -1,0 +1,31 @@
+name: Issue link
+
+on:
+  pull_request:
+    # `edited` matters as much as `opened`: somebody who adds the missing line to
+    # the description should see the check turn green without pushing a commit.
+    types: [opened, edited, reopened, synchronize, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: issue-link-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  linked:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+
+      # The event payload is passed as a file rather than through the
+      # environment: a pull request title and body are attacker-controlled, and
+      # interpolating them into a shell command is how that becomes execution.
+      - name: A change that reaches users needs an issue
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/check-issue-link.mjs "$GITHUB_EVENT_PATH"

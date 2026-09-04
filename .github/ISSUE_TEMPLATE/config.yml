@@ -1,4 +1,7 @@
-blank_issues_enabled: true
+# A blank issue is the door around every check below it: two words filed only to
+# satisfy the rule that a pull request needs one. The forms are short, and there
+# is a link for questions.
+blank_issues_enabled: false
 contact_links:
   - name: Security vulnerability
     url: https://github.com/AryeBorgen/pr-radar/security/advisories/new

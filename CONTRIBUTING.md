@@ -82,6 +82,33 @@ corrected and dated, with the check that settles it written down.
 If you find one of these, fix the note and say how you checked. A confidently
 wrong comment costs more than no comment at all.
 
+## Every change that reaches users needs an issue
+
+A pull request that touches the application has to close one:
+
+```
+Fixes #123
+```
+
+`Closes` and `Resolves` work too. A bare `#123` does not -- the keyword is what
+closes the issue when the pull request merges, and without it the issue stays
+open forever after the work is done.
+
+The check reads the issue and requires it to be open, in this repository, and
+opened from one of the forms. That last part is the point: the rule invites
+somebody to file two words purely to get past it, and an issue like that is worse
+than none, because it looks like context and is not.
+
+**Most pull requests need no line at all.** Infrastructure, documentation, media
+and version bumps are exempt, and so is anything from a bot -- the check works
+that out from the files rather than asking. Run over this repository's own
+history it excuses roughly half of what has been merged. For the rare change that
+genuinely does not warrant an issue, a maintainer applies the `no-issue` label.
+
+The decision lives in `src/lib/issueLink.ts` with unit tests, not inside the
+workflow, so it can be argued with and corrected without opening a pull request
+to find out what it does.
+
 ## Releases
 
 A release is a tag. `main` is protected, so the version bump goes through a pull
