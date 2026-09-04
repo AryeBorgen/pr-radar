@@ -163,6 +163,31 @@ need a backend*.
    takes the route gets a connection refused from something that is not the
    machine it meant.
 
+## Hard-won facts about translation
+
+1. **`Intl` output is ICU-version-dependent; assert the property, not the
+   string.** `Intl.RelativeTimeFormat('he', { style: 'narrow' })` renders two
+   hours as `לפני שעתיים` on Node 22 (ICU 77) and as `לפני שעתיים (2)` on the
+   Node 24 CI runs. A test that pinned the exact words passed locally and failed
+   in CI. What this project promises is that the *shape* is the locale's -- a
+   compact suffix in English, a leading preposition and a dual in Hebrew -- so
+   that is what `time.test.ts` asserts. The exact wording is ICU's to change.
+2. **Plural categories are also ICU's to change.** Hebrew had a `many` form and
+   no longer does. The categories are hardcoded in the types, because a type
+   cannot ask `Intl` at compile time, and a test asserts they still match
+   `Intl.PluralRules(...).resolvedOptions().pluralCategories`. When CLDR revises
+   a language, that test is what says so.
+3. **A string in a data module is invisible to a check that reads components.**
+   The filter axes and dropdown menus are arrays of `{ id, label, query }` in
+   `facets.ts` and `menus.ts` -- forty-odd words, still English on a Hebrew page
+   long after every component was translated, and found by looking at a
+   screenshot. Their labels are `MessageKey` now, and `coverage.test.ts` reads
+   `src/lib` too.
+4. **A single word is the easiest thing to miss.** That check asked for two
+   words or more, and a button labelled `Add` shipped in English. It now catches
+   single words and string literals inside JSX expressions -- `{busy ? 'Looking
+   up…' : 'Add'}` is invisible to anything that only reads between tags.
+
 ## Decisions worth not re-litigating
 
 **Filter sources are separate stages, not one concatenated query.** The filter
