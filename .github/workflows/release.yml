@@ -56,9 +56,30 @@ jobs:
           registry-url: https://registry.npmjs.org
       - run: npm ci
       - run: npm run build
+
+      # Two ways in, and the first one that works wins.
+      #
+      # Trusted publishing is the one to end up on: npm accepts the workflow's
+      # OIDC identity directly, so there is no long-lived credential in this
+      # repository at all, and provenance is attached without asking. It has to
+      # be enabled on the package's own page at npmjs.com, which means it cannot
+      # be used for a package's first publish -- there is no page yet.
+      #
+      # So NPM_TOKEN carries the first release and nothing after it. Once the
+      # package exists and its trusted publisher is configured, delete the secret
+      # and revoke the token: the npm CLI prefers OIDC whenever it is available,
+      # so this step keeps working with nothing set.
       - run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Say which credential was used
+        run: |
+          if [ -n "${{ secrets.NPM_TOKEN }}" ]; then
+            echo "::warning::Published with NPM_TOKEN. Configure a trusted publisher for this package at npmjs.com, then delete the NPM_TOKEN secret and revoke the token -- this workflow keeps working without it."
+          else
+            echo "Published through trusted publishing. No stored credential was used."
+          fi
 
   release:
     needs: [verify, npm]
