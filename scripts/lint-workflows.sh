@@ -82,6 +82,46 @@ else
   printf '  skip  upstream SHA and nested-action checks (no authenticated gh)\n'
 fi
 
+echo 'Publishing'
+# A workflow that publishes to npm has to run on a Node whose bundled npm is new
+# enough for trusted publishing. Getting this wrong is not a loud failure: an
+# npm too old to attempt OIDC sends an unauthenticated request, and npm answers
+# a PUT it cannot authenticate with `404 Not Found` rather than 401. The release
+# then fails claiming the package does not exist, long after a tag has been
+# pushed. Catching it here means catching it in review instead.
+NPM_FLOOR=11.5.1
+publishers=$(grep -l 'npm publish' "$DIR"/*.yml 2>/dev/null || true)
+if [ -z "$publishers" ]; then
+  printf '  skip  npm publishers run a new enough npm (none publish)\n'
+elif ! command -v python3 >/dev/null 2>&1 || ! curl -sf --max-time 15 https://nodejs.org/dist/index.json -o /dev/null; then
+  printf '  skip  npm publishers run a new enough npm (no network)\n'
+else
+  index=$(curl -sf --max-time 20 https://nodejs.org/dist/index.json)
+  trouble=''
+  for f in $publishers; do
+    for major in $(grep -o 'node-version: *[0-9]*' "$f" | grep -o '[0-9]*$' | sort -u); do
+      verdict=$(printf '%s' "$index" | python3 -c "
+import json, sys
+major, floor = '$major', '$NPM_FLOOR'
+releases = [r for r in json.load(sys.stdin) if r['version'].startswith('v' + major + '.') and r.get('npm')]
+if not releases:
+    print('unknown'); raise SystemExit
+npm = releases[0]['npm']
+key = lambda v: tuple(int(p) for p in v.split('.')[:3])
+print(f'{npm} ' + ('ok' if key(npm) >= key(floor) else 'old'))
+")
+      case $verdict in
+        *ok) pass "$(basename "$f"): node $major bundles npm ${verdict%% *}" ;;
+        *old) trouble="$trouble$(basename "$f"): node $major bundles npm ${verdict%% *}, below $NPM_FLOOR\n" ;;
+        *) trouble="$trouble$(basename "$f"): could not determine the npm bundled with node $major\n" ;;
+      esac
+    done
+  done
+  if [ -n "$trouble" ]; then
+    fail "npm publishers run npm >= $NPM_FLOOR"; show "$(printf "$trouble")"
+  fi
+fi
+
 echo 'Permissions'
 # Without an explicit block a workflow inherits the repository default, which
 # may be write-all. Any step -- including one inside a dependency -- would then

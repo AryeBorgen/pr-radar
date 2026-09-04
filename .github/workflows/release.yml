@@ -76,7 +76,42 @@ jobs:
       # npmjs.com, and there is no page until the package exists. Version 0.1.0
       # was therefore published by hand, from a laptop, against a real 2FA
       # prompt. Every release after it comes through here. See SECURITY.md.
+      # Fail here, with the actual reason, rather than downstream with npm's
+      # `404 Not Found` -- which is what an npm too old to attempt OIDC produces
+      # and which blames a missing package for a missing credential.
+      - name: npm must be new enough for trusted publishing
+        run: |
+          need=11.5.1
+          have=$(npm --version)
+          if [ "$(printf '%s\n%s\n' "$need" "$have" | sort -V | head -1)" != "$need" ]; then
+            echo "::error::npm $have cannot use trusted publishing; $need or newer is required. Raise node-version in this workflow."
+            exit 1
+          fi
+          echo "npm $have, trusted publishing available"
+
       - run: npm publish --access public
+
+      # A publish that reports success and lands nothing, or lands without the
+      # attestation, is the failure this whole arrangement exists to avoid. Ask
+      # the registry rather than trusting the exit code.
+      - name: The registry must actually have it, with provenance
+        run: |
+          version=$(node -p 'require("./package.json").version')
+          for attempt in 1 2 3 4 5 6; do
+            body=$(curl -sf "https://registry.npmjs.org/pr-radar/$version") && break
+            echo "not visible yet, retrying"
+            sleep 10
+          done
+          if [ -z "$body" ]; then
+            echo "::error::pr-radar@$version is not on the registry after a successful publish"
+            exit 1
+          fi
+          if printf '%s' "$body" | grep -q '"attestations"'; then
+            echo "pr-radar@$version is live and carries a provenance attestation"
+          else
+            echo "::error::pr-radar@$version published without provenance. Trusted publishing attaches it automatically, so this means the publish did not go through OIDC."
+            exit 1
+          fi
 
   release:
     needs: [verify, npm]
