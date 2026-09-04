@@ -22,8 +22,16 @@ RUN npm run build
 
 FROM nginx:alpine AS runtime
 COPY --from=build /app/dist /usr/share/nginx/html
+# The main config exists only to `load_module` the JavaScript module, which
+# nginx accepts only above the http block. It is otherwise the stock file.
+COPY docker/nginx-main.conf /etc/nginx/nginx.conf
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 COPY docker/security-headers.conf /etc/nginx/conf.d/security-headers.conf
+# The sign-in relay: the nginx adapter, and the policy file it shares verbatim
+# with bin/pr-radar.js so the container and `npx pr-radar` cannot drift apart
+# about what is allowed.
+COPY docker/njs/relay.js /etc/nginx/njs/relay.js
+COPY bin/relay-policy.js /etc/nginx/njs/relay-policy.js
 
 EXPOSE 80
 # 127.0.0.1, not localhost. nginx's `listen 80` binds IPv4 only -- the official

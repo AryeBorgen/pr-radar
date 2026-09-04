@@ -1,16 +1,25 @@
 import { useState } from 'react'
 import { fetchViewer } from '../lib/github'
+import { useDeviceLoginAvailable } from '../lib/useDeviceLogin'
+import SignIn from './SignIn'
 
 const SCOPE_URL =
   'https://github.com/settings/tokens/new?scopes=repo,read:org&description=PR%20Radar'
 
 /**
- * There is no backend, so there is no OAuth: exchanging an OAuth code needs a
- * client secret, and GitHub's token endpoint sends no CORS headers, which rules
- * out doing it from the page. A token the user creates themselves keeps the
- * whole app deployable as static files with no secret to hold anywhere.
+ * Two ways in, and which ones exist depends on where this is being served from.
+ *
+ * GitHub's OAuth endpoints send no CORS headers, so a page cannot sign in by
+ * itself. Where something is serving this that can relay those two requests --
+ * `npx pr-radar`, or the container -- there is a "Sign in with GitHub" button
+ * above the token field. Where it is served by a static host there is nothing to
+ * relay through, and the token is the only way in.
+ *
+ * The token field never goes away. It needs no GitHub App configured anywhere,
+ * it works on every deployment, and some people would simply rather paste one.
  */
 export default function TokenGate({ onToken }: { onToken: (token: string) => void }) {
+  const canSignIn = useDeviceLoginAvailable()
   const [value, setValue] = useState('')
   const [error, setError] = useState('')
   const [checking, setChecking] = useState(false)
@@ -39,7 +48,18 @@ export default function TokenGate({ onToken }: { onToken: (token: string) => voi
         Every open pull request across all your repositories, on one screen.
       </p>
 
-      <form onSubmit={submit} className="pr:mt-8">
+      {canSignIn === true && (
+        <div className="pr:mt-8">
+          <SignIn onToken={onToken} />
+          <div className="pr:my-6 pr:flex pr:items-center pr:gap-3 pr:text-xs pr:text-neutral-400 pr:dark:text-neutral-600">
+            <span className="pr:h-px pr:flex-1 pr:bg-neutral-200 pr:dark:bg-neutral-800" />
+            or paste a token
+            <span className="pr:h-px pr:flex-1 pr:bg-neutral-200 pr:dark:bg-neutral-800" />
+          </div>
+        </div>
+      )}
+
+      <form onSubmit={submit} className={canSignIn === true ? '' : 'pr:mt-8'}>
         <label
           htmlFor="token"
           className="pr:block pr:text-sm pr:font-medium pr:text-neutral-900 pr:dark:text-neutral-100"

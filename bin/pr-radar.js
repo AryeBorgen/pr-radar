@@ -8,6 +8,7 @@
  */
 import { createReadStream, existsSync, statSync } from 'node:fs'
 import { createServer } from 'node:http'
+import { handleAuth, originsFor } from './relay.js'
 import { spawn } from 'node:child_process'
 import { dirname, extname, join, normalize, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -47,16 +48,33 @@ const flag = (name) => {
 if (args.includes('--help') || args.includes('-h')) {
   console.log(
     'pr-radar — every open pull request across all your repositories, on one screen\n\n' +
-      'Usage: pr-radar [--port <n>] [--host <addr>] [--no-open]\n\n' +
-      '  --port     port to listen on (default 4173, or the first free port after it)\n' +
-      '  --host     address to bind (default 127.0.0.1; use 0.0.0.0 to expose it)\n' +
-      '  --no-open  do not launch a browser\n',
+      'Usage: pr-radar [--port <n>] [--host <addr>] [--no-open] [--client-id <id>]\n\n' +
+      '  --port       port to listen on (default 4173, or the first free port after it)\n' +
+      '  --host       address to bind (default 127.0.0.1; use 0.0.0.0 to expose it)\n' +
+      '  --no-open    do not launch a browser\n' +
+      '  --client-id  a GitHub App or OAuth App client id, with device flow enabled,\n' +
+      '               to offer "Sign in with GitHub" instead of asking for a token.\n' +
+      '               Also read from PR_RADAR_CLIENT_ID. Not a secret: the device\n' +
+      '               flow needs no client secret, which is why a page can use it.\n',
   )
   process.exit(0)
 }
 
 const host = flag('--host') ?? '127.0.0.1'
 const startPort = Number(flag('--port') ?? process.env.PORT ?? 4173)
+
+/*
+ * Signing in with a GitHub account needs a client id, and a client id is not
+ * something this project can ship for you: it identifies *your* GitHub App or
+ * OAuth App, with device flow enabled on it. Without one, /auth/config answers
+ * 404 and the page shows the token field alone -- which is exactly what the
+ * hosted static site does, since it has no server to relay through either.
+ *
+ * There is no secret here and there is not meant to be: the device flow
+ * authenticates with a client id alone, which is why it is the flow a page can
+ * use. See docs/superpowers/specs/2026-09-04-device-login-design.md.
+ */
+const clientId = flag('--client-id') ?? process.env.PR_RADAR_CLIENT_ID ?? ''
 
 /**
  * The page carries its own Content-Security-Policy in a meta tag, which covers
@@ -75,6 +93,19 @@ const SECURITY_HEADERS = {
 
 const server = createServer((request, response) => {
   const path = decodeURIComponent(new URL(request.url, 'http://localhost').pathname)
+
+  // Two routes that are not files. Everything under /auth/ is handled there and
+  // never falls through to the bundle -- otherwise a missing route would answer
+  // a fetch with index.html, and the page would report a JSON parse error
+  // instead of a 404.
+  if (path.startsWith('/auth/')) {
+    handleAuth(request, response, { clientId, origins: originsFor(host, server.address()?.port ?? startPort) })
+      .catch(() => {
+        response.writeHead(500, { 'Content-Type': 'application/json', ...SECURITY_HEADERS })
+        response.end('{"error":"internal"}')
+      })
+    return
+  }
 
   // normalize collapses `..` before it is joined, so a crafted path cannot
   // escape the bundle directory.

@@ -121,6 +121,44 @@ fi
 check 'the apple touch icon is served' \
   "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/icons/apple-touch-icon.png")" '200'
 
+echo 'Signing in'
+# The container relays two OAuth requests so a GitHub account can be used
+# instead of a pasted token. Everything about *what* it relays is compared
+# against the CLI in tests/node/conformance.test.js; these are the two things
+# only the image can answer: that the JavaScript module actually loaded, and
+# that an unconfigured container says so rather than offering a broken button.
+check 'no GitHub App configured means no sign-in offered' \
+  "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/auth/config")" '404'
+check 'and it says so as JSON, not as the app' \
+  "$(curl -s "$BASE/auth/config")" '{"error":"device_flow_unavailable"}'
+check 'an unknown auth route is a 404, not the app' \
+  "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/auth/nope")" '404'
+check 'a device route refuses GET' \
+  "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/auth/device/code")" '405'
+
+# The same image, told about a GitHub App. If the JavaScript module failed to
+# load, nginx would not have started at all -- but a route left out of the
+# config would answer the app's HTML with a 200, which looks like success to
+# anything that only checks a status code.
+CONFIGURED="$NAME-configured"
+docker rm -f "$CONFIGURED" >/dev/null 2>&1 || true
+docker run -d --name "$CONFIGURED" -p "$((PORT + 2)):80" \
+  -e PR_RADAR_CLIENT_ID=Iv1.smoketest "$IMAGE" >/dev/null
+CBASE="http://127.0.0.1:$((PORT + 2))"
+i=0
+while [ "$i" -lt 30 ]; do curl -sf "$CBASE/" -o /dev/null && break; i=$((i + 1)); sleep 1; done
+check 'a configured container offers the flow' \
+  "$(curl -s "$CBASE/auth/config")" '{"deviceFlow":true,"clientId":"Iv1.smoketest"}'
+check 'and never lets that answer be cached' \
+  "$(header "$CBASE/auth/config" 'Cache-Control')" 'no-store'
+# A relay that answered a cross-origin request would let any page on the
+# internet start sign-in attempts against a machine running this container.
+check 'and refuses a request from another origin' \
+  "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' \
+     -H 'Origin: https://evil.example' -d '{}' "$CBASE/auth/device/code")" '403'
+docker rm -f "$CONFIGURED" >/dev/null 2>&1 || true
+
+echo ''
 echo 'Security headers'
 # The page carries its own Content-Security-Policy in a meta tag. These are the
 # parts a meta tag cannot express, and they have to match between the container
