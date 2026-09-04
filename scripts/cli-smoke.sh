@@ -113,9 +113,20 @@ check 'the service worker is served' \
 # A cached service worker is a service worker that can never be replaced.
 check 'the service worker is not cached' \
   "$(header "$BASE/sw.js" 'Cache-Control')" 'no-cache'
-for icon in /icons/icon-192.png /icons/icon-512.png /icons/icon-maskable-512.png /icons/apple-touch-icon.png; do
-  check "$icon is served" "$(curl -s -o /dev/null -w '%{http_code}' "$BASE$icon")" '200'
-done
+# Read the icon list out of the manifest rather than keeping a copy of it here.
+# A hardcoded list passes happily after an icon is renamed and the manifest still
+# points at the old name -- which is the failure worth catching.
+icons=$(curl -s "$BASE/manifest.webmanifest" | tr ',' '\n' | sed -n 's/.*"src"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+if [ -z "$icons" ]; then
+  fail 'the manifest names at least one icon'
+else
+  for icon in $icons; do
+    check "manifest icon $icon is served" \
+      "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/${icon#/}")" '200'
+  done
+fi
+check 'the apple touch icon is served' \
+  "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/icons/apple-touch-icon.png")" '200'
 
 echo 'Security headers'
 # The page carries its own Content-Security-Policy in a meta tag. These are the

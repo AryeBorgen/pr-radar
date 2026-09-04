@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="PR Radar">
+  <title>PR Radar</title>
+  <!--
+    The head alone. The body is unreadable below about 48px, so the small sizes
+    get the dish and nothing else.
+
+    Two things here are load-bearing and easy to undo by accident:
+
+    The antenna leaves the dish. The sweep runs from the centre to the rim
+    (length = ry) and the knob sits on the rim, so it reads as an antenna rather
+    than a third eye. An earlier version stopped short of the rim and the whole
+    mark read as a face.
+
+    The knob is white with a dark ring, not solid dark. Half of it sits on the
+    white dish and half on the green tile; a solid dark knob measured 1.46:1
+    against the tile, well under the 3:1 a graphical element needs, so exactly
+    the half that says "this sticks out" was the half that vanished.
+
+    Everything that carries meaning stays within 20 units of the centre, which
+    is what a phone's icon mask keeps. The dish itself runs past that on purpose
+    -- a cropped rim looks deliberate, a cropped antenna looks broken.
+  -->
+  <defs>
+    <linearGradient id="prTile" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#10b981"/>
+      <stop offset="1" stop-color="#059669"/>
+    </linearGradient>
+    <clipPath id="prDishClip"><ellipse rx="24" ry="12"/></clipPath>
+  </defs>
+  <rect x="-1" y="-1" width="66" height="66" fill="url(#prTile)"/>
+  <g transform="translate(32 32) rotate(-17)">
+    <path d="M-17.3 -4.96 A 18 18 0 0 1 17.3 -4.96" fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round"/>
+    <ellipse rx="24" ry="12" fill="#047857"/>
+    <g clip-path="url(#prDishClip)"><ellipse cy="-2.1" rx="24" ry="10.6" fill="#ffffff"/></g>
+    <circle cx="-8.3" cy="2.5" r="2.5" fill="#047857"/>
+    <circle cx="8.3" cy="2.5" r="2.5" fill="#047857"/>
+    <path d="M0 0V-12" fill="none" stroke="#047857" stroke-width="3.6" stroke-linecap="round"/>
+    <circle cy="-12" r="3.8" fill="#ffffff" stroke="#047857" stroke-width="1.6"/>
+  </g>
+</svg>

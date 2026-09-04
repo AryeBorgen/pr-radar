@@ -1,50 +1,48 @@
-// Renders the source SVG to the PNG sizes a browser wants for an installed app.
+// Renders the shipped icon files from the two sources in media/.
 //
 // Chromium is already a development dependency for the browser tests, so the
-// icons are produced with the renderer that will display them rather than by
-// adding an image library for six files.
+// icons come out of the renderer that will display them rather than out of an
+// image library added for six files.
 //
 // Usage: node scripts/make-icons.mjs
 import { chromium } from '@playwright/test'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const svg = readFileSync(join(root, 'public/icons/radar.svg'), 'utf8')
+const icon = readFileSync(join(root, 'media/icon.svg'), 'utf8')
+const out = join(root, 'public/icons')
+mkdirSync(out, { recursive: true })
 
-// A maskable icon is cropped to whatever shape the platform prefers, and the
-// crop can take 20% off each edge. Padding the artwork into the safe zone is
-// what stops Android shaving the sweep off.
-const targets = [
-  { file: 'icon-192.png', size: 192, pad: 0 },
-  { file: 'icon-512.png', size: 512, pad: 0 },
-  { file: 'icon-maskable-192.png', size: 192, pad: 0.1 },
-  { file: 'icon-maskable-512.png', size: 512, pad: 0.1 },
-  { file: 'apple-touch-icon.png', size: 180, pad: 0.04 },
-  { file: 'favicon-32.png', size: 32, pad: 0 },
+// No maskable-specific padding. media/icon.svg is already drawn for the crop:
+// every feature sits within 20 units of the centre, and the dish deliberately
+// runs past that so a masked edge looks intentional. Insetting it again would
+// shrink the mark and leave it floating in a field of green, which is the
+// failure the safe zone exists to avoid rather than a second line of defence.
+const sizes = [
+  { file: 'icon-192.png', size: 192 },
+  { file: 'icon-512.png', size: 512 },
+  { file: 'apple-touch-icon.png', size: 180 },
+  { file: 'favicon-32.png', size: 32 },
 ]
 
 const browser = await chromium.launch()
 const page = await browser.newPage()
 
-for (const { file, size, pad } of targets) {
-  const inset = Math.round(size * pad)
+for (const { file, size } of sizes) {
   await page.setViewportSize({ width: size, height: size })
   await page.setContent(
-    `<!doctype html><style>
-       html,body{margin:0;padding:0;background:#0b1220}
-       svg{display:block;width:${size - inset * 2}px;height:${size - inset * 2}px;margin:${inset}px}
-     </style>${svg}`,
+    `<!doctype html><style>html,body{margin:0;padding:0}
+     svg{display:block;width:${size}px;height:${size}px}</style>${icon}`,
   )
-  const png = await page.screenshot({ omitBackground: false })
-  writeFileSync(join(root, 'public/icons', file), png)
-  console.log(`  ${file}  ${size}x${size}${pad ? ` (${Math.round(pad * 100)}% safe-zone padding)` : ''}`)
+  writeFileSync(join(out, file), await page.screenshot({ omitBackground: false }))
+  console.log(`  ${file}  ${size}x${size}`)
 }
 
-// The .ico most browsers still ask for by convention, as a single 32x32 PNG
-// wrapped in an ICO header -- every current browser reads PNG-in-ICO.
-const png32 = readFileSync(join(root, 'public/icons/favicon-32.png'))
+// The .ico browsers still ask for by convention: one 32x32 PNG in an ICO
+// wrapper, which every current browser reads.
+const png32 = readFileSync(join(out, 'favicon-32.png'))
 const header = Buffer.alloc(22)
 header.writeUInt16LE(0, 0)
 header.writeUInt16LE(1, 2)
@@ -57,5 +55,9 @@ header.writeUInt32LE(png32.length, 14)
 header.writeUInt32LE(22, 18)
 writeFileSync(join(root, 'public/favicon.ico'), Buffer.concat([header, png32]))
 console.log('  favicon.ico')
+
+// The vector favicon, served as-is for displays that can use it.
+writeFileSync(join(out, 'icon.svg'), icon)
+console.log('  icon.svg')
 
 await browser.close()
