@@ -92,7 +92,9 @@ export function parseRepoInput(input: string): RepoRef | null {
 
   const match = /^([A-Za-z0-9._-]+)\/([A-Za-z0-9._-]+)$/.exec(cleaned)
   if (!match) return null
-  return { owner: match[1], name: match[2] }
+  const [, owner, name] = match
+  if (!owner || !name) return null
+  return { owner, name }
 }
 
 export function repoKey(ref: RepoRef): string {

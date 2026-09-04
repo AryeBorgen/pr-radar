@@ -49,8 +49,8 @@ describe('the default selection', () => {
 
   it('shows drafts, because a draft is a state worth seeing here', () => {
     const drafts = facet('draft')
-    expect(drafts.options[0].id).toBe(DEFAULT_SELECTION.draft)
-    expect(drafts.options[0].query).toBe('')
+    expect(drafts.options[0]?.id).toBe(DEFAULT_SELECTION.draft)
+    expect(drafts.options[0]?.query).toBe('')
   })
 })
 

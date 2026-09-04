@@ -7,6 +7,21 @@
     "jsx": "react-jsx",
     "strict": true,
     "noUnusedLocals": true,
+
+    /* Raised before anything is exported, so the errors get fixed in private
+       rather than inside a published contract. `noUncheckedIndexedAccess` alone
+       surfaced seven places reading an index that might not exist -- tolerable
+       in an application that controls its own inputs, not in a library where the
+       caller supplies the data. */
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+
+    /* `noPropertyAccessFromIndexSignature` was tried and dropped. It guards
+       against a mistyped key, but the index signatures here are Selection and
+       MenuSelection -- Record<string, string> where every key is legitimate, so
+       there is no typo for it to catch. It produced fifteen edits turning
+       `counts.approved` into `counts['approved']` and caught nothing. */
+
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,

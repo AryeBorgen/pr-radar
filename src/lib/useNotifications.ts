@@ -63,7 +63,9 @@ export function useNotifications(
         // Collapses repeat announcements for the same PR and rule instead of
         // stacking them if the tab has been open a long time.
         tag: `${rule.id}:${pr.repo}#${pr.number}`,
-        icon: pr.author?.avatarUrl || undefined,
+        // Left out when there is no avatar rather than set to undefined; the
+        // browser treats an absent icon and an undefined one differently.
+        ...(pr.author?.avatarUrl ? { icon: pr.author.avatarUrl } : {}),
       })
       notification.onclick = () => {
         window.open(pr.url, '_blank', 'noreferrer')

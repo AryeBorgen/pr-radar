@@ -165,7 +165,10 @@ async function mapLimit<T, R>(
   async function worker(): Promise<void> {
     while (next < items.length) {
       const index = next++
-      results[index] = await task(items[index])
+      const item = items[index]
+      // The loop bound guarantees this; the check is what says so to the compiler.
+      if (item === undefined) continue
+      results[index] = await task(item)
     }
   }
 
@@ -220,7 +223,7 @@ export async function fetchPullRequests(
           ),
         )
       }
-      const [open, closed] = await Promise.all(requests)
+      const [open = [], closed] = await Promise.all(requests)
       return {
         pulls: [...open, ...(closed ?? [])].map((pull) => normalise(pull, slug)),
         truncated: (closed?.length ?? 0) >= CLOSED_PAGE_SIZE ? slug : undefined,

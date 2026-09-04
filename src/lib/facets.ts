@@ -92,7 +92,9 @@ export const FACETS: Facet[] = [
 export type Selection = Record<string, string>
 
 export const DEFAULT_SELECTION: Selection = Object.fromEntries(
-  FACETS.map((facet) => [facet.id, facet.options[0].id]),
+  // Every facet above declares at least one option; the fallback is what tells
+  // the compiler so, rather than a claim that one might be empty.
+  FACETS.map((facet) => [facet.id, facet.options[0]?.id ?? '']),
 )
 
 /**

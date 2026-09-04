@@ -91,7 +91,7 @@ export function templateHeadings(yaml: string): string[] {
   // Deliberately not a YAML parser: the shape needed is one key, and a
   // dependency for it would have to be installed on the runner.
   for (const m of yaml.matchAll(/^\s*label:\s*(.+?)\s*$/gm)) {
-    headings.push(m[1].replace(/^['"]|['"]$/g, ''))
+    headings.push((m[1] ?? '').replace(/^['"]|['"]$/g, ''))
   }
   return headings
 }
@@ -119,7 +119,7 @@ export function verdict({ issue, headings }: { issue: Issue | null; headings: st
   const sections = new Map<string, string>()
   const parts = body.split(/^###\s+/m).slice(1)
   for (const part of parts) {
-    const [head, ...rest] = part.split('\n')
+    const [head = '', ...rest] = part.split('\n')
     sections.set(head.trim(), rest.join('\n').trim())
   }
 
