@@ -6,8 +6,9 @@ would otherwise have to ask for.
 Fixes #
 
 <!--
-The issue this closes. `Closes` and `Resolves` work too; a bare `#123` does not,
-because the keyword is what closes the issue when this merges.
+The issue behind this. `Closes` and `Resolves` work too. For one part of a larger
+change, `Refs #123` or `Part of #123` links it without closing the issue. A bare
+`#123` does not count -- it appears in prose too often to read as intent.
 
 Infrastructure, documentation, media and releases are exempt automatically -- no
 line needed, the check works it out from the files. For anything else that

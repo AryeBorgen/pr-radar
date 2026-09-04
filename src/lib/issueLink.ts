@@ -50,13 +50,20 @@ export function exemption(pr: PullRequest): string | undefined {
 }
 
 /**
- * Issue numbers this pull request will close.
+ * Issue numbers this pull request points at.
  *
- * A closing keyword is required. A bare `#12` is a cross-reference that leaves
- * the issue open after the merge, so accepting it would give the appearance of a
- * linked issue with none of the housekeeping.
+ * Two kinds of word count. `Fixes`, `Closes` and `Resolves` close the issue on
+ * merge; `Refs`, `Part of` and `Towards` do not. Both satisfy this rule, because
+ * the rule asks for context rather than for housekeeping -- and the first time it
+ * met a real multi-part change it demanded a closing keyword on every pull
+ * request, which would have closed the tracking issue on the first merge and
+ * left the remaining three orphaned.
+ *
+ * A bare `#12` still does not count. It appears in prose constantly -- "see #12
+ * for background", a quoted error, a version number -- and a word in front of it
+ * is what separates a claim of intent from an accident.
  */
-export function closingReferences(body: string | null | undefined, repo = ''): number[] {
+export function issueReferences(body: string | null | undefined, repo = ''): number[] {
   if (!body) return []
 
   // Fenced code and quoted replies are somebody else's words, not this pull
@@ -65,7 +72,9 @@ export function closingReferences(body: string | null | undefined, repo = ''): n
     .replace(/```[\s\S]*?```/g, '')
     .replace(/^\s*>.*$/gm, '')
 
-  const keyword = '(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)'
+  const closing = 'close[sd]?|fix(?:e[sd])?|resolve[sd]?'
+  const referring = 'refs?|references?|part of|towards?|relate[sd]? to|see also'
+  const keyword = `(?:${closing}|${referring})`
   const found = new Set<number>()
 
   for (const m of prose.matchAll(new RegExp(`${keyword}\\s+#(\\d+)`, 'gi'))) {

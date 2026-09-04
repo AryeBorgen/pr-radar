@@ -90,9 +90,13 @@ A pull request that touches the application has to close one:
 Fixes #123
 ```
 
-`Closes` and `Resolves` work too. A bare `#123` does not -- the keyword is what
-closes the issue when the pull request merges, and without it the issue stays
-open forever after the work is done.
+`Closes` and `Resolves` work too. For work spread over several pull requests,
+where only the last one should close the issue, use `Refs`, `Part of`, `Towards`
+or `Related to` -- these satisfy the rule without closing anything.
+
+A bare `#123` does not count. It turns up in prose constantly -- "see #123 for
+background", a quoted error, a version number -- and a word in front of it is
+what separates a claim of intent from an accident.
 
 The check reads the issue and requires it to be open, in this repository, and
 opened from one of the forms. That last part is the point: the rule invites

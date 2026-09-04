@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { closingReferences, exemption, templateHeadings, verdict } from './issueLink'
+import { issueReferences, exemption, templateHeadings, verdict } from './issueLink'
 
 /**
  * The rule is "a change that reaches users needs an issue", and the whole design
@@ -70,37 +70,52 @@ describe('exemption', () => {
   })
 })
 
-describe('closingReferences', () => {
+describe('issueReferences', () => {
   it('finds the usual keywords, in any case', () => {
-    expect(closingReferences('Fixes #12')).toEqual([12])
-    expect(closingReferences('closes #3 and resolves #4')).toEqual([3, 4])
-    expect(closingReferences('FIXED #9')).toEqual([9])
+    expect(issueReferences('Fixes #12')).toEqual([12])
+    expect(issueReferences('closes #3 and resolves #4')).toEqual([3, 4])
+    expect(issueReferences('FIXED #9')).toEqual([9])
   })
 
   it('accepts a full URL, but only into this repository', () => {
     expect(
-      closingReferences('Closes https://github.com/AryeBorgen/pr-radar/issues/7', 'AryeBorgen/pr-radar'),
+      issueReferences('Closes https://github.com/AryeBorgen/pr-radar/issues/7', 'AryeBorgen/pr-radar'),
     ).toEqual([7])
     expect(
-      closingReferences('Closes https://github.com/someone/else/issues/7', 'AryeBorgen/pr-radar'),
+      issueReferences('Closes https://github.com/someone/else/issues/7', 'AryeBorgen/pr-radar'),
     ).toEqual([])
   })
 
-  it('ignores a bare mention, which closes nothing', () => {
-    // `#12` on its own is a cross-reference. Requiring the keyword is what makes
-    // the issue close when the pull request merges.
-    expect(closingReferences('Related to #12')).toEqual([])
-    expect(closingReferences('see #12 for background')).toEqual([])
+  it('accepts a reference that does not close, for work spanning several pulls', () => {
+    // Found the first time the rule met a real multi-part change. A feature
+    // tracked by one issue and delivered over four pull requests can only put
+    // `Fixes` on the last of them; the others would close the issue covering
+    // the work still to come. The rule exists to require context, and a
+    // reference supplies it.
+    expect(issueReferences('Refs #26')).toEqual([26])
+    expect(issueReferences('Part of #26')).toEqual([26])
+    expect(issueReferences('Towards #26')).toEqual([26])
+    // Tense is not a distinction worth making: "relates to" and "related to"
+    // mean the same thing to the person typing them.
+    expect(issueReferences('Related to #26')).toEqual([26])
+  })
+
+  it('still ignores a bare mention', () => {
+    // `#12` on its own appears in prose all the time -- "see #12 for
+    // background", a quoted error message, a version number. Requiring a word
+    // in front of it is what separates a claim of intent from an accident.
+    expect(issueReferences('see #12 for background')).toEqual([])
+    expect(issueReferences('the #12 in that list')).toEqual([])
   })
 
   it('ignores a reference inside a code block or a quote', () => {
-    expect(closingReferences('```\nFixes #12\n```')).toEqual([])
-    expect(closingReferences('> Fixes #12')).toEqual([])
+    expect(issueReferences('```\nFixes #12\n```')).toEqual([])
+    expect(issueReferences('> Fixes #12')).toEqual([])
   })
 
   it('copes with an empty body', () => {
-    expect(closingReferences('')).toEqual([])
-    expect(closingReferences(null)).toEqual([])
+    expect(issueReferences('')).toEqual([])
+    expect(issueReferences(null)).toEqual([])
   })
 })
 

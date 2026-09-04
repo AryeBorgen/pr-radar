@@ -8,7 +8,7 @@
 //   node scripts/check-issue-link.mjs <event.json>
 import { readFileSync, readdirSync, appendFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { closingReferences, exemption, templateHeadings, verdict } from '../src/lib/issueLink.ts'
+import { issueReferences, exemption, templateHeadings, verdict } from '../src/lib/issueLink.ts'
 
 const event = JSON.parse(readFileSync(process.argv[2], 'utf8'))
 const pr = event.pull_request
@@ -70,7 +70,7 @@ if (excused) {
   process.exit(0)
 }
 
-const refs = closingReferences(pr.body, repo)
+const refs = issueReferences(pr.body, repo)
 
 const howToFix = `
 **Add a line to the pull request description:**
@@ -79,8 +79,10 @@ const howToFix = `
 Fixes #123
 \`\`\`
 
-\`Closes\` and \`Resolves\` work too. A bare \`#123\` does not -- the keyword is
-what closes the issue when this merges.
+\`Closes\` and \`Resolves\` work too, and so do \`Refs\`, \`Part of\` and \`Towards\`
+for work spread over several pull requests -- those point at the issue without
+closing it. A bare \`#123\` does not count: it turns up in prose too often to read
+as intent.
 
 No issue yet? [Report a bug](https://github.com/${repo}/issues/new?template=bug_report.yml) ·
 [Suggest an idea](https://github.com/${repo}/issues/new?template=feature_request.yml)
@@ -109,7 +111,10 @@ for (const ref of refs) {
   // The issues endpoint also answers for pull requests; one is not an issue.
   const result = verdict({ issue: issue?.pull_request ? null : issue, headings })
   if (result.ok) {
-    say(`### Issue found\n\nThis pull request closes [#${ref}](https://github.com/${repo}/issues/${ref}).`)
+    // Deliberately not "closes": `Refs` and `Part of` point at an issue without
+    // closing it, and saying otherwise would be wrong on exactly the pull
+    // requests this wording was added for.
+    say(`### Issue found\n\nThis pull request is linked to [#${ref}](https://github.com/${repo}/issues/${ref}).`)
     process.exit(0)
   }
   problems.push(`- **#${ref}**: ${result.reason}`)
