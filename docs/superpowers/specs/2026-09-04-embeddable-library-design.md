@@ -145,6 +145,74 @@ internal: a host embedding this already knows who its user is and which
 repositories matter, and would be actively harmed by a component that writes to
 `sessionStorage` behind its back.
 
+## Types
+
+For a published library the declarations *are* the contract. A wrong `.d.ts` is
+worse than none, because it is confidently wrong: the consumer's editor and their
+build both agree with it, and nothing disagrees until run time.
+
+Nothing is published today -- there is no `types` field and no `declaration`
+emit. The starting point is better than that sounds: `strict`, `isolatedModules`
+and `verbatimModuleSyntax` are already on, and there is **not one `any`** in the
+modules that would be exported.
+
+### Raise the compiler first, because it is nearly free
+
+Measured against the modules due for export, rather than guessed:
+
+| Flag | Errors it surfaces |
+|---|---|
+| `noUncheckedIndexedAccess` | **7** |
+| `exactOptionalPropertyTypes` | 1 |
+| `noPropertyAccessFromIndexSignature` | 1 |
+
+Nine fixes in total, and the seven are the interesting ones: every place the code
+reads an index that might not exist. `github.ts` destructures a `Promise.all`
+into `[open, closed]` where `closed` is genuinely optional, and the compiler has
+been letting that through. That is tolerable in an application whose inputs it
+controls and not tolerable in a library, where the caller supplies the data.
+
+### The declarations are emitted and mapped per entry point
+
+```json
+"exports": {
+  "./core":   { "types": "./dist/core.d.ts",   "import": "./dist/core.js" },
+  "./render": { "types": "./dist/render.d.ts", "import": "./dist/render.js" },
+  "./style.css": "./dist/pr-radar.css"
+}
+```
+
+### The types are tested, not assumed
+
+Four checks, because each catches something the others cannot:
+
+- **`publint`** -- packaging correctness. Whether `exports` resolves, whether the
+  files it names are actually in the tarball, whether the entry points work.
+- **`@arethetypeswrong/cli`** -- whether the types *resolve* from every module
+  system a consumer might use. The classic failure is a package that type-checks
+  perfectly in the repository and resolves to `any` in somebody's project because
+  one field in `exports` is in the wrong order.
+- **Type-level tests**, with `expectTypeOf` from vitest, asserting the shape of
+  the public signatures. `renderRadar` returns a handle with `destroy` and
+  `setRepos` and nothing else; `parseQuery` takes a string and returns a
+  `ParsedQuery`. These fail at type-check time, which is where a broken contract
+  should fail.
+- **A checked-in snapshot of the emitted declarations.** `dist/core.d.ts` and
+  `dist/render.d.ts` are committed and compared on every build.
+
+That last one is the important one. The export-surface test above catches a new
+*name* appearing; the snapshot catches a changed *shape* -- a field turning
+optional, a return type widening, a parameter gaining a union member. **Freezing
+the contract is the cost this document opens with, so the contract should be
+something you can see in a diff** rather than something you discover after
+publishing.
+
+### No `any` reaches the surface
+
+There is none today. A check keeps it that way: the emitted declarations are
+searched for `any`, and the build fails if one appears. An `any` in a `.d.ts` is
+a hole in the contract that nothing else in this list would notice.
+
 ## Styling
 
 Tailwind v4 takes a prefix at import:
@@ -191,8 +259,12 @@ library that cannot be unloaded.
 
 ## Order
 
-1. `pr-radar/core` and the export-surface test. No refactor; the code is already
-   pure. Immediate value, no risk to anything.
+0. Raise the compiler -- `noUncheckedIndexedAccess`,
+   `exactOptionalPropertyTypes`, `noPropertyAccessFromIndexSignature` -- and fix
+   the nine errors. Before anything is exported, because the point of doing it is
+   to fix them in private rather than in a contract.
+1. `pr-radar/core`, its declarations, the export-surface test, the declaration
+   snapshot, `publint` and `attw`. No refactor; the code is already pure.
 2. `renderRadar` and the prefixed stylesheet, with the collision test and a
    mount-and-destroy test that asserts nothing is left behind.
 3. `components` in the options, once there is a host whose design it has to
