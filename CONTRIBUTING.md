@@ -91,8 +91,8 @@ Fixes #123
 ```
 
 `Closes` and `Resolves` work too. For work spread over several pull requests,
-where only the last one should close the issue, use `Refs`, `Part of`, `Towards`
-or `Related to` -- these satisfy the rule without closing anything.
+where only the last one should close the issue, any of `Refs`, `Part of`,
+`Step 2 of`, `Towards` or `Related to` links it without closing anything.
 
 A bare `#123` does not count. It turns up in prose constantly -- "see #123 for
 background", a quoted error, a version number -- and a word in front of it is
