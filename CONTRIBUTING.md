@@ -82,6 +82,30 @@ corrected and dated, with the check that settles it written down.
 If you find one of these, fix the note and say how you checked. A confidently
 wrong comment costs more than no comment at all.
 
+## Releases
+
+A release is a tag. `main` is protected, so the version bump goes through a pull
+request like anything else, and then:
+
+```bash
+git tag -a v0.1.2 -m "0.1.2"
+git push origin v0.1.2
+```
+
+`.github/workflows/release.yml` runs the whole suite, refuses outright if the tag
+disagrees with `package.json`, publishes to npm through the workflow's own OIDC
+identity with no stored credential, and cuts the GitHub release with notes
+scoped to what changed since the previous tag.
+
+**Do not publish by hand.** `0.1.0` was, and it cannot be reproduced: its
+JavaScript matches a build of `b76d04d` byte for byte, and its stylesheet carries
+a rule no clean checkout of that commit produces. A working tree is not a commit,
+and nothing published from one can be verified afterwards.
+
+`scripts/check-releases.sh` runs on every pull request and requires every npm
+version to have a tag and a release, and every release to be on npm. They drift
+apart quietly otherwise, because neither direction breaks anything.
+
 ## Style
 
 Match the surrounding code. A few conventions that are load-bearing rather than
