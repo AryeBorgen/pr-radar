@@ -138,6 +138,13 @@ that out from the files rather than asking. Run over this repository's own
 history it excuses roughly half of what has been merged. For the rare change that
 genuinely does not warrant an issue, a maintainer applies the `no-issue` label.
 
+**Never write a closing keyword in prose, not even as an example.** GitHub's own
+parser scans the whole commit message and does not care that you were quoting.
+The commit that taught this check to accept a non-closing reference explained the
+problem by quoting `Fixes #26`, and GitHub closed #26 -- while the same commit's
+real reference, `Refs #26`, correctly did not. If you need to name one in
+writing, describe it ('a closing keyword') or break it up.
+
 The decision lives in `src/lib/issueLink.ts` with unit tests, not inside the
 workflow, so it can be argued with and corrected without opening a pull request
 to find out what it does.
