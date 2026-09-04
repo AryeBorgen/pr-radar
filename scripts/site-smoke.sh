@@ -91,6 +91,22 @@ else
   fail 'the page links a web app manifest'
 fi
 
+echo 'Link preview'
+# A card nobody checks is a card that is broken the day somebody shares the link.
+og=$(printf '%s' "$body" | grep -o 'property="og:image"[^>]*content="[^"]*"' | sed 's/.*content="//; s/"$//')
+case $og in
+  https://*) pass "og:image is absolute ($og)" ;;
+  '') fail 'og:image is absolute (not set)' ;;
+  *) fail "og:image is absolute (got '$og')" ;;
+esac
+if [ -n "$og" ]; then
+  check 'the preview image is served' "$(curl -s -o /dev/null -w '%{http_code}' "$og")" '200'
+  case $(curl -sI "$og" | tr -d '\r' | awk 'tolower(substr($0,1,13))=="content-type:" {print substr($0,15)}') in
+    *png*) pass 'the preview image is a PNG' ;;
+    *) fail 'the preview image is a PNG' ;;
+  esac
+fi
+
 echo 'Transport'
 # The first version of this checked whether the URL it was handed began with
 # "https", which tests a string rather than the site. GitHub Pages hands back an

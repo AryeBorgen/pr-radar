@@ -65,6 +65,24 @@ test.describe('the web app manifest', () => {
     }
   })
 
+  test('the link preview names an absolute image', async ({ page }) => {
+    // A relative og:image is resolved by the social network against its own
+    // domain, so it finds nothing and the link renders bare. Nothing in the
+    // build fails when this is wrong; the preview is just silently empty.
+    await page.goto('/')
+    for (const property of ['og:image', 'og:url']) {
+      const value = await page
+        .locator(`meta[property="${property}"]`)
+        .getAttribute('content')
+      expect(value, `${property} should be set`).toBeTruthy()
+      expect(value, `${property} should be absolute`).toMatch(/^https?:\/\//)
+    }
+    await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute(
+      'content',
+      'summary_large_image',
+    )
+  })
+
   test('iOS has the tags it reads instead of the manifest', async ({ page, request }) => {
     await page.goto('/')
     await expect(page.locator('meta[name="apple-mobile-web-app-capable"]')).toHaveAttribute(
