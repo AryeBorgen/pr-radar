@@ -5,8 +5,10 @@ import { useEnrichment } from './lib/useEnrichment'
 import { applyStages, parseQuery } from './lib/filter'
 import {
   DEFAULT_SETTINGS,
+  introSeen,
   loadSettings,
   loadToken,
+  markIntroSeen,
   repoKey,
   saveSettings,
   saveToken,
@@ -26,9 +28,11 @@ import PrRow from './components/PrRow'
 import NotifyMenu from './components/NotifyMenu'
 import RepoManager from './components/RepoManager'
 import TokenGate from './components/TokenGate'
+import Welcome from './components/Welcome'
 
 export default function App() {
   const [token, setToken] = useState(loadToken)
+  const [seenIntro, setSeenIntro] = useState(introSeen)
   const [settings, setSettings] = useState<Settings>(() =>
     typeof localStorage === 'undefined' ? DEFAULT_SETTINGS : loadSettings(),
   )
@@ -148,7 +152,21 @@ export default function App() {
     setSearch(view.query)
   }
 
-  if (!token) return <TokenGate onToken={setToken} />
+  if (!token) {
+    // The introduction comes before the credential field, and only once. See
+    // components/Welcome.tsx for why that order matters.
+    if (!seenIntro) {
+      return (
+        <Welcome
+          onContinue={() => {
+            markIntroSeen()
+            setSeenIntro(true)
+          }}
+        />
+      )
+    }
+    return <TokenGate onToken={setToken} />
+  }
 
   const noRepos = settings.repos.length === 0
 

@@ -2,6 +2,7 @@ import type { RepoRef, SavedView, Settings } from '../types'
 
 const SETTINGS_KEY = 'pr-radar.settings.v1'
 const TOKEN_KEY = 'pr-radar.token.v1'
+const INTRO_KEY = 'pr-radar.intro.v1'
 
 /**
  * Views start empty. The built-in one-click filters are the facet axes, which
@@ -96,4 +97,29 @@ export function parseRepoInput(input: string): RepoRef | null {
 
 export function repoKey(ref: RepoRef): string {
   return `${ref.owner}/${ref.name}`.toLowerCase()
+}
+
+/**
+ * Whether the introduction has been read. In localStorage rather than
+ * sessionStorage, and deliberately not with the settings: the token is gone
+ * when the tab closes, so the token screen is met again every session, and
+ * being told what the app is a second and third time is noise. This is the one
+ * piece of state that should outlive the session the token does not.
+ */
+export function introSeen(): boolean {
+  try {
+    return localStorage.getItem(INTRO_KEY) === 'yes'
+  } catch {
+    // A blocked store means the introduction shows again, which is a small
+    // annoyance and the right way to fail.
+    return false
+  }
+}
+
+export function markIntroSeen(): void {
+  try {
+    localStorage.setItem(INTRO_KEY, 'yes')
+  } catch {
+    // See above.
+  }
 }
