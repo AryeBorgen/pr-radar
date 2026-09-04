@@ -186,6 +186,35 @@ without anything outside one module noticing.
 Bringing your own components, so the radar adopts your design instead of its own,
 is the next piece of [#26](https://github.com/AryeBorgen/pr-radar/issues/26).
 
+## Reading it in your own language
+
+English and Hebrew, chosen from your browser and changeable from the header. The
+choice is remembered.
+
+Hebrew brings right-to-left with it, which is what actually tests a layout: every
+class is a logical property, so one class is correct in both directions. Plural
+forms and dates go through the platform's own `Intl`, which knows that two of
+something in Hebrew takes its own word and that the preposition comes first.
+
+Adding a language is one file. It is typed against English, so a missing key, a
+missing plural form or a placeholder English does not have is a build error
+rather than something a reader discovers.
+
+## Merging and closing from the row
+
+The radar's job is noticing which pull requests need attention. Merge is the
+click that follows noticing, so it is here — one pull request at a time, from
+the `⋯` at the end of a row.
+
+**Nothing happens on the first click.** The menu opens; the destructive item
+opens a confirmation that names the repository and the number. A merge cannot be
+undone from here and the rows are a few pixels apart, so the distance between
+deciding and doing is the feature. There is no bulk merge, deliberately.
+
+A row that cannot be merged says why — conflicts, a check that has not passed, a
+branch behind its base — because those send you to three different places. A
+failure puts the row back and says what happened.
+
 ## The token
 
 Whichever way you run it, the first screen asks for a
