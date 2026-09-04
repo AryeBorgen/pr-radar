@@ -31,11 +31,14 @@ export default defineConfig({
   },
   test: {
     globals: true,
-    environment: 'node',
     // Vitest's default pattern would also collect tests/*.spec.ts, which are
     // Playwright specs and cannot run under it. Naming the source tree keeps the
     // two suites from colliding: `npm test` is the unit tests, `npm run
     // test:browser` is the browser ones.
-    include: ['src/**/*.test.ts'],
+    // `.tsx` too. It was `.ts` alone, and a test file with a component in it
+    // was collected by nothing: ten tests sat in the tree, passing by never
+    // running. A suite that quietly skips a file is worse than one that fails.
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+    environment: 'jsdom',
   },
 })

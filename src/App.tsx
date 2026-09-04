@@ -17,6 +17,8 @@ import NotifyMenu from './components/NotifyMenu'
 import RepoManager from './components/RepoManager'
 import TokenGate from './components/TokenGate'
 import Welcome from './components/Welcome'
+import LanguageMenu from './components/LanguageMenu'
+import { useT } from './i18n/useLocale'
 
 /**
  * The standalone page. Everything here is what a hosted dashboard needs and an
@@ -25,6 +27,7 @@ import Welcome from './components/Welcome'
  * mounts that alone.
  */
 export default function App() {
+  const t = useT()
   const [token, setToken] = useState(loadToken)
   const [seenIntro, setSeenIntro] = useState(introSeen)
   const [settings, setSettings] = useState<Settings>(() =>
@@ -71,26 +74,27 @@ export default function App() {
   return (
     <div className="pr:min-h-screen pr:bg-white pr:text-neutral-900 pr:dark:bg-neutral-950 pr:dark:text-neutral-100">
       <header className="pr:flex pr:flex-wrap pr:items-center pr:gap-3 pr:border-b pr:border-neutral-200 pr:px-4 pr:py-3 pr:dark:border-neutral-800">
-        <h1 className="pr:font-semibold">PR Radar</h1>
+        <h1 className="pr:font-semibold">{t('app.name')}</h1>
         <span className="pr:text-sm pr:text-neutral-500 pr:dark:text-neutral-400">
-          {settings.repos.length} {settings.repos.length === 1 ? 'repository' : 'repositories'}
+          {t('header.repositories', { count: settings.repos.length })}
           {radar.viewer && ` · ${radar.viewer}`}
         </span>
-        <div className="pr:ml-auto pr:flex pr:items-center pr:gap-2">
+        <div className="pr:ms-auto pr:flex pr:items-center pr:gap-2">
           <button
             type="button"
             onClick={() => setShowRepos((open) => !open)}
             className="pr:rounded-md pr:border pr:border-neutral-300 pr:px-2.5 pr:py-1 pr:text-sm pr:hover:bg-neutral-100 pr:dark:border-neutral-700 pr:dark:hover:bg-neutral-800"
           >
-            {showRepos ? 'Done' : 'Repositories'}
+            {showRepos ? t('header.done') : t('header.manageRepositories')}
           </button>
           <NotifyMenu enabled={notify} onChange={setNotify} />
+          <LanguageMenu />
           <button
             type="button"
             onClick={() => setToken('')}
             className="pr:text-sm pr:text-neutral-500 pr:hover:text-neutral-900 pr:dark:hover:text-neutral-100"
           >
-            Sign out
+            {t('header.signOut')}
           </button>
         </div>
       </header>
@@ -101,7 +105,7 @@ export default function App() {
 
       {noRepos ? (
         <p className="pr:px-4 pr:py-12 pr:text-center pr:text-sm pr:text-neutral-500 pr:dark:text-neutral-400">
-          Add a repository above to get started.
+          {t('repos.empty')}
         </p>
       ) : (
         <Radar radar={radar} views={settings.views} onViewsChange={setViews} />

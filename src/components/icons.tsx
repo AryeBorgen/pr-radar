@@ -1,4 +1,5 @@
 import type { CheckState, PullState } from '../types'
+import { useT } from '../i18n/useLocale'
 
 /** Octicon-derived glyphs, inlined so the app ships no icon dependency. */
 
@@ -15,17 +16,18 @@ const CLOSED_PATH =
 
 /** The glyph carries the state, matching where GitHub puts it. */
 export function PrIcon({ state, draft }: { state: PullState; draft: boolean }) {
+  const t = useT()
   const look =
     state === 'MERGED'
-      ? { path: MERGED_PATH, className: 'pr:text-purple-600 pr:dark:text-purple-400', label: 'Merged' }
+      ? { path: MERGED_PATH, className: 'pr:text-purple-600 pr:dark:text-purple-400', label: t('state.merged') }
       : state === 'CLOSED'
-        ? { path: CLOSED_PATH, className: 'pr:text-red-600 pr:dark:text-red-500', label: 'Closed' }
+        ? { path: CLOSED_PATH, className: 'pr:text-red-600 pr:dark:text-red-500', label: t('state.closed') }
         : draft
-          ? { path: OPEN_PATH, className: 'pr:text-neutral-500', label: 'Draft' }
+          ? { path: OPEN_PATH, className: 'pr:text-neutral-500', label: t('state.draft') }
           : {
               path: OPEN_PATH,
               className: 'pr:text-emerald-600 pr:dark:text-emerald-500',
-              label: 'Open',
+              label: t('state.open'),
             }
 
   return (
@@ -45,12 +47,13 @@ export function PrIcon({ state, draft }: { state: PullState; draft: boolean }) {
 }
 
 export function CheckIcon({ state }: { state: CheckState }) {
+  const t = useT()
   if (state === 'NONE' || state === 'UNKNOWN') return null
 
   const look = {
-    SUCCESS: { className: 'pr:text-emerald-600 pr:dark:text-emerald-500', label: 'All checks passed' },
-    FAILURE: { className: 'pr:text-red-600 pr:dark:text-red-500', label: 'Some checks failed' },
-    PENDING: { className: 'pr:text-amber-500', label: 'Checks running' },
+    SUCCESS: { className: 'pr:text-emerald-600 pr:dark:text-emerald-500', label: t('checks.passed') },
+    FAILURE: { className: 'pr:text-red-600 pr:dark:text-red-500', label: t('checks.failed') },
+    PENDING: { className: 'pr:text-amber-500', label: t('checks.running') },
   }[state]
 
   const path = {

@@ -1,11 +1,18 @@
 import type { RepoRef } from './types.js';
-export type { RepoRef };
+import type { Locale } from './i18n/types.js';
+export type { RepoRef, Locale };
 export interface RadarOptions {
     /** A GitHub token. It is used and never stored: see the note in `renderRadar`. */
     token: string;
     repos: RepoRef[];
     /** Seconds between background refetches. 0 disables polling. Defaults to 120. */
     refreshInterval?: number;
+    /**
+     * Which language to render in. Defaults to the reader's browser preference.
+     * The host almost always knows better than the radar does what the page
+     * around it is written in, and Hebrew brings right-to-left with it.
+     */
+    locale?: Locale;
 }
 export interface RadarHandle {
     /** Change which repositories are shown, without remounting. */

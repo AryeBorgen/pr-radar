@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useT } from '../i18n/useLocale'
 import type { SavedView } from '../types'
 
 interface Props {
@@ -16,6 +17,7 @@ interface Props {
  * from, so applying one is the same operation as typing it.
  */
 export default function SavedViews({ views, counts, onApply, onChange, draftQuery }: Props) {
+  const t = useT()
   const [naming, setNaming] = useState(false)
   const [name, setName] = useState('')
 
@@ -31,7 +33,7 @@ export default function SavedViews({ views, counts, onApply, onChange, draftQuer
   return (
     <div className="pr:flex pr:flex-wrap pr:items-center pr:gap-1.5 pr:border-b pr:border-neutral-200 pr:px-4 pr:py-1.5 pr:dark:border-neutral-800">
       <span className="pr:w-14 pr:shrink-0 pr:text-xs pr:font-medium pr:tracking-wide pr:text-neutral-400 pr:uppercase pr:dark:text-neutral-500">
-        Views
+        {t('views.title')}
       </span>
 
       {views.map((view) => (
@@ -65,12 +67,12 @@ export default function SavedViews({ views, counts, onApply, onChange, draftQuer
             value={name}
             onChange={(event) => setName(event.target.value)}
             onBlur={() => !name.trim() && setNaming(false)}
-            placeholder="Name this view"
-            aria-label="Name for the saved view"
+            placeholder={t('views.namePlaceholder')}
+            aria-label={t('views.nameLabel')}
             className="pr:w-36 pr:rounded-full pr:border pr:border-neutral-300 pr:bg-white pr:px-3 pr:py-1 pr:text-sm pr:dark:border-neutral-700 pr:dark:bg-neutral-900 pr:dark:text-neutral-100"
           />
           <button type="submit" className="pr:text-sm pr:text-blue-600 pr:dark:text-blue-400">
-            Save
+            {t('action.save')}
           </button>
         </form>
       ) : (
@@ -85,7 +87,7 @@ export default function SavedViews({ views, counts, onApply, onChange, draftQuer
           }
           className="pr:rounded-full pr:px-2.5 pr:py-1 pr:text-sm pr:text-neutral-500 pr:hover:bg-neutral-100 pr:disabled:opacity-40 pr:dark:hover:bg-neutral-800"
         >
-          + Save current
+          {t('views.saveCurrent')}
         </button>
       )}
     </div>

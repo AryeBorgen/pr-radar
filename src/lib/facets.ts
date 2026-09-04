@@ -1,4 +1,5 @@
 import type { PullRequest } from '../types'
+import type { MessageKey } from '../i18n/en'
 import { applyStages } from './filter'
 
 /**
@@ -14,48 +15,54 @@ import { applyStages } from './filter'
  */
 export interface FacetOption {
   id: string
-  label: string
+  /*
+   * A key, not a label. These are data, and data that carries English is data
+   * a Hebrew reader sees in English -- with nothing anywhere reporting it,
+   * because a string in a module is invisible to a check that reads components.
+   * Typed as MessageKey, so a key that does not exist is a compile error.
+   */
+  label: MessageKey
   query: string
 }
 
 export interface Facet {
   id: string
   /** Shown before the options; keep it to one word where possible. */
-  legend: string
+  legend: MessageKey
   options: FacetOption[]
 }
 
 export const FACETS: Facet[] = [
   {
     id: 'status',
-    legend: 'Status',
+    legend: 'axis.status',
     options: [
-      { id: 'open', label: 'Open', query: 'is:open' },
+      { id: 'open', label: 'axis.status.open', query: 'is:open' },
       /*
        * Merge history is most useful newest-first, so the option carries its own
        * sort. Because a later stage wins, the Sort menu can still override it.
        */
-      { id: 'merged', label: 'Merged', query: 'is:merged sort:merged-desc' },
-      { id: 'closed', label: 'Closed unmerged', query: 'is:closed' },
-      { id: 'all', label: 'All', query: '' },
+      { id: 'merged', label: 'axis.status.merged', query: 'is:merged sort:merged-desc' },
+      { id: 'closed', label: 'axis.status.closed', query: 'is:closed' },
+      { id: 'all', label: 'axis.status.all', query: '' },
     ],
   },
   {
     id: 'involvement',
-    legend: 'Who',
+    legend: 'axis.who',
     options: [
-      { id: 'anyone', label: 'Anyone', query: '' },
-      { id: 'mine', label: 'Mine', query: 'author:@me' },
-      { id: 'to-review', label: 'To review', query: 'review-requested:@me' },
-      { id: 'reviewed', label: 'I reviewed', query: 'reviewed-by:@me' },
-      { id: 'involves', label: 'Involves me', query: 'involves:@me' },
+      { id: 'anyone', label: 'axis.who.anyone', query: '' },
+      { id: 'mine', label: 'axis.who.mine', query: 'author:@me' },
+      { id: 'to-review', label: 'axis.who.toReview', query: 'review-requested:@me' },
+      { id: 'reviewed', label: 'axis.who.reviewed', query: 'reviewed-by:@me' },
+      { id: 'involves', label: 'axis.who.involves', query: 'involves:@me' },
     ],
   },
   {
     id: 'state',
-    legend: 'State',
+    legend: 'axis.state',
     options: [
-      { id: 'any', label: 'Any', query: '' },
+      { id: 'any', label: 'axis.state.any', query: '' },
       /*
        * Awaiting review excludes `unknown` rather than treating it as awaiting:
        * a PR whose review state has not been fetched yet is not known to be
@@ -64,27 +71,27 @@ export const FACETS: Facet[] = [
        */
       {
         id: 'awaiting',
-        label: 'Awaiting review',
+        label: 'axis.state.awaiting',
         query: '-review:approved -review:changes-requested -review:unknown',
       },
-      { id: 'approved', label: 'Approved', query: 'review:approved' },
-      { id: 'changes', label: 'Changes requested', query: 'review:changes-requested' },
-      { id: 'ci-red', label: 'CI failing', query: 'checks:failure' },
-      { id: 'stale', label: 'Stale 7d+', query: 'updated:<7d' },
+      { id: 'approved', label: 'axis.state.approved', query: 'review:approved' },
+      { id: 'changes', label: 'axis.state.changes', query: 'review:changes-requested' },
+      { id: 'ci-red', label: 'axis.state.ciRed', query: 'checks:failure' },
+      { id: 'stale', label: 'axis.state.stale', query: 'updated:<7d' },
     ],
   },
   {
     id: 'draft',
-    legend: 'Drafts',
+    legend: 'axis.drafts',
     options: [
       /*
        * Drafts are shown by default, and that is a deliberate default rather
        * than an oversight: a review bot that moves a PR back to draft on a
        * failed review makes "draft" a state worth seeing, not noise to hide.
        */
-      { id: 'all', label: 'Shown', query: '' },
-      { id: 'only', label: 'Only', query: 'is:draft' },
-      { id: 'hide', label: 'Hidden', query: '-is:draft' },
+      { id: 'all', label: 'axis.drafts.shown', query: '' },
+      { id: 'only', label: 'axis.drafts.only', query: 'is:draft' },
+      { id: 'hide', label: 'axis.drafts.hidden', query: '-is:draft' },
     ],
   },
 ]
