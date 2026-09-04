@@ -15,8 +15,25 @@ const pr = event.pull_request
 const repo = event.repository.full_name
 const token = process.env.GITHUB_TOKEN
 
-const api = async (path) => {
-  const response = await fetch(`https://api.github.com${path}`, {
+// Every value that reaches this URL came out of the event file, and part of that
+// file -- the pull request's body -- is written by whoever opened it. The issue
+// numbers are captured by `\d+` so nothing but digits can survive, but "the
+// regex upstream is careful" is an argument rather than a defence, and CodeQL
+// was right to say so. The URL is assembled from validated pieces instead.
+const OWNER_REPO = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/
+
+const api = async (segments, search = '') => {
+  if (!OWNER_REPO.test(repo)) throw new Error(`refusing to call out for repository "${repo}"`)
+  for (const segment of segments) {
+    if (!/^[A-Za-z0-9_.-]+$/.test(String(segment))) {
+      throw new Error(`refusing to build a request path from "${segment}"`)
+    }
+  }
+
+  const url = new URL(`https://api.github.com/repos/${repo}/${segments.join('/')}${search}`)
+  if (url.origin !== 'https://api.github.com') throw new Error('refusing to leave api.github.com')
+
+  const response = await fetch(url, {
     headers: {
       Authorization: `Bearer ${token}`,
       Accept: 'application/vnd.github+json',
@@ -34,7 +51,7 @@ const say = (markdown) => {
   }
 }
 
-const files = (await api(`/repos/${repo}/pulls/${pr.number}/files?per_page=100`) ?? []).map(
+const files = (await api(['pulls', pr.number, 'files'], '?per_page=100') ?? []).map(
   (f) => f.filename,
 )
 
@@ -85,7 +102,7 @@ const headings = readdirSync(dir)
 
 const problems = []
 for (const number of refs) {
-  const issue = await api(`/repos/${repo}/issues/${number}`)
+  const issue = await api(['issues', number])
   // The issues endpoint also answers for pull requests; one is not an issue.
   const result = verdict({ issue: issue?.pull_request ? null : issue, headings })
   if (result.ok) {
