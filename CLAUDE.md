@@ -95,7 +95,15 @@ cycle; none of them are guesses.
    with no tag breaks nothing; a tag with no release breaks nothing. `0.1.0` had
    neither for hours. `scripts/check-releases.sh` compares the registry against
    the releases in both directions and runs on every pull request.
-6. **`--generate-notes` with no previous release lists the entire project.**
+6. **npm answers a successful publish before the registry serves it.** The
+   release job's own post-publish assertion passes -- it asks the same API that
+   just accepted the write -- and then `check-releases.sh` reads
+   `registry.npmjs.org` and does not find the version. That is a gap of seconds,
+   not a disagreement, and it failed v0.3.0's release over a package that was
+   published perfectly. The script now takes `--expect <version>` and waits up
+   to two minutes for it; on a pull request there is nothing to wait for and it
+   reads once.
+7. **`--generate-notes` with no previous release lists the entire project.**
    v0.1.1's notes presented forty commits of history as the contents of a patch
    release, because there was no v0.1.0 tag to diff against. The release job now
    passes `--notes-start-tag`.

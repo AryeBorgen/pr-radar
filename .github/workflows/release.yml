@@ -149,10 +149,14 @@ jobs:
 
       # The release exists and the package is published; make sure they agree
       # before the job goes green.
+      # `--expect` because npm answers a successful publish before the public
+      # registry serves the new version. Without it this ran in the gap: it saw
+      # the GitHub release and not the package, and failed 0.3.0's release over
+      # a disagreement that resolved itself seconds later.
       - name: Versions must agree
         env:
           GH_TOKEN: ${{ github.token }}
-        run: scripts/check-releases.sh
+        run: scripts/check-releases.sh --expect "${GITHUB_REF_NAME#v}"
 
       # Everything before this tested a build. This installs what the registry
       # now serves and mounts it in a browser from a page with no bundler, which
