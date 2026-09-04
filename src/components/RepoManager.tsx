@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { RepoRef } from '../types'
-import { fetchOwnerRepos } from '../lib/github'
+import { fetchOwnerRepos, fetchViewerOrgs, suggestOwners } from '../lib/github'
 import { parseRepoInput, repoKey } from '../lib/storage'
 
 interface Props {
@@ -12,6 +12,7 @@ interface Props {
 export default function RepoManager({ token, repos, onChange }: Props) {
   const [input, setInput] = useState('')
   const [error, setError] = useState('')
+  const [suggestions, setSuggestions] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
 
   /** Union by lowercased slug, so the same repo cannot be added twice. */
@@ -28,6 +29,7 @@ export default function RepoManager({ token, repos, onChange }: Props) {
     const raw = input.trim()
     if (!raw) return
     setError('')
+    setSuggestions([])
 
     const single = parseRepoInput(raw)
     if (single) {
@@ -41,20 +43,32 @@ export default function RepoManager({ token, repos, onChange }: Props) {
       setBusy(true)
       try {
         const found = await fetchOwnerRepos(token, raw)
-        if (found.length === 0) {
-          setError(`"${raw}" has no repositories this token can see.`)
-        } else {
-          merge(found)
+        if (found.repos.length > 0) {
+          merge(found.repos)
           setInput('')
+          setSuggestions([])
+        } else {
+          // An empty result is honest and useless on its own. Say which of the
+          // two things was actually found, since "no repositories" reads as a
+          // permissions problem and is usually a typed name that belongs to
+          // somebody else -- and offer the organisations that do exist.
+          setError(
+            found.kind === 'user'
+              ? `"${raw}" is a GitHub user, not an organisation, and has no repositories this token can see.`
+              : `The organisation "${raw}" has no repositories this token can see.`,
+          )
+          setSuggestions(await fetchViewerOrgs(token).then((orgs) => suggestOwners(raw, orgs)).catch(() => []))
         }
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : 'Lookup failed.')
+        setSuggestions([])
       } finally {
         setBusy(false)
       }
       return
     }
 
+    setSuggestions([])
     setError('Enter owner/repo, a GitHub URL, or an organisation name.')
   }
 
@@ -78,6 +92,29 @@ export default function RepoManager({ token, repos, onChange }: Props) {
       </form>
 
       {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
+
+      {suggestions.length > 0 && (
+        <p className="mt-1.5 text-sm text-neutral-600 dark:text-neutral-400">
+          Did you mean{' '}
+          {suggestions.map((name, index) => (
+            <span key={name}>
+              {index > 0 && (index === suggestions.length - 1 ? ' or ' : ', ')}
+              <button
+                type="button"
+                onClick={() => {
+                  setInput(name)
+                  setError('')
+                  setSuggestions([])
+                }}
+                className="font-medium text-blue-600 underline hover:text-blue-700 dark:text-blue-400"
+              >
+                {name}
+              </button>
+            </span>
+          ))}
+          ?
+        </p>
+      )}
 
       {repos.length > 0 && (
         <ul className="mt-3 flex flex-wrap gap-1.5">

@@ -348,19 +348,31 @@ interface RawRepo {
   owner: { login: string }
 }
 
+export interface OwnerRepos {
+  /**
+   * Which endpoint answered. Carried out of here because an empty result means
+   * very different things for the two, and the caller cannot tell them apart
+   * from an empty array.
+   */
+  kind: 'organisation' | 'user'
+  repos: RepoRef[]
+}
+
 /**
  * Expand an org or user login into its non-archived repositories. The org
  * endpoint is tried first and a 404 falls through to the user endpoint, because
  * nothing in a bare login says which of the two it is.
  */
-export async function fetchOwnerRepos(token: string, login: string): Promise<RepoRef[]> {
+export async function fetchOwnerRepos(token: string, login: string): Promise<OwnerRepos> {
   const query = 'per_page=100&sort=pushed&direction=desc'
   let repos: RawRepo[]
+  let kind: OwnerRepos['kind'] = 'organisation'
 
   try {
     repos = await rest<RawRepo[]>(token, `/orgs/${login}/repos?type=all&${query}`)
   } catch (cause) {
     if (!(cause instanceof GitHubError) || cause.status !== 404) throw cause
+    kind = 'user'
     try {
       repos = await rest<RawRepo[]>(token, `/users/${login}/repos?type=owner&${query}`)
     } catch (inner) {
@@ -371,7 +383,40 @@ export async function fetchOwnerRepos(token: string, login: string): Promise<Rep
     }
   }
 
-  return repos
-    .filter((repo) => !repo.archived)
-    .map((repo) => ({ owner: repo.owner.login, name: repo.name }))
+  return {
+    kind,
+    repos: repos
+      .filter((repo) => !repo.archived)
+      .map((repo) => ({ owner: repo.owner.login, name: repo.name })),
+  }
+}
+
+/** The organisations the token's owner belongs to, for suggesting a correction. */
+export async function fetchViewerOrgs(token: string): Promise<string[]> {
+  const orgs = await rest<{ login: string }[]>(token, '/user/orgs?per_page=100')
+  return orgs.map((org) => org.login)
+}
+
+/**
+ * Organisations the viewer belongs to that resemble what they typed.
+ *
+ * The case this exists for: typing `DePoint` finds a real, unrelated GitHub user
+ * with no public repositories. The lookup succeeds, returns nothing, and the
+ * honest report -- "no repositories this token can see" -- sounds like a
+ * permissions problem and sends people to check their token. The organisation
+ * they meant was `DePointLTD` all along.
+ *
+ * Substring in either direction, because the miss is usually a suffix that was
+ * left off or a longer name that was half remembered. Everything plausible is
+ * returned rather than one guess: choosing between `Bizi-IL` and `Buildix-IL` is
+ * the reader's job, not this function's.
+ */
+export function suggestOwners(typed: string, orgs: string[]): string[] {
+  const needle = typed.trim().toLowerCase()
+  if (!needle) return []
+  return orgs.filter((org) => {
+    const name = org.toLowerCase()
+    if (name === needle) return false
+    return name.includes(needle) || needle.includes(name)
+  })
 }
