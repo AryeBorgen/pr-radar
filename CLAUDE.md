@@ -187,10 +187,10 @@ bin/pr-radar.js      dependency-free static server, so `npx pr-radar` works
 
 ## Open work, roughly in order of value
 
-1. **Publish an npm release.** `.github/workflows/release.yml` builds, verifies
-   and refuses a tag that disagrees with `package.json`. It has never run. Until
-   it does the README says `npx pr-radar` *will* work rather than that it does,
-   which is the honest tense.
+1. **Configure the trusted publisher, and release 0.1.1 through CI.** 0.1.0 is
+   on npm, published by hand, and `npx pr-radar` works -- verified from the
+   registry in a real browser, not just by the command returning 0.
+   `.github/workflows/release.yml` has still never run.
 
    **It stores no npm credential, and should not be given one.** A CI publish
    with a token needs that token to bypass two-factor authentication, because
