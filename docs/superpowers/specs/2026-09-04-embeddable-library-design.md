@@ -38,7 +38,6 @@ and to be deliberate about which side of the line each thing sits on.
 
 ```
 pr-radar             the CLI, unchanged
-pr-radar/core        the pure logic
 pr-radar/render      renderRadar, one function
 pr-radar/style.css   the compiled stylesheet
 ```
@@ -49,48 +48,52 @@ multiplying a pipeline that currently works once and is verified. They would als
 introduce version skew between `pr-radar-react@2` and `pr-radar-core@1`, which is
 a support burden with no user on the other end of it.
 
-The argument for splitting is that a consumer of `core` downloads the React code
-too. Measured: core and the components are about 100 kB of source, in a package
-that already ships 472 kB, 128 kB of which is two images. It is not a
-consideration. **Adding `pr-radar/vue` later is one line in `exports`**, so
-nothing here forecloses the split if it ever earns its place.
+The argument for splitting is that a consumer of one entry point downloads the
+others. Measured: the whole library is about 100 kB of source, in a package that
+already ships 472 kB, 128 kB of which is two images. It is not a consideration.
+**Adding an entry point later is one line in `exports`**, so nothing here
+forecloses the split if it ever earns its place.
 
-## What `pr-radar/core` exports
+## What is not exported, and why that is the whole design
 
-Pure functions with tests already written. No React, no fetch, no storage.
+Everything except one function.
+
+An earlier draft of this document listed a `pr-radar/core` entry point with
+twenty-five functions and sixteen types: the filter language, the rollups, the
+facet axes, the menu builders. It was justified on the grounds that the code is
+already pure and already tested, so exporting it costs nothing.
+
+That is true of the code and false of the contract. **Adding an export later is a
+minor release; removing one is a breaking change.** The asymmetry is the whole
+argument for starting with less than seems reasonable.
+
+### The filter cannot be exported without freezing `PullRequest`
+
+Measured rather than assumed: `filter.ts` reads **sixteen of the nineteen fields**
+on `PullRequest`. The three it does not -- `id`, `url`, `headSha` -- are exactly
+the ones any interface needs anyway, so there is no narrower type to publish in
+its place. Exporting the filter means exporting the shape.
+
+And that shape is precisely what `CLAUDE.md` protects. It is what changed when
+the data layer moved from GraphQL to REST, in a rewrite that touched one module
+because nothing outside depended on it. Publishing it ends that.
+
+### So the first version exports one function and the types it needs
 
 ```ts
-// The filter language
-tokenize, parseQuery, filterQuery, applyQuery, applyStages, sortPrs
+renderRadar(element: Element, options: RadarOptions): RadarHandle
 
-// The rollups, which are pure despite living in github.ts
-decideReview, rollupChecks
-
-// The axes
-FACETS, DEFAULT_SELECTION, needsClosed, combine,
-selectionStages, selectionQuery, facetCounts
-
-// The menus
-MENUS, PERIOD_OPTIONS, DEFAULT_PERIOD, SORT_OPTIONS,
-periodQuery, menuOptions, menuStages, toggle
-
-// Types
-PullRequest, Actor, Label, ReviewDecision, CheckState, PullState,
-RepoRef, SavedView, Term, ParsedQuery, SortKey, Selection,
-Facet, FacetOption, MenuSpec, MenuOption, MenuSelection
+interface RadarOptions { token: string; repos: RepoRef[] }
+interface RadarHandle { setRepos(repos: RepoRef[]): void; destroy(): void }
+interface RepoRef { owner: string; name: string }
 ```
 
-That list is longer than it first looked, and each name on it is a promise. It
-was written by reading the modules rather than from memory, which is how
-`buildMenus` -- a function this document invented and which does not exist --
-came out of it.
+Four names. `PullRequest`, the filter language, the axes, the menus and every
+component stay internal and stay changeable.
 
-`fetchPullRequests` and `fetchEnrichment` are **not** exported. They are the
-boundary the architecture rests on, and a host that wants them can call
-`api.github.com` itself -- there is nothing secret in two REST calls. Exporting
-the *normalised type* without the fetcher is the deliberate half: it lets somebody
-map their own data into the shape the engine understands without freezing how we
-get ours.
+If somebody asks for the filter engine, it can be added -- and by then there will
+be a stated use for it, which is a better basis for a public type than the
+observation that the code happens to be tidy.
 
 ## What `pr-radar/render` exports
 
@@ -176,7 +179,6 @@ controls and not tolerable in a library, where the caller supplies the data.
 
 ```json
 "exports": {
-  "./core":   { "types": "./dist/core.d.ts",   "import": "./dist/core.js" },
   "./render": { "types": "./dist/render.d.ts", "import": "./dist/render.js" },
   "./style.css": "./dist/pr-radar.css"
 }
@@ -197,8 +199,8 @@ Four checks, because each catches something the others cannot:
   `setRepos` and nothing else; `parseQuery` takes a string and returns a
   `ParsedQuery`. These fail at type-check time, which is where a broken contract
   should fail.
-- **A checked-in snapshot of the emitted declarations.** `dist/core.d.ts` and
-  `dist/render.d.ts` are committed and compared on every build.
+- **A checked-in snapshot of the emitted declarations.** `dist/render.d.ts` is
+  committed and compared on every build.
 
 That last one is the important one. The export-surface test above catches a new
 *name* appearing; the snapshot catches a changed *shape* -- a field turning
@@ -248,11 +250,10 @@ library that cannot be unloaded.
   empty, the poll has stopped and no listener survives. This is the one that
   decides whether the library is usable in a single-page application at all, and
   it is invisible until somebody's tab has been open for an hour.
-- **The public surface is exactly the two entry points.** A test that imports the
-  package and compares its exported names against a checked-in list, so widening
-  the contract is a deliberate edit rather than a side effect.
-- **`core` carries no React.** A test asserting the core entry point has no
-  dependency on react, so it stays usable from a script or a server.
+- **The public surface is exactly four names.** A test that imports the package
+  and compares its exported names against a checked-in list, so widening the
+  contract is a deliberate edit rather than a side effect. This is the check that
+  keeps `PullRequest` from leaking out through a return type.
 - **It works from a host that is not React.** A browser test mounting it from a
   plain HTML page, since that reach is the whole argument for an imperative
   function over a component.
@@ -263,12 +264,13 @@ library that cannot be unloaded.
    `exactOptionalPropertyTypes`, `noPropertyAccessFromIndexSignature` -- and fix
    the nine errors. Before anything is exported, because the point of doing it is
    to fix them in private rather than in a contract.
-1. `pr-radar/core`, its declarations, the export-surface test, the declaration
-   snapshot, `publint` and `attw`. No refactor; the code is already pure.
-2. `renderRadar` and the prefixed stylesheet, with the collision test and a
+1. `renderRadar`, its declarations, the prefixed stylesheet, the export-surface
+   test, the declaration snapshot, `publint` and `attw`, the collision test and a
    mount-and-destroy test that asserts nothing is left behind.
-3. `components` in the options, once there is a host whose design it has to
+2. `components` in the options, once there is a host whose design it has to
    adopt. The option object exists from day one so that this is additive.
+3. The filter engine, if somebody asks for it. Not before: exporting it freezes
+   the shape of `PullRequest`, and "the code is already tidy" is not a use.
 
 No web component. `renderRadar` already reaches every host one would have
 reached, with a wider API and less to maintain.
