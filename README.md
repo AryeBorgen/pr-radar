@@ -13,6 +13,7 @@ No install, no sign-up, no server. Works on a laptop and on a phone.
 [![CI](https://github.com/AryeBorgen/pr-radar/actions/workflows/ci.yml/badge.svg)](https://github.com/AryeBorgen/pr-radar/actions/workflows/ci.yml)
 [![Docker image](https://github.com/AryeBorgen/pr-radar/actions/workflows/docker.yml/badge.svg)](https://github.com/AryeBorgen/pr-radar/actions/workflows/docker.yml)
 [![CodeQL](https://github.com/AryeBorgen/pr-radar/actions/workflows/codeql.yml/badge.svg)](https://github.com/AryeBorgen/pr-radar/actions/workflows/codeql.yml)
+[![npm](https://img.shields.io/npm/v/pr-radar.svg)](https://www.npmjs.com/package/pr-radar)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 </div>
@@ -95,7 +96,16 @@ the same bundle, and since there is no backend there is nothing about it that is
 Run your own if you would rather serve it yourself. Every option below is the
 same static bundle.
 
-**Docker** — nothing to install but Docker itself:
+**As a command** — nothing to install:
+
+```bash
+npx pr-radar          # or: pnpm dlx pr-radar     bunx pr-radar
+```
+
+Serves the dashboard on `http://localhost:4173` and opens a browser. `--port`,
+`--host` and `--no-open` are available; `--help` lists them.
+
+**Docker** — if you would rather not have Node at all:
 
 ```bash
 docker run -p 4173:80 ghcr.io/aryeborgen/pr-radar
@@ -113,11 +123,6 @@ cd pr-radar
 npm install
 npm run dev
 ```
-
-**As a command** — once the package is published, `npx pr-radar` will serve the
-dashboard on `http://localhost:4173` and open a browser, with `--port`, `--host`
-and `--no-open` available. Until then, `npm start` from a clone runs the same
-server.
 
 **On your own host:**
 
