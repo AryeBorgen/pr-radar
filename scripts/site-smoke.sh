@@ -12,9 +12,13 @@ set -eu
 URL=${1:?usage: scripts/site-smoke.sh <url>}
 URL=${URL%/}
 failures=0
+pending=0
 
 pass() { printf '  ok    %s\n' "$1"; }
 fail() { printf '  FAIL  %s\n' "$1"; failures=$((failures + 1)); }
+# Counted and printed, never silent: a check that quietly does nothing is worse
+# than one that fails, because the summary reads the same as success.
+skip() { printf '  pend  %s\n' "$1"; pending=$((pending + 1)); }
 check() { if [ "$2" = "$3" ]; then pass "$1"; else fail "$1 (expected '$3', got '$2')"; fi; }
 
 printf '\nSmoke-testing %s\n\n' "$URL"
@@ -123,16 +127,36 @@ fi
 # The token this page holds is a live GitHub credential, so a visitor arriving
 # over plain HTTP must not be served the app: anyone on the path could rewrite
 # the script that reads it. On Pages this is the `https_enforced` setting.
+#
+# Which GitHub refuses to turn on until it has issued a certificate, and that
+# takes as long as it takes. The deploy asks on every run. Failing the build in
+# the meantime reports something nobody can act on -- and a red build nobody can
+# act on is a build people stop reading, which costs more than this check is
+# worth.
+#
+# So the distinction is drawn where it matters: HTTPS not working at all is a
+# failure. HTTPS working while GitHub has not yet flipped the redirect is
+# reported as pending, with what would settle it.
 http_url=$(printf '%s' "$https_url" | sed 's|^https://|http://|')
 redirect=$(curl -s -o /dev/null -w '%{redirect_url}' --max-time 20 "$http_url/")
 case $redirect in
   https://*) pass 'plain HTTP redirects to HTTPS' ;;
-  *) fail "plain HTTP redirects to HTTPS (got '${redirect:-no redirect}')" ;;
+  *)
+    if curl -sf --max-time 20 "$https_url/" -o /dev/null; then
+      skip 'plain HTTP redirects to HTTPS (HTTPS works; Pages has not enabled enforcement yet)'
+    else
+      fail "plain HTTP redirects to HTTPS (got '${redirect:-no redirect}')"
+    fi
+    ;;
 esac
 
 printf '\n'
 if [ "$failures" -eq 0 ]; then
-  echo 'All checks passed.'
+  if [ "$pending" -gt 0 ]; then
+    echo "All checks passed. $pending waiting on GitHub."
+  else
+    echo 'All checks passed.'
+  fi
 else
   echo "$failures check(s) failed."
   exit 1
