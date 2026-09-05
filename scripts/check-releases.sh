@@ -90,6 +90,23 @@ for r in $releases; do
   fi
 done
 
+# A changelog that misses one version stops being the thing anyone checks, and
+# the version it misses is the one somebody needed. The entries are checked
+# against the registry rather than against the tags, because what a person
+# upgrading has in front of them is a version number from npm.
+echo 'Every npm version has a changelog entry'
+if [ ! -f CHANGELOG.md ]; then
+  fail 'CHANGELOG.md is missing'
+else
+  for v in $npm_versions; do
+    if grep -qE "^## $v( |$|\s)" CHANGELOG.md; then
+      pass "$v is in the changelog"
+    else
+      fail "$v is published but has no '## $v' entry in CHANGELOG.md"
+    fi
+  done
+fi
+
 # GitHub picks "Latest" for itself unless told, and it picks by creation date.
 # v0.1.0's release was cut after v0.1.1's, so the releases page offered 0.1.0 to
 # anyone who landed on it -- pointing at a version one release out of date, with

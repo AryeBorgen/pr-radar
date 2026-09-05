@@ -188,9 +188,16 @@ failed build had left half-written. The workflow builds from a fresh checkout, s
 there is no previous state for it to inherit. A working tree is not a commit, and
 nothing published from one can be verified afterwards.
 
+Add the entry to `CHANGELOG.md` in the same pull request as the version bump.
+It is written for somebody deciding whether to upgrade, not as a commit list --
+the GitHub release already carries those. Say what is different and whether
+anything they depend on moved.
+
 `scripts/check-releases.sh` runs on every pull request and requires every npm
-version to have a tag and a release, every release to be on npm, and the release
-marked "Latest" to be the highest version. They drift apart quietly otherwise,
+version to have a tag, a release and a changelog entry, every release to be on
+npm, and the release marked "Latest" to be the highest version. A changelog that
+misses one version stops being the thing anyone checks, and the version it
+misses is the one somebody needed. They drift apart quietly otherwise,
 because none of it breaks anything. GitHub picked v0.1.0 as Latest over v0.1.1
 purely because those two releases were cut out of order, and the releases page
 offered a stale version to anyone who landed on it.
