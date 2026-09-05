@@ -21,7 +21,11 @@ That is what CI runs, and it expands to:
 ```bash
 npm run typecheck        # tsc -b --force
 npm test                 # vitest, over src/ only
+npm run test:node        # the sign-in relay, over HTTP, against every server
 npm run build
+npm run build:lib
+npm run test:package     # publint and are-the-types-wrong, on a real npm pack
+npm run test:types       # a consumer compiled under moduleResolution: nodenext
 npm run test:browser     # playwright, against the built bundle
 ```
 
@@ -41,6 +45,40 @@ scripts/lint-workflows.sh                     # the security rules the workflows
 docker build -t pr-radar:x . && docker/smoke.sh pr-radar:x
 scripts/site-smoke.sh https://example.com/    # a deployed site, from the outside
 ```
+
+## The sign-in relay is tested three times over
+
+`npm run test:node` covers the part of this project that talks to GitHub's OAuth
+endpoints on a user's behalf, and it is the one place where getting something
+wrong costs more than a refresh.
+
+Three servers relay sign-in: `bin/pr-radar.js`, nginx in the container, and the
+Cloudflare Worker in `worker/`. They share `bin/relay-policy.js` verbatim, so the
+*rules* cannot diverge — but each has its own plumbing around it, and plumbing is
+where a check quietly stops running.
+
+- **`tests/node/relay.test.js`** attacks every restriction by attempting it: a
+  forwarded header, a client id chosen by the caller, a scope carrying a newline,
+  a grant type that merely resembles an allowed one.
+- **`tests/node/conformance.test.js`** asks all three servers the same questions
+  and compares their answers **to each other**. A difference fails even where
+  both answers look reasonable. It has already caught three: nginx passes no
+  environment variable to a worker unless it is named with `env`, its own
+  `client_max_body_size` answers 413 as HTML rather than as the relay's JSON, and
+  a `return 404` carries no `Cache-Control` unless told.
+- **`tests/node/worker.test.js`** attacks the one thing only the hosted relay
+  does. The local two refuse every cross-origin request and send no CORS header
+  ever; the worker is cross-origin by definition and cannot, so its allowlist is
+  the entire mitigation — and that is what those tests try to get past.
+
+These suites run **serially**. Each starts a real server, and running the files
+in parallel put two of them on the same ports: they passed alone and failed
+together, which is the worse way round.
+
+Docker and wrangler are optional. When either is missing the suite says so out
+loud and keeps going — never silently, because `# pass 0` reads exactly like
+success in every summary there is, and this project has already shipped a file
+that skipped itself entirely.
 
 ## The published package is tested as a package
 
