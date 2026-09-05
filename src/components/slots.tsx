@@ -232,10 +232,24 @@ function DefaultAvatar({ src, alt, size }: AvatarProps) {
   )
 }
 
+/*
+ * `overflow-wrap: anywhere` on both, and it is load-bearing rather than tidy.
+ *
+ * A pull request title is somebody else's text: a branch name, a package path,
+ * a pasted URL, an identifier nobody should have written. Without this the
+ * longest token sets the row's width, the row sets the page's, and the whole
+ * dashboard scrolls sideways -- measured at 128px of overflow on a 440px phone
+ * from one title, which is a page you have to drag to read.
+ *
+ * `anywhere` rather than `break-word`: the title is a flex item, and only
+ * `anywhere` reduces the min-content size a flex item contributes. With
+ * `break-word` the class applies, the word still sets the row's minimum, and
+ * the overflow is unchanged to the pixel -- which is what happened.
+ */
 const LINK: Record<LinkVariant, string> = {
-  default: 'pr:text-blue-600 pr:underline pr:dark:text-blue-400',
+  default: 'pr:[overflow-wrap:anywhere] pr:text-blue-600 pr:underline pr:dark:text-blue-400',
   title:
-    'pr:font-semibold pr:text-neutral-900 pr:hover:text-blue-600 pr:hover:underline pr:dark:text-neutral-100 pr:dark:hover:text-blue-400',
+    'pr:[overflow-wrap:anywhere] pr:font-semibold pr:text-neutral-900 pr:hover:text-blue-600 pr:hover:underline pr:dark:text-neutral-100 pr:dark:hover:text-blue-400',
 }
 
 function DefaultLink({ children, href, variant, external, title }: LinkProps) {
