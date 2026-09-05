@@ -7,6 +7,7 @@ import {
   needsClosed,
   selectionQuery,
   selectionStages,
+  activeAxes,
 } from './facets'
 import type { Selection } from './facets'
 import { applyStages } from './filter'
@@ -182,5 +183,36 @@ describe('facetCounts', () => {
     const counts = facetCounts(unknown, facet('state'), DEFAULT_SELECTION, [''], 'arye', NOW)
     expect(counts.awaiting).toBe(0)
     expect(counts.any).toBe(1)
+  })
+})
+
+describe('what the collapsed axis control says', () => {
+  // A phone cannot afford four rows of pills, so they collapse behind one
+  // control -- which then has to say what is filtering, or it hides state.
+  it('says nothing when nothing is filtering', () => {
+    expect(activeAxes(DEFAULT_SELECTION)).toEqual([])
+  })
+
+  it('names the axis and the option that is set', () => {
+    const active = activeAxes({ ...DEFAULT_SELECTION, involvement: 'mine' })
+    expect(active).toHaveLength(1)
+    expect(active[0]?.facet.id).toBe('involvement')
+    expect(active[0]?.option.id).toBe('mine')
+  })
+
+  it('lists several, in the order the axes are declared', () => {
+    const active = activeAxes({ ...DEFAULT_SELECTION, draft: 'only', involvement: 'mine' })
+    expect(active.map((a) => a.facet.id)).toEqual(['involvement', 'draft'])
+  })
+
+  // "Open, Anyone, Any, Shown" is the same information as saying nothing, and a
+  // summary that always has four items is one nobody reads.
+  it('omits an axis left on its default', () => {
+    expect(activeAxes({ ...DEFAULT_SELECTION, status: DEFAULT_SELECTION['status'] ?? '' }))
+      .toEqual([])
+  })
+
+  it('ignores a selection naming an option that does not exist', () => {
+    expect(activeAxes({ ...DEFAULT_SELECTION, involvement: 'nobody-by-that-name' })).toEqual([])
   })
 })

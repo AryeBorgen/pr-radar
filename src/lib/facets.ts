@@ -160,3 +160,26 @@ export function facetCounts(
     ]),
   )
 }
+
+/**
+ * The axes that are not on their default, and what they are set to.
+ *
+ * A phone cannot afford four rows of pills -- measured at 365 of an 844-pixel
+ * screen, more than every other band of chrome put together -- so on a small
+ * screen they collapse behind one control. That control has to say what is
+ * currently filtering, or it hides state the person cannot otherwise see.
+ *
+ * Defaults are omitted deliberately: "Open, Anyone, Any, Shown" is the same
+ * information as saying nothing, and a summary that always has four items is
+ * one nobody reads.
+ */
+export function activeAxes(selection: Selection): { facet: Facet; option: FacetOption }[] {
+  const out: { facet: Facet; option: FacetOption }[] = []
+  for (const facet of FACETS) {
+    const chosen = selection[facet.id]
+    if (chosen === undefined || chosen === DEFAULT_SELECTION[facet.id]) continue
+    const option = facet.options.find((o) => o.id === chosen)
+    if (option) out.push({ facet, option })
+  }
+  return out
+}

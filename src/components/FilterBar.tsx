@@ -29,7 +29,7 @@ export default function FilterBar({
   return (
     <div className="pr:border-b pr:border-neutral-200 pr:px-4 pr:py-2 pr:dark:border-neutral-800">
       <div className="pr:flex pr:flex-wrap pr:items-center pr:gap-2">
-        <div className="pr:min-w-72 pr:flex-1 pr:[&>input]:font-mono">
+        <div className="pr:min-w-0 pr:flex-1 pr:sm:min-w-72 pr:[&>input]:font-mono">
           <Input
             value={value}
             onChange={onChange}
@@ -54,9 +54,7 @@ export default function FilterBar({
 
       {pending > 0 && (
         <p className="pr:mt-1.5 pr:text-xs pr:text-neutral-500 pr:dark:text-neutral-400">
-          Loading review and check status for {pending} more{' '}
-          {pending === 1 ? 'pull request' : 'pull requests'} — counts for the review and CI
-          views are still settling.
+          {t('filter.settling', { count: pending })}
         </p>
       )}
 
@@ -67,7 +65,7 @@ export default function FilterBar({
       )}
 
       {!value && (
-        <p className="pr:mt-1.5 pr:flex pr:flex-wrap pr:items-center pr:gap-1.5 pr:text-xs pr:text-neutral-500 pr:dark:text-neutral-400">
+        <p className="pr:mt-1.5 pr:hidden pr:flex-wrap pr:items-center pr:gap-1.5 pr:text-xs pr:text-neutral-500 pr:sm:flex pr:dark:text-neutral-400">
           {t('filter.try')}
           {EXAMPLES.map((example) => (
             <button

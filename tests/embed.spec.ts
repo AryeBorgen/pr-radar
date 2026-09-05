@@ -184,8 +184,10 @@ test.describe('wearing the host\'s design', () => {
       ),
     )
 
-    await expect(p.locator('[data-host-button]').first()).toBeVisible()
-    // And the radar's own is gone from the places it was used.
+    // Not `.first()`: the phone-only Filters control is in the DOM at every
+    // width and hidden by CSS above `sm`, so the first match is a hidden one.
+    // What matters is that a host button is on screen.
+    await expect(p.locator('[data-host-button]:visible').first()).toBeVisible()
     expect(await p.locator('.host-btn').count()).toBeGreaterThan(0)
   })
 
@@ -234,7 +236,7 @@ test.describe('wearing the host\'s design', () => {
       ),
     )
 
-    await expect(p.locator('#only-button').first()).toBeVisible()
+    await expect(p.locator('#only-button:visible').first()).toBeVisible()
     // The radar's own list rows are still there.
     await expect(p.locator('li').first()).toBeVisible()
   })
