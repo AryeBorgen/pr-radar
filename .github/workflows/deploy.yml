@@ -26,9 +26,18 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-        # Pages serves the site from /<repo>/, so assets need that prefix.
         env:
+          # Pages serves the site from /<repo>/, so assets need that prefix.
           PR_RADAR_BASE: /${{ github.event.repository.name }}/
+          # Where sign-in is relayed. Pages has no server of its own, so without
+          # this the page asks its own origin, gets the 404 that a static host
+          # correctly gives, and shows the token field alone.
+          #
+          # Setting it does two things and both are required: the page asks that
+          # origin, and the build adds it to `connect-src`. Miss the second and
+          # the browser blocks the request with no error the page can see, which
+          # looks exactly like the relay being down.
+          PR_RADAR_RELAY: https://pr-radar-auth.aryeborgen.workers.dev
       - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
       # v5, not v3. The repository requires every action to be pinned to a SHA,
       # and that requirement reaches nested actions: v3 of this one calls

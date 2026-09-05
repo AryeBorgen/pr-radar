@@ -154,6 +154,36 @@ test.describe('a relay on another origin', () => {
     expect(policy).toContain(relay.replace(/\/$/, ''))
   })
 
+  /*
+   * Allowing an origin and asking it are two different things, and getting one
+   * without the other is silent in both directions.
+   *
+   * Vite exposes only `VITE_`-prefixed variables to `import.meta.env`, so
+   * setting PR_RADAR_RELAY widened the policy -- read from `process.env` by the
+   * config -- while the client went on asking its own origin. The page allowed
+   * a request it never made, and the only symptom was no sign-in button.
+   *
+   * So this watches where the request actually goes.
+   */
+  test('is the origin the page actually asks', async ({ page }) => {
+    const relay = process.env['PR_RADAR_RELAY']?.replace(/\/$/, '')
+    const asked: string[] = []
+    await page.route('**/auth/config', (route) => {
+      asked.push(new URL(route.request().url()).origin)
+      return route.fulfill({ status: 404, json: { error: 'device_flow_unavailable' } })
+    })
+
+    await page.goto('/')
+    // The relay is asked from the token gate, which sits behind the
+    // introduction on a first visit. Passed alone this test happened to run
+    // after one that had already dismissed it; in the full suite it did not.
+    await page.getByRole('button', { name: 'Continue to the radar' }).click()
+    await expect.poll(() => asked.length, { timeout: 10_000 }).toBeGreaterThan(0)
+
+    const expected = relay ? new URL(relay).origin : new URL(page.url()).origin
+    expect(asked[0], 'the page asked the wrong origin for its relay').toBe(expected)
+  })
+
   // 'self' has to stay whatever else is added: the same-origin relay in
   // `npx pr-radar` and the container depends on it.
   test('never loses the same-origin permission the local relays need', async ({ page }) => {
