@@ -52,6 +52,13 @@ export const he: Catalogue<Messages, 'he'> = {
   'filter.placeholder': 'סינון: is:draft author:@me label:bug -repo:acme/web sort:created-desc',
   'filter.label': 'סינון בקשות משיכה',
   'filter.ignored': 'התעלמנו (לא נתמך):',
+  'filter.settling': {
+    one: 'מצב הביקורת וה‑CI של בקשה נוספת אחת עדיין נטען.',
+    two: 'מצב הביקורת וה‑CI של שתי בקשות נוספות עדיין נטען.',
+    other: 'מצב הביקורת וה‑CI של {count} בקשות נוספות עדיין נטען.',
+  },
+  'closed.truncated':
+    'מוצגות 100 בקשות המשיכה הסגורות שעודכנו לאחרונה בכל מאגר, ולכן בקשות ישנות יותר בטווח הזה עשויות להיות חסרות מתוך {repos}. אפשר לצמצם את הטווח או לסנן למאגר אחד כדי לראות רחוק יותר לאחור.',
   'menus.noMatch': 'שום דבר כאן לא תואם את הסינון הנוכחי.',
 
   'notify.label': 'התראות',
@@ -230,4 +237,6 @@ export const he: Catalogue<Messages, 'he'> = {
   'notify.allowInBrowser': 'אפשרו התראות לאתר הזה בהגדרות הדפדפן כדי להפעיל אותן.',
   'notify.tabOnly': 'הן מגיעות כל עוד הלשונית פתוחה. אין כאן שרת שידחוף אליכם כשהיא סגורה.',
   'loading.label': 'טוענים בקשות משיכה',
+  'facet.filters': 'סינון',
+  'facet.noneActive': 'כל מה שפתוח',
 }

@@ -45,6 +45,12 @@ export const en = {
   'filter.placeholder': 'Filter: is:draft author:@me label:bug -repo:acme/web sort:created-desc',
   'filter.label': 'Filter pull requests',
   'filter.ignored': 'Ignored (not supported):',
+  'filter.settling': {
+    one: 'Review and CI state for {count} more pull request is still arriving.',
+    other: 'Review and CI state for {count} more pull requests is still arriving.',
+  },
+  'closed.truncated':
+    'Showing the 100 most recently updated closed pull requests per repository, so older ones in this period may be missing from {repos}. Narrow the period, or filter to one repository, to see further back.',
   'menus.noMatch': 'Nothing here matches the current filters.',
 
   'notify.label': 'Notifications',
@@ -221,6 +227,8 @@ export const en = {
   'notify.allowInBrowser': 'Allow notifications for this site in your browser settings to turn them on.',
   'notify.tabOnly': 'They arrive while this tab is open. There is no server here to push to you when it is closed.',
   'loading.label': 'Loading pull requests',
+  'facet.filters': 'Filters',
+  'facet.noneActive': 'Everything open',
 } as const
 
 export type MessageKey = keyof typeof en

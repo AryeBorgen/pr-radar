@@ -218,7 +218,7 @@ function DefaultChip({ children, tone, color, title }: ChipProps) {
   return (
     <span
       title={title}
-      className={`pr:rounded-full pr:px-2 pr:py-0.5 pr:text-xs ${color ? '' : CHIP[tone]}`}
+      className={`pr:whitespace-nowrap pr:rounded-full pr:px-2 pr:py-0.5 pr:text-xs ${color ? '' : CHIP[tone]}`}
       style={color ? { backgroundColor: color.background, color: color.text } : undefined}
     >
       {children}

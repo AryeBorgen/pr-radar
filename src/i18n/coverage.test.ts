@@ -113,8 +113,28 @@ describe('no untranslated text in a component', () => {
       const expressions = code
         .replace(/className=\{[^}]*\}/g, '')
         .replace(/className="[^"]*"/g, '')
+
+      /*
+       * Prose interrupted by an interpolation, which was the fourth place text
+       * reaches a reader and the one that got away.
+       *
+       * The between-tags pattern below excludes `{` and `}` from the text it
+       * matches, so a sentence with a count in the middle of it matches
+       * nothing at all -- and that is the shape of every sentence that has a
+       * count in the middle of it. An English paragraph about pull requests
+       * still loading shipped that way and rendered on a Hebrew page.
+       *
+       * Punching each `{...}` out to a placeholder makes the sentence one
+       * run again. Only runs that actually contain a placeholder are collected
+       * here: the intact ones are already the case above, and re-reading them
+       * under looser whitespace rules would just invent false positives.
+       */
+      const punched = code.replace(/\{[^{}]*\}/g, '\u0001')
       const candidates = [
         ...[...code.matchAll(/>\s*([A-Za-z][^<>{}]{1,}?)\s*</g)].map((m) => m[1]),
+        ...[...punched.matchAll(/>\s*([A-Za-z][^<>{}]*?\u0001[^<>{}]*?)\s*</g)].map((m) =>
+          m[1]?.replace(/\u0001/g, ' ').replace(/\s+/g, ' ').trim(),
+        ),
         ...[...code.matchAll(/(?:aria-label|title|placeholder|alt)=["']([^"']{4,})["']/g)].map((m) => m[1]),
         ...[...expressions.matchAll(/\{[^{}]*?['"]([A-Z][^'"]{1,200})['"][^{}]*?\}/g)].map((m) => m[1]),
       ]

@@ -14,6 +14,7 @@ import SavedViews from './SavedViews'
 import FilterBar from './FilterBar'
 import PrRow from './PrRow'
 import LoadingBar from './LoadingBar'
+import FilterPanel from './FilterPanel'
 
 /**
  * The dashboard itself: the filters, the messages and the list.
@@ -55,6 +56,12 @@ export default function Radar({ radar, views, onViewsChange, actions }: RadarPro
     // provider sets <html dir> as well and this agrees with it.
     <div dir={dir} className="pr:contents">
       <LoadingBar progress={radar.progress} />
+      {/*
+        The axes, the menus and the saved views go behind one control on a
+        phone, and render exactly as before above `sm`. See FilterPanel for the
+        measurement that made it necessary.
+      */}
+      <FilterPanel selection={radar.selection}>
       <FacetBar
         prs={radar.pullRequests}
         selection={radar.selection}
@@ -82,6 +89,7 @@ export default function Radar({ radar, views, onViewsChange, actions }: RadarPro
           draftQuery={radar.combined}
         />
       )}
+      </FilterPanel>
       <FilterBar
         value={radar.search}
         onChange={radar.setSearch}
@@ -101,10 +109,7 @@ export default function Radar({ radar, views, onViewsChange, actions }: RadarPro
 
       {radar.withClosed && radar.truncated.length > 0 && (
         <p className={NOTE}>
-          Showing the 100 most recently updated closed pull requests per repository, so older ones
-          in this period may be missing from{' '}
-          <strong className="pr:font-medium">{radar.truncated.join(', ')}</strong>. Narrow the period,
-          or filter to one repository, to see further back.
+          {t('closed.truncated', { repos: radar.truncated.join(', ') })}
         </p>
       )}
 
