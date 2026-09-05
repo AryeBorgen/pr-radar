@@ -6,11 +6,10 @@ import {
   DEFAULT_SETTINGS,
   introSeen,
   loadSettings,
-  loadToken,
   markIntroSeen,
   saveSettings,
-  saveToken,
 } from './lib/storage'
+import { useSession } from './lib/useSession'
 import type { RepoRef, SavedView, Settings } from './types'
 import { DEFAULT_NOTIFY_ENABLED } from './lib/notifications'
 import { useNotifications } from './lib/useNotifications'
@@ -31,7 +30,7 @@ import { useT } from './i18n/useLocale'
 export default function App() {
   const { Button } = useSlots()
   const t = useT()
-  const [token, setToken] = useState(loadToken)
+  const { token, signIn, signOut } = useSession()
   const [seenIntro, setSeenIntro] = useState(introSeen)
   const [settings, setSettings] = useState<Settings>(() =>
     typeof localStorage === 'undefined' ? DEFAULT_SETTINGS : loadSettings(),
@@ -40,7 +39,6 @@ export default function App() {
   const [notify, setNotify] = useState<Record<string, boolean>>(DEFAULT_NOTIFY_ENABLED)
 
   useEffect(() => saveSettings(settings), [settings])
-  useEffect(() => saveToken(token), [token])
 
   const radar = usePrRadar({
     token,
@@ -71,7 +69,7 @@ export default function App() {
         />
       )
     }
-    return <TokenGate onToken={setToken} />
+    return <TokenGate onToken={signIn} />
   }
 
   const noRepos = settings.repos.length === 0
@@ -90,7 +88,7 @@ export default function App() {
           </Button>
           <NotifyMenu enabled={notify} onChange={setNotify} />
           <LanguageMenu />
-          <Button variant="quiet" onClick={() => setToken('')}>
+          <Button variant="quiet" onClick={signOut}>
             {t('header.signOut')}
           </Button>
         </div>

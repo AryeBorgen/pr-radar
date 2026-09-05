@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
+  credentialOf,
   delayUntilNextPoll,
   needsRefresh,
   next,
   readDeviceCode,
   readPoll,
   type AuthState,
+  type Credential,
 } from './deviceAuth'
 
 /**
@@ -91,7 +93,7 @@ export interface DeviceLogin {
  * gap between polls changes: GitHub can raise it mid-flow with `slow_down`, and
  * the last wait is shortened so expiry is reported at the moment it happens.
  */
-export function useDeviceLogin(onToken: (token: string) => void): DeviceLogin {
+export function useDeviceLogin(onToken: (credential: Credential) => void): DeviceLogin {
   const [state, setState] = useState<AuthState>({ status: 'idle' })
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   /** Bumped by cancel and by unmount, so a reply in flight is ignored. */
@@ -163,7 +165,10 @@ export function useDeviceLogin(onToken: (token: string) => void): DeviceLogin {
         setState(current)
 
         if (current.status === 'authenticated') {
-          token.current(current.token)
+          // The whole session, not just the token: an application configured to
+          // expire its tokens hands back a refresh token here and nowhere else.
+          const credential = credentialOf(current)
+          if (credential) token.current(credential)
           return
         }
         const delay = delayUntilNextPoll(current, Date.now())

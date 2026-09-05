@@ -156,9 +156,27 @@ describe('what it will not forward', () => {
     assert.equal(received.length, 0)
   })
 
-  it('refuses a grant_type other than the device flow', async () => {
-    const r = await call('/auth/device/token', { body: { grant_type: 'client_credentials' } })
-    assert.equal(r.status, 400)
+  it('refuses a grant_type that is neither of the two it serves', async () => {
+    for (const grant of ['client_credentials', 'authorization_code', 'password', '']) {
+      const r = await call('/auth/device/token', { body: { grant_type: grant } })
+      assert.equal(r.status, 400, `${grant} was accepted`)
+    }
+  })
+
+  // Named in full, not matched by shape: a pattern loose enough to admit
+  // `refresh_token` by resemblance would admit a good deal else.
+  it('refuses a grant_type that merely contains an allowed one', async () => {
+    for (const grant of ['refresh_token_extra', 'x refresh_token', 'REFRESH_TOKEN']) {
+      const r = await call('/auth/device/token', { body: { grant_type: grant } })
+      assert.equal(r.status, 400, `${grant} was accepted`)
+    }
+  })
+
+  it('allows the refresh grant, which keeps a session alive', async () => {
+    const r = await call('/auth/device/token', {
+      body: { grant_type: 'refresh_token', refresh_token: 'ghr_abc123' },
+    })
+    assert.notEqual(r.status, 400)
   })
 
   it('refuses a non-string where a string belongs', async () => {

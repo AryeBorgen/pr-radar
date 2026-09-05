@@ -46,7 +46,16 @@ var UPSTREAMS = {
  */
 var FIELDS = {
   device_code: /^[A-Za-z0-9._-]{1,256}$/,
-  grant_type: /^urn:ietf:params:oauth:grant-type:device_code$/,
+  /*
+   * Exactly two grants, named in full.
+   *
+   * The device grant signs a person in; the refresh grant keeps them signed in
+   * where the application issues expiring tokens. Anything else -- an
+   * authorization code, client credentials -- would be a different flow through
+   * a relay built for these two, so the pattern lists them rather than allowing
+   * a shape.
+   */
+  grant_type: /^(urn:ietf:params:oauth:grant-type:device_code|refresh_token)$/,
   scope: /^[A-Za-z0-9:_, -]{0,200}$/,
   refresh_token: /^[A-Za-z0-9._-]{1,256}$/,
 }

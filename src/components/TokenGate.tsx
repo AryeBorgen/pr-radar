@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { Credential } from '../lib/deviceAuth'
 import { useSlots } from './slots'
 import { messageFor } from '../i18n/errors'
 import { fetchViewer } from '../lib/github'
@@ -22,7 +23,7 @@ const SCOPE_URL =
  * The token field never goes away. It needs no GitHub App configured anywhere,
  * it works on every deployment, and some people would simply rather paste one.
  */
-export default function TokenGate({ onToken }: { onToken: (token: string) => void }) {
+export default function TokenGate({ onToken }: { onToken: (credential: Credential) => void }) {
   const { Button, Input, Link } = useSlots()
   const t = useT()
   const canSignIn = useDeviceLoginAvailable()
@@ -39,7 +40,9 @@ export default function TokenGate({ onToken }: { onToken: (token: string) => voi
     setError('')
     try {
       await fetchViewer(token)
-      onToken(token)
+      // A pasted token has no refresh token and no expiry, which is exactly
+      // what a session with neither looks like. Same path, not a special case.
+      onToken({ token })
     } catch (cause) {
       setError(messageFor(t, cause, 'gate.tokenUnverified'))
     } finally {
