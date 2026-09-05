@@ -1,8 +1,6 @@
 /** A repository the user has asked to watch, as `owner/name`. */
-export interface RepoRef {
-  owner: string
-  name: string
-}
+export type { RepoRef } from './public'
+import type { RepoRef } from './public'
 
 /**
  * Review and check state both carry an `UNKNOWN` member, and that is load-bearing

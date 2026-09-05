@@ -183,8 +183,27 @@ Four names are exported and nothing else: `renderRadar`, `RadarOptions`,
 never promised -- which is what let the data layer move from GraphQL to REST
 without anything outside one module noticing.
 
-Bringing your own components, so the radar adopts your design instead of its own,
-is the next piece of [#26](https://github.com/AryeBorgen/pr-radar/issues/26).
+### Wearing your design
+
+Pass your own components and the radar uses them:
+
+```js
+renderRadar(element, {
+  token,
+  repos,
+  components: { Button, Chip, Avatar, Link, Input, Row },
+})
+```
+
+All six are optional — replace a button without becoming responsible for a row.
+`Button` carries a `variant` (`primary`, `danger`, `default`, `quiet`,
+`menuitem`, `pill`, `trigger`) so your styling follows intent rather than
+guessing from a class name.
+
+**`Row` receives the row already in pieces** — `title`, `meta`, `badges`,
+`trailing`, `actions` — not the pull request they describe. You arrange them; you
+never take a dependency on how this project models a pull request, which is what
+lets that keep changing.
 
 ## Reading it in your own language
 

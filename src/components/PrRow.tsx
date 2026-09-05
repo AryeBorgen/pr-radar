@@ -1,15 +1,15 @@
 import type { PullRequest } from '../types'
+import { PrIcon, CheckIcon } from './icons'
+import { absoluteTime, relativeTime } from '../lib/time'
 import { useLocale } from '../i18n/useLocale'
+import type { MessageKey } from '../i18n/en'
 import PrActions from './PrActions'
 import type { PrActions as Actions } from '../lib/usePrActions'
-import type { MessageKey } from '../i18n/en'
-import { absoluteTime, relativeTime } from '../lib/time'
-import { CheckIcon, PrIcon } from './icons'
+import { useSlots, type ChipTone } from './slots'
 
-/** Perceived-luminance pick so a label's text stays legible on its own colour. */
+/** Readable text over a GitHub label's own background colour. */
 function labelTextColor(hex: string): string {
   const value = parseInt(hex, 16)
-  if (Number.isNaN(value) || hex.length !== 6) return '#1f2328'
   const r = (value >> 16) & 255
   const g = (value >> 8) & 255
   const b = value & 255
@@ -17,21 +17,26 @@ function labelTextColor(hex: string): string {
 }
 
 /** NONE and UNKNOWN get no badge: absence of a verdict is not a verdict. */
-const REVIEW_BADGE: Record<string, { text: MessageKey; className: string }> = {
-  APPROVED: {
-    text: 'review.approved',
-    className: 'pr:text-emerald-700 pr:bg-emerald-50 pr:dark:text-emerald-400 pr:dark:bg-emerald-950',
-  },
-  CHANGES_REQUESTED: {
-    text: 'review.changesRequested',
-    className: 'pr:text-red-700 pr:bg-red-50 pr:dark:text-red-400 pr:dark:bg-red-950',
-  },
-  REVIEW_REQUIRED: {
-    text: 'review.required',
-    className: 'pr:text-amber-700 pr:bg-amber-50 pr:dark:text-amber-400 pr:dark:bg-amber-950',
-  },
+const REVIEW_BADGE: Record<string, { text: MessageKey; tone: ChipTone }> = {
+  APPROVED: { text: 'review.approved', tone: 'success' },
+  CHANGES_REQUESTED: { text: 'review.changesRequested', tone: 'danger' },
+  REVIEW_REQUIRED: { text: 'review.required', tone: 'warning' },
 }
 
+const STATE_CHIP: Record<string, { text: MessageKey; tone: ChipTone }> = {
+  MERGED: { text: 'state.merged', tone: 'info' },
+  CLOSED: { text: 'state.closed', tone: 'neutral' },
+}
+
+/**
+ * One pull request.
+ *
+ * The row is assembled here and *arranged* by the `Row` slot, which a host can
+ * replace. Everything handed to that slot is already rendered -- a host gets
+ * `title`, `meta`, `badges` and `actions` as nodes, never the pull request they
+ * came from. Publishing `PullRequest` would freeze the type the whole
+ * architecture rests on being free to change.
+ */
 export default function PrRow({
   pr,
   now,
@@ -47,68 +52,58 @@ export default function PrRow({
   actions?: Actions
 }) {
   const { t, locale } = useLocale()
+  const { Row, Chip, Link, Avatar } = useSlots()
   const badge = pr.reviewDecision ? REVIEW_BADGE[pr.reviewDecision] : undefined
+  const stateChip = STATE_CHIP[pr.state]
+
+  const dot = <span aria-hidden="true">·</span>
 
   return (
-    <li className="pr:flex pr:gap-3 pr:border-b pr:border-neutral-200 pr:px-4 pr:py-3 pr:last:border-b-0 pr:hover:bg-neutral-50 pr:dark:border-neutral-800 pr:dark:hover:bg-neutral-900/60">
-      <div className="pr:pt-0.5">
-        <PrIcon state={pr.state} draft={pr.isDraft} />
-      </div>
-
-      <div className="pr:min-w-0 pr:flex-1">
-        <div className="pr:flex pr:flex-wrap pr:items-baseline pr:gap-x-2 pr:gap-y-1">
-          {/*
-            The whole point of the row: a click goes to GitHub. This app never
-            tries to be the review surface, only the place you notice things.
-          */}
-          <a
-            href={pr.url}
-            target="_blank"
-            rel="noreferrer"
-            className="pr:font-semibold pr:text-neutral-900 pr:hover:text-blue-600 pr:hover:underline pr:dark:text-neutral-100 pr:dark:hover:text-blue-400"
-          >
-            {pr.title}
-          </a>
-          {pr.isDraft && pr.state === 'OPEN' && (
-            <span className="pr:rounded-full pr:border pr:border-neutral-300 pr:px-1.5 pr:py-px pr:text-xs pr:text-neutral-500 pr:dark:border-neutral-700">
-              {t('state.draft')}
-            </span>
-          )}
-          {pr.state === 'MERGED' && (
-            <span className="pr:rounded-full pr:bg-purple-50 pr:px-2 pr:py-px pr:text-xs pr:font-medium pr:text-purple-700 pr:dark:bg-purple-950 pr:dark:text-purple-300">
-              {t('state.merged')}
-            </span>
-          )}
-          {pr.state === 'CLOSED' && (
-            <span className="pr:rounded-full pr:bg-neutral-100 pr:px-2 pr:py-px pr:text-xs pr:font-medium pr:text-neutral-600 pr:dark:bg-neutral-800 pr:dark:text-neutral-400">
-              {t('state.closed')}
-            </span>
-          )}
+    <Row
+      state={pr.state.toLowerCase()}
+      draft={pr.isDraft}
+      icon={<PrIcon state={pr.state} draft={pr.isDraft} />}
+      title={
+        /*
+          The whole point of the row: a click goes to GitHub. This app never
+          tries to be the review surface, only the place you notice things.
+        */
+        <Link href={pr.url} variant="title" external>
+          {pr.title}
+        </Link>
+      }
+      badges={
+        <>
+          {pr.isDraft && pr.state === 'OPEN' && <Chip tone="neutral">{t('state.draft')}</Chip>}
+          {stateChip && <Chip tone={stateChip.tone}>{t(stateChip.text)}</Chip>}
           {pr.labels.map((label) => (
-            <span
+            <Chip
               key={label.name}
-              className="pr:rounded-full pr:px-2 pr:py-px pr:text-xs pr:font-medium"
-              style={{ backgroundColor: `#${label.color}`, color: labelTextColor(label.color) }}
+              tone="neutral"
+              color={{ background: `#${label.color}`, text: labelTextColor(label.color) }}
             >
               {label.name}
-            </span>
+            </Chip>
           ))}
-        </div>
-
-        <div className="pr:mt-1 pr:flex pr:flex-wrap pr:items-center pr:gap-x-1.5 pr:text-xs pr:text-neutral-500 pr:dark:text-neutral-400">
-          <span className="pr:font-medium pr:text-neutral-600 pr:dark:text-neutral-300">{pr.repo}</span>
+        </>
+      }
+      meta={
+        <>
+          <span className="pr:font-medium pr:text-neutral-600 pr:dark:text-neutral-300">
+            {pr.repo}
+          </span>
           <span>#{pr.number}</span>
-          <span aria-hidden="true">·</span>
+          {dot}
           <span title={absoluteTime(pr.createdAt, locale)}>
             {t('row.opened', { when: relativeTime(pr.createdAt, now, locale) })}
           </span>
           {pr.author && (
             <>
-              <span aria-hidden="true">·</span>
+              {dot}
               <span>{t('row.by', { author: pr.author.login })}</span>
             </>
           )}
-          <span aria-hidden="true">·</span>
+          {dot}
           {pr.mergedAt ? (
             <span title={absoluteTime(pr.mergedAt, locale)}>
               {t('row.merged', { when: relativeTime(pr.mergedAt, now, locale) })}
@@ -120,42 +115,32 @@ export default function PrRow({
           )}
           {pr.requestedReviewers.length > 0 && (
             <>
-              <span aria-hidden="true">·</span>
+              {dot}
               <span>{t('row.waitingOn', { who: pr.requestedReviewers.join(', ') })}</span>
             </>
           )}
-        </div>
-      </div>
-
-      <div className="pr:flex pr:shrink-0 pr:items-center pr:gap-2 pr:self-start pr:pt-0.5">
-        {badge && (
-          <span className={`pr:rounded-full pr:px-2 pr:py-0.5 pr:text-xs pr:font-medium ${badge.className}`}>
-            {t(badge.text)}
+        </>
+      }
+      trailing={
+        <>
+          {badge && <Chip tone={badge.tone}>{t(badge.text)}</Chip>}
+          <CheckIcon state={pr.checkState} />
+          {/* An avatar with no URL is an <img src="">, which React warns about
+              and some browsers answer by re-requesting the page. Filtered, not
+              defaulted: no picture is better than a broken one. */}
+          <span className="pr:flex pr:-space-x-1">
+            {pr.assignees
+              .filter((assignee) => assignee.avatarUrl)
+              .slice(0, 3)
+              .map((assignee) => (
+                <span key={assignee.login} title={t('row.assigned', { who: assignee.login })}>
+                  <Avatar src={assignee.avatarUrl} alt={assignee.login} size={20} />
+                </span>
+              ))}
           </span>
-        )}
-        <CheckIcon state={pr.checkState} />
-        <div className="pr:flex pr:-space-x-1">
-          {pr.assignees
-            .filter((assignee) => assignee.avatarUrl)
-            .slice(0, 3)
-            .map((assignee) => (
-              <img
-                key={assignee.login}
-                src={assignee.avatarUrl}
-                alt={assignee.login}
-                title={`Assigned: ${assignee.login}`}
-                width={20}
-                height={20}
-                className="pr:rounded-full pr:ring-1 pr:ring-white pr:dark:ring-neutral-950"
-              />
-            ))}
-        </div>
-      </div>
-      {actions && (
-        <div className="pr:shrink-0 pr:pt-0.5">
-          <PrActions pr={pr} actions={actions} />
-        </div>
-      )}
-    </li>
+        </>
+      }
+      actions={actions ? <PrActions pr={pr} actions={actions} /> : null}
+    />
   )
 }

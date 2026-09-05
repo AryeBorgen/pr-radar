@@ -1,4 +1,5 @@
 import { T } from '../i18n/T'
+import { useSlots } from './slots'
 import { useT } from '../i18n/useLocale'
 
 const TOKEN_URL =
@@ -18,6 +19,7 @@ const TOKEN_URL =
  * would be noise.
  */
 export default function Welcome({ onContinue }: { onContinue: () => void }) {
+  const { Button } = useSlots()
   const t = useT()
   const LINK = 'pr:text-blue-600 pr:underline pr:dark:text-blue-400'
   const BOLD = 'pr:font-semibold'
@@ -71,13 +73,11 @@ export default function Welcome({ onContinue }: { onContinue: () => void }) {
         </li>
       </ol>
 
-      <button
-        type="button"
-        onClick={onContinue}
-        className="pr:mt-8 pr:w-full pr:rounded-md pr:bg-emerald-600 pr:px-4 pr:py-2 pr:text-sm pr:font-medium pr:text-white pr:transition-colors pr:hover:bg-emerald-700"
-      >
-        {t('welcome.continue')}
-      </button>
+      <div className="pr:mt-8 pr:[&>button]:w-full">
+        <Button variant="primary" onClick={onContinue}>
+          {t('welcome.continue')}
+        </Button>
+      </div>
 
       <p className="pr:mt-4 pr:text-center pr:text-xs pr:text-neutral-500 pr:dark:text-neutral-400">
         <T

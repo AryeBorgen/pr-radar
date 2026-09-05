@@ -209,6 +209,15 @@ need a backend*.
    `acme/web #7` as one string so it is one run. Both were found by looking at a
    screenshot; neither showed up in a passing test.
 
+7. **An unprefixed Tailwind class is not a class.** The stylesheet is prefixed
+   `pr:` so it cannot collide with a host's, which means a class without it
+   matches nothing -- no error, no warning, nothing missing, the rule simply
+   absent. Eight of them shipped, every one in the `selected` branch of a
+   ternary inside a template literal, which is where the original conversion did
+   not reach. They were all *states a screenshot does not usually show*: the
+   highlighted filter pill, the active dropdown. Live for days with a full suite
+   green. `src/components/prefix.test.ts` reads every `className` expression now.
+
 ## Decisions worth not re-litigating
 
 **Filter sources are separate stages, not one concatenated query.** The filter
@@ -244,6 +253,25 @@ invalidate it — that is what makes a two-minute poll cost nothing when nothing
 changed. Notification identity must survive a push, or every commit would
 announce the PR as new; keying on repo and number is what lets "CI went red on
 the new commit" fire correctly.
+
+**A host replaces components, never receives data.** `components` takes
+`Button`, `Chip`, `Avatar`, `Link`, `Input` and `Row`, and every prop is a
+primitive or a `ReactNode`. `Row` gets its parts *already rendered* -- title,
+meta, badges, trailing, actions -- rather than the pull request they came from,
+because a slot that took a `PullRequest` would publish `PullRequest`, and that is
+the type the architecture rests on being free to change. The design note sketched
+`Row` taking the pull request; that was wrong for exactly this reason.
+
+The variant list is design vocabulary, not appearance: `primary`, `danger`,
+`default`, `quiet`, `menuitem`, `pill`, `trigger`. `pill` and `trigger` were left
+out at first as "the radar's own chrome" -- and a host replacing `Button` saw one
+button change out of thirty, measured. A design a host cannot reach is not a
+design they have adopted.
+
+`src/public.ts` exists so the public declaration graph contains only public
+things. Taking `RepoRef` from `types.ts` pulled `PullRequest` into it --
+unreachable through the `exports` map, but present, and "present but currently
+unreachable" is how a surface grows by accident.
 
 **Writes ask first, and are never bulk.** Merging is the only thing this app
 does that cannot be undone by refreshing, so nothing happens on the first click:

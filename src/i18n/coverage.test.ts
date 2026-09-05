@@ -116,7 +116,7 @@ describe('no untranslated text in a component', () => {
       const candidates = [
         ...[...code.matchAll(/>\s*([A-Za-z][^<>{}]{1,}?)\s*</g)].map((m) => m[1]),
         ...[...code.matchAll(/(?:aria-label|title|placeholder|alt)=["']([^"']{4,})["']/g)].map((m) => m[1]),
-        ...[...expressions.matchAll(/\{[^{}]*?['"]([A-Z][^'"]{1,60})['"][^{}]*?\}/g)].map((m) => m[1]),
+        ...[...expressions.matchAll(/\{[^{}]*?['"]([A-Z][^'"]{1,200})['"][^{}]*?\}/g)].map((m) => m[1]),
       ]
 
       for (const text of candidates) {

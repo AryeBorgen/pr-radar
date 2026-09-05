@@ -1,4 +1,5 @@
 import { useDeviceLogin } from '../lib/useDeviceLogin'
+import { useSlots } from './slots'
 import type { AuthFailure } from '../lib/deviceAuth'
 import { useT } from '../i18n/useLocale'
 import type { MessageKey } from '../i18n/en'
@@ -28,6 +29,7 @@ const MESSAGES: Record<AuthFailure, MessageKey> = {
 }
 
 export default function SignIn({ onToken }: { onToken: (token: string) => void }) {
+  const { Button, Link } = useSlots()
   const t = useT()
   const { state, start, cancel } = useDeviceLogin(onToken)
 
@@ -36,14 +38,9 @@ export default function SignIn({ onToken }: { onToken: (token: string) => void }
       <div className="pr:rounded-md pr:border pr:border-neutral-200 pr:bg-neutral-50 pr:p-4 pr:dark:border-neutral-800 pr:dark:bg-neutral-900">
         <p className="pr:text-sm pr:text-neutral-600 pr:dark:text-neutral-400">
           {t('signIn.enterCodeAt')}{' '}
-          <a
-            href={state.code.verificationUri}
-            target="_blank"
-            rel="noreferrer"
-            className="pr:text-blue-600 pr:underline pr:dark:text-blue-400"
-          >
+          <Link href={state.code.verificationUri} variant="default" external>
             {state.code.verificationUri.replace(/^https:\/\//, '')}
-          </a>
+          </Link>
         </p>
         {/* Letter-spaced and monospaced because it is read aloud off a screen
             and typed into another device as often as it is copied. */}
@@ -56,27 +53,22 @@ export default function SignIn({ onToken }: { onToken: (token: string) => void }
         <p className="pr:mt-3 pr:text-sm pr:text-neutral-500 pr:dark:text-neutral-500">
           {t('signIn.waiting')}
         </p>
-        <button
-          type="button"
-          onClick={cancel}
-          className="pr:mt-3 pr:text-sm pr:text-neutral-500 pr:underline pr:hover:text-neutral-900 pr:dark:hover:text-neutral-100"
-        >
-          {t('signIn.cancel')}
-        </button>
+        <div className="pr:mt-3">
+          <Button variant="quiet" onClick={cancel}>
+            {t('signIn.cancel')}
+          </Button>
+        </div>
       </div>
     )
   }
 
   return (
     <div>
-      <button
-        type="button"
-        onClick={start}
-        disabled={state.status === 'starting'}
-        className="pr:w-full pr:rounded-md pr:bg-neutral-900 pr:px-4 pr:py-2.5 pr:text-sm pr:font-medium pr:text-white pr:hover:bg-neutral-800 pr:disabled:opacity-50 pr:dark:bg-neutral-100 pr:dark:text-neutral-900 pr:dark:hover:bg-white"
-      >
-        {state.status === 'starting' ? t('gate.signInStarting') : t('gate.signIn')}
-      </button>
+      <div className="pr:[&>button]:w-full">
+        <Button variant="primary" onClick={start} disabled={state.status === 'starting'}>
+          {state.status === 'starting' ? t('gate.signInStarting') : t('gate.signIn')}
+        </Button>
+      </div>
       {state.status === 'failed' && (
         <p role="alert" className="pr:mt-2 pr:text-sm pr:text-red-600 pr:dark:text-red-400">
           {t(MESSAGES[state.reason])}

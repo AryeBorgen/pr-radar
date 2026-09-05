@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSlots } from './slots'
 import { messageFor } from '../i18n/errors'
 import { fetchViewer } from '../lib/github'
 import { useDeviceLoginAvailable } from '../lib/useDeviceLogin'
@@ -22,6 +23,7 @@ const SCOPE_URL =
  * it works on every deployment, and some people would simply rather paste one.
  */
 export default function TokenGate({ onToken }: { onToken: (token: string) => void }) {
+  const { Button, Input, Link } = useSlots()
   const t = useT()
   const canSignIn = useDeviceLoginAvailable()
   const [value, setValue] = useState('')
@@ -72,30 +74,29 @@ export default function TokenGate({ onToken }: { onToken: (token: string) => voi
         >
           {t('gate.tokenLabel')}
         </label>
-        <input
-          id="token"
-          type="password"
-          autoComplete="off"
-          value={value}
-          onChange={(event) => setValue(event.target.value)}
-          placeholder={t('gate.tokenPlaceholder')}
-          className="pr:mt-2 pr:w-full pr:rounded-md pr:border pr:border-neutral-300 pr:bg-white pr:px-3 pr:py-2 pr:text-sm pr:text-neutral-900 pr:outline-none pr:focus:border-blue-500 pr:dark:border-neutral-700 pr:dark:bg-neutral-900 pr:dark:text-neutral-100"
-        />
+        <div className="pr:mt-2">
+          <Input
+            id="token"
+            type="password"
+            autoComplete="off"
+            value={value}
+            onChange={setValue}
+            placeholder={t('gate.tokenPlaceholder')}
+          />
+        </div>
         {error && <p className="pr:mt-2 pr:text-sm pr:text-red-600 pr:dark:text-red-400">{error}</p>}
-        <button
-          type="submit"
-          disabled={checking || !value.trim()}
-          className="pr:mt-4 pr:rounded-md pr:bg-emerald-600 pr:px-4 pr:py-2 pr:text-sm pr:font-medium pr:text-white pr:hover:bg-emerald-700 pr:disabled:opacity-50"
-        >
-          {checking ? t('gate.verifying') : t('gate.continue')}
-        </button>
+        <div className="pr:mt-4">
+          <Button variant="primary" type="submit" disabled={checking || !value.trim()}>
+            {checking ? t('gate.verifying') : t('gate.continue')}
+          </Button>
+        </div>
       </form>
 
       <div className="pr:mt-8 pr:rounded-md pr:border pr:border-neutral-200 pr:bg-neutral-50 pr:p-4 pr:text-sm pr:text-neutral-600 pr:dark:border-neutral-800 pr:dark:bg-neutral-900 pr:dark:text-neutral-400">
         <p>
-          <a href={SCOPE_URL} target="_blank" rel="noreferrer" className="pr:text-blue-600 pr:underline pr:dark:text-blue-400">
+          <Link href={SCOPE_URL} variant="default" external>
             {t('gate.createToken')}
-          </a>{' '}
+          </Link>{' '}
           <T
             k="gate.scopes"
             parts={{ 1: <code className="pr:font-mono" />, 2: <code className="pr:font-mono" /> }}

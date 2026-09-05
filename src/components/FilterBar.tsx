@@ -1,4 +1,5 @@
 import { useT } from '../i18n/useLocale'
+import { useSlots } from './slots'
 interface Props {
   value: string
   onChange: (value: string) => void
@@ -23,39 +24,32 @@ export default function FilterBar({
   pending,
   onRefresh,
 }: Props) {
+  const { Button, Input } = useSlots()
   const t = useT()
   return (
     <div className="pr:border-b pr:border-neutral-200 pr:px-4 pr:py-2 pr:dark:border-neutral-800">
       <div className="pr:flex pr:flex-wrap pr:items-center pr:gap-2">
-        <input
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          placeholder={t('filter.placeholder')}
-          aria-label={t('filter.label')}
-          className="pr:min-w-72 pr:flex-1 pr:rounded-md pr:border pr:border-neutral-300 pr:bg-white pr:px-3 pr:py-1.5 pr:font-mono pr:text-sm pr:text-neutral-900 pr:outline-none pr:focus:border-blue-500 pr:dark:border-neutral-700 pr:dark:bg-neutral-900 pr:dark:text-neutral-100"
-        />
+        <div className="pr:min-w-72 pr:flex-1 pr:[&>input]:font-mono">
+          <Input
+            value={value}
+            onChange={onChange}
+            placeholder={t('filter.placeholder')}
+            aria-label={t('filter.label')}
+          />
+        </div>
         {value && (
-          <button
-            type="button"
-            onClick={() => onChange('')}
-            className="pr:text-sm pr:text-neutral-500 pr:hover:text-neutral-900 pr:dark:hover:text-neutral-100"
-          >
+          <Button variant="quiet" onClick={() => onChange('')}>
             {t('action.clear')}
-          </button>
+          </Button>
         )}
         <span className="pr:text-sm pr:tabular-nums pr:text-neutral-500 pr:dark:text-neutral-400">
           {shown === total
             ? t('filter.openCount', { count: total })
             : t('filter.ofTotal', { shown, total })}
         </span>
-        <button
-          type="button"
-          onClick={onRefresh}
-          disabled={fetching}
-          className="pr:rounded-md pr:border pr:border-neutral-300 pr:px-2.5 pr:py-1 pr:text-sm pr:text-neutral-700 pr:hover:bg-neutral-100 pr:disabled:opacity-50 pr:dark:border-neutral-700 pr:dark:text-neutral-300 pr:dark:hover:bg-neutral-800"
-        >
+        <Button variant="default" onClick={onRefresh} disabled={fetching}>
           {fetching ? t('action.refreshing') : t('action.refresh')}
-        </button>
+        </Button>
       </div>
 
       {pending > 0 && (
