@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSlots } from './slots'
 import { messageFor } from '../i18n/errors'
 import { useT } from '../i18n/useLocale'
 import type { RepoRef } from '../types'
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export default function RepoManager({ token, repos, onChange }: Props) {
+  const { Button, Input } = useSlots()
   const t = useT()
   const [input, setInput] = useState('')
   const [error, setError] = useState('')
@@ -78,20 +80,17 @@ export default function RepoManager({ token, repos, onChange }: Props) {
   return (
     <div className="pr:border-b pr:border-neutral-200 pr:bg-neutral-50 pr:px-4 pr:py-4 pr:dark:border-neutral-800 pr:dark:bg-neutral-900">
       <form onSubmit={add} className="pr:flex pr:flex-wrap pr:gap-2">
-        <input
-          value={input}
-          onChange={(event) => setInput(event.target.value)}
-          placeholder={t('repos.placeholder')}
-          aria-label={t('repos.add')}
-          className="pr:min-w-64 pr:flex-1 pr:rounded-md pr:border pr:border-neutral-300 pr:bg-white pr:px-3 pr:py-1.5 pr:text-sm pr:text-neutral-900 pr:outline-none pr:focus:border-blue-500 pr:dark:border-neutral-700 pr:dark:bg-neutral-950 pr:dark:text-neutral-100"
-        />
-        <button
-          type="submit"
-          disabled={busy}
-          className="pr:rounded-md pr:border pr:border-neutral-300 pr:bg-white pr:px-3 pr:py-1.5 pr:text-sm pr:font-medium pr:text-neutral-800 pr:hover:bg-neutral-100 pr:disabled:opacity-50 pr:dark:border-neutral-700 pr:dark:bg-neutral-800 pr:dark:text-neutral-100 pr:dark:hover:bg-neutral-700"
-        >
+        <div className="pr:min-w-64 pr:flex-1">
+          <Input
+            value={input}
+            onChange={setInput}
+            placeholder={t('repos.placeholder')}
+            aria-label={t('repos.add')}
+          />
+        </div>
+        <Button variant="default" type="submit" disabled={busy}>
           {busy ? t('action.lookingUp') : t('action.add')}
-        </button>
+        </Button>
       </form>
 
       {error && <p className="pr:mt-2 pr:text-sm pr:text-red-600 pr:dark:text-red-400">{error}</p>}

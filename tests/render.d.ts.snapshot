@@ -1,6 +1,6 @@
-import type { RepoRef } from './types.js';
-import type { Locale } from './i18n/types.js';
-export type { RepoRef, Locale };
+import { type AvatarProps, type ButtonProps, type ButtonVariant, type ChipProps, type ChipTone, type InputProps, type LinkProps, type LinkVariant, type RadarComponents, type RowProps } from './components/slots.js';
+import type { Locale, RepoRef } from './public.js';
+export type { RepoRef, Locale, RadarComponents, ButtonProps, ButtonVariant, ChipProps, ChipTone, AvatarProps, LinkProps, LinkVariant, InputProps, RowProps, };
 export interface RadarOptions {
     /** A GitHub token. It is used and never stored: see the note in `renderRadar`. */
     token: string;
@@ -13,6 +13,17 @@ export interface RadarOptions {
      * around it is written in, and Hebrew brings right-to-left with it.
      */
     locale?: Locale;
+    /**
+     * Your components, so the radar looks like the application it is in rather
+     * than like this one.
+     *
+     * Partial: anything left out keeps the radar's own, so replacing a button
+     * does not make you responsible for a row. Every prop is a primitive or a
+     * `ReactNode` -- a slot never receives a pull request, because publishing
+     * that type would freeze the one thing the architecture rests on being free
+     * to change.
+     */
+    components?: RadarComponents;
 }
 export interface RadarHandle {
     /** Change which repositories are shown, without remounting. */

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useSlots } from './slots'
 import { useT } from '../i18n/useLocale'
 import type { MenuOption, MenuSelection } from '../lib/menus'
 import { MENUS, PERIOD_OPTIONS, SORT_OPTIONS, toggle } from '../lib/menus'
@@ -27,6 +28,7 @@ function Dropdown({
   active: number
   children: (close: () => void) => React.ReactNode
 }) {
+  const { Button } = useSlots()
   const [open, setOpen] = useState(false)
   const container = useRef<HTMLDivElement>(null)
 
@@ -47,16 +49,12 @@ function Dropdown({
 
   return (
     <div ref={container} className="pr:relative">
-      <button
-        type="button"
-        onClick={() => setOpen((was) => !was)}
-        aria-expanded={open}
-        className={`pr:flex pr:items-center pr:gap-1 pr:rounded-md pr:px-2.5 pr:py-1 pr:text-sm pr:hover:bg-neutral-100 pr:dark:hover:bg-neutral-800 ${
-          active > 0
-            ? 'font-medium text-neutral-900 dark:text-neutral-100'
-            : 'text-neutral-600 dark:text-neutral-400'
-        }`}
-      >
+        <Button
+          variant="trigger"
+          selected={active > 0}
+          onClick={() => setOpen((was) => !was)}
+          aria-expanded={open}
+        >
         {label}
         {active > 0 && (
           <span className="pr:rounded-full pr:bg-neutral-900 pr:px-1.5 pr:text-xs pr:text-white pr:tabular-nums pr:dark:bg-neutral-100 pr:dark:text-neutral-900">
@@ -66,7 +64,7 @@ function Dropdown({
         <span aria-hidden="true" className="pr:text-[10px]">
           ▾
         </span>
-      </button>
+        </Button>
 
       {open && (
         <div className="pr:absolute pr:end-0 pr:z-20 pr:mt-1 pr:w-72 pr:overflow-hidden pr:rounded-md pr:border pr:border-neutral-300 pr:bg-white pr:shadow-lg pr:dark:border-neutral-700 pr:dark:bg-neutral-900">
@@ -87,6 +85,7 @@ export default function FilterMenus({
   onSortChange,
   onPeriodChange,
 }: Props) {
+  const { Button, Input } = useSlots()
   const t = useT()
   const [search, setSearch] = useState<Record<string, string>>({})
 
@@ -109,27 +108,20 @@ export default function FilterMenus({
                     {t('menus.filterBy', { what: t(menu.label).toLowerCase() })}
                   </span>
                   {chosen.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => onChange({ ...selection, [menu.id]: [] })}
-                      className="pr:text-xs pr:text-blue-600 pr:dark:text-blue-400"
-                    >
+                    <Button variant="quiet" onClick={() => onChange({ ...selection, [menu.id]: [] })}>
                       {t('action.clear')}
-                    </button>
+                    </Button>
                   )}
                 </div>
 
                 {menu.searchable && all.length >= SEARCH_THRESHOLD && (
                   <div className="pr:border-b pr:border-neutral-200 pr:p-2 pr:dark:border-neutral-700">
-                    <input
+                    <Input
                       autoFocus
                       value={search[menu.id] ?? ''}
-                      onChange={(event) =>
-                        setSearch({ ...search, [menu.id]: event.target.value })
-                      }
+                      onChange={(next) => setSearch({ ...search, [menu.id]: next })}
                       placeholder={t('menus.filterThe', { what: t(menu.label).toLowerCase() })}
                       aria-label={t('menus.searchIn', { what: t(menu.label).toLowerCase() })}
-                      className="pr:w-full pr:rounded-md pr:border pr:border-neutral-300 pr:bg-white pr:px-2 pr:py-1 pr:text-sm pr:outline-none pr:focus:border-blue-500 pr:dark:border-neutral-600 pr:dark:bg-neutral-950"
                     />
                   </div>
                 )}
@@ -199,19 +191,18 @@ export default function FilterMenus({
             <ul className="pr:py-1">
               {PERIOD_OPTIONS.map((option) => (
                 <li key={option.value}>
-                  <button
-                    type="button"
+                  <Button
+                    variant="menuitem"
                     onClick={() => {
                       onPeriodChange(option.value)
                       close()
                     }}
-                    className="pr:flex pr:w-full pr:items-center pr:gap-2 pr:px-3 pr:py-1.5 pr:text-start pr:text-sm pr:hover:bg-neutral-100 pr:dark:hover:bg-neutral-800"
                   >
-                    <span className="pr:w-3 pr:shrink-0 pr:text-blue-600 pr:dark:text-blue-400">
+                    <span className="pr:inline-block pr:w-3 pr:shrink-0 pr:text-blue-600 pr:dark:text-blue-400">
                       {period === option.value ? '✓' : ''}
-                    </span>
+                    </span>{' '}
                     {t(option.label)}
-                  </button>
+                  </Button>
                 </li>
               ))}
             </ul>
@@ -224,19 +215,18 @@ export default function FilterMenus({
           <ul className="pr:py-1">
             {SORT_OPTIONS.map((option) => (
               <li key={option.value}>
-                <button
-                  type="button"
+                <Button
+                  variant="menuitem"
                   onClick={() => {
                     onSortChange(option.value)
                     close()
                   }}
-                  className="pr:flex pr:w-full pr:items-center pr:gap-2 pr:px-3 pr:py-1.5 pr:text-start pr:text-sm pr:hover:bg-neutral-100 pr:dark:hover:bg-neutral-800"
                 >
-                  <span className="pr:w-3 pr:shrink-0 pr:text-blue-600 pr:dark:text-blue-400">
+                  <span className="pr:inline-block pr:w-3 pr:shrink-0 pr:text-blue-600 pr:dark:text-blue-400">
                     {sort === option.value ? '✓' : ''}
-                  </span>
+                  </span>{' '}
                   {t(option.label)}
-                </button>
+                </Button>
               </li>
             ))}
           </ul>

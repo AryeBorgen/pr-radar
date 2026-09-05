@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { dirname } from 'node:path'
 import { expect, test } from '@playwright/test'
 
 /**
@@ -16,7 +17,17 @@ import { expect, test } from '@playwright/test'
 // `Locale` joined this list when the radar learned Hebrew: a host that renders
 // the panel in a language needs the type of the value it passes. Deliberate,
 // and additive -- see the snapshot diff in the same commit.
-const EXPECTED = ['Locale', 'RadarHandle', 'RadarOptions', 'RepoRef', 'renderRadar'].sort()
+/*
+ * `components` brought the design vocabulary with it. Each of these is
+ * primitives and ReactNode only -- see the assertion below that none of them
+ * names an internal type -- so what is frozen here is the shape of a button,
+ * never the shape of a pull request.
+ */
+const EXPECTED = [
+  'Locale', 'RadarHandle', 'RadarOptions', 'RepoRef', 'renderRadar',
+  'RadarComponents', 'ButtonProps', 'ButtonVariant', 'ChipProps', 'ChipTone',
+  'AvatarProps', 'LinkProps', 'LinkVariant', 'InputProps', 'RowProps',
+].sort()
 
 test('the library exports exactly what it promises', async () => {
   const declaration = readFileSync('dist-lib/types/render.d.ts', 'utf8')
@@ -31,8 +42,39 @@ test('the library exports exactly what it promises', async () => {
   expect([...new Set([...exported, ...reExported])].filter(Boolean).sort()).toEqual(EXPECTED)
 })
 
+/**
+ * Every declaration a consumer can reach, not just the entry point.
+ *
+ * `RadarComponents` lives in another file, so checking `render.d.ts` alone
+ * stopped being enough the moment a host could supply components: an internal
+ * type could reach the surface one import away and nothing here would notice.
+ */
+function publicDeclarations(): string {
+  const seen = new Set<string>()
+  const parts: string[] = []
+  const visit = (file: string) => {
+    if (seen.has(file)) return
+    seen.add(file)
+    let text: string
+    try {
+      text = readFileSync(file, 'utf8')
+    } catch {
+      return
+    }
+    // Comments are not surface. One of them explains at length why
+    // `PullRequest` is deliberately absent, which a naive scan reads as a leak.
+    parts.push(text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, ''))
+    for (const match of text.matchAll(/from '(\.[^']+)'/g)) {
+      const relative = (match[1] ?? '').replace(/\.js$/, '')
+      visit(`${dirname(file)}/${relative}.d.ts`)
+    }
+  }
+  visit('dist-lib/types/render.d.ts')
+  return parts.join('\n')
+}
+
 test('no internal type reaches the surface', async () => {
-  const declaration = readFileSync('dist-lib/types/render.d.ts', 'utf8')
+  const declaration = publicDeclarations()
 
   // These are the ones the architecture depends on being free to change.
   // PullRequest in particular is what changed when the data layer moved from

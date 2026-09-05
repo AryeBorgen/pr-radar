@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useSlots } from './slots'
 import {
   canClose,
   canMerge,
@@ -31,6 +32,7 @@ const METHOD_LABEL: Record<MergeMethod, MessageKey> = {
 }
 
 export default function PrActions({ pr, actions }: { pr: PullRequest; actions: Actions }) {
+  const { Button } = useSlots()
   const t = useT()
   const [open, setOpen] = useState(false)
   const [confirming, setConfirming] = useState<{ kind: 'merge' | 'close'; method?: MergeMethod } | null>(null)
@@ -119,15 +121,14 @@ export default function PrActions({ pr, actions }: { pr: PullRequest; actions: A
         >
           {merge.can ? (
             methodsFor(info).map((method) => (
-              <button
+              <Button
                 key={method}
-                type="button"
+                variant="menuitem"
                 role="menuitem"
                 onClick={() => start('merge', method)}
-                className="pr:block pr:w-full pr:px-3 pr:py-1.5 pr:text-start pr:text-sm pr:hover:bg-neutral-100 pr:dark:hover:bg-neutral-800"
               >
                 {t(METHOD_LABEL[method])}
-              </button>
+              </Button>
             ))
           ) : (
             /* Why, not a greyed-out button with no explanation. Each reason
@@ -141,14 +142,11 @@ export default function PrActions({ pr, actions }: { pr: PullRequest; actions: A
           {close.can && (
             <>
               <div className="pr:my-1 pr:h-px pr:bg-neutral-200 pr:dark:bg-neutral-800" />
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => start('close')}
-                className="pr:block pr:w-full pr:px-3 pr:py-1.5 pr:text-start pr:text-sm pr:text-red-600 pr:hover:bg-red-50 pr:dark:text-red-400 pr:dark:hover:bg-red-950"
-              >
-                {t('action.close')}
-              </button>
+              <span className="pr:block pr:[&>button]:text-red-600 pr:dark:[&>button]:text-red-400">
+                <Button variant="menuitem" role="menuitem" onClick={() => start('close')}>
+                  {t('action.close')}
+                </Button>
+              </span>
             </>
           )}
         </div>
@@ -176,25 +174,16 @@ export default function PrActions({ pr, actions }: { pr: PullRequest; actions: A
             {t(confirming.kind === 'merge' ? 'action.confirmMergeBody' : 'action.confirmCloseBody')}
           </p>
           <div className="pr:mt-3 pr:flex pr:gap-2">
-            <button
-              type="button"
+            <Button
+              variant={confirming.kind === 'merge' ? 'primary' : 'danger'}
               autoFocus
               onClick={() => run(confirming.kind, confirming.method)}
-              className={`pr:rounded-md pr:px-3 pr:py-1 pr:text-sm pr:font-medium pr:text-white ${
-                confirming.kind === 'merge'
-                  ? 'pr:bg-purple-600 pr:hover:bg-purple-700'
-                  : 'pr:bg-red-600 pr:hover:bg-red-700'
-              }`}
             >
               {t(confirming.kind === 'merge' ? 'action.merge' : 'action.close')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setConfirming(null)}
-              className="pr:rounded-md pr:border pr:border-neutral-300 pr:px-3 pr:py-1 pr:text-sm pr:dark:border-neutral-700"
-            >
+            </Button>
+            <Button variant="default" onClick={() => setConfirming(null)}>
               {t('action.cancel')}
-            </button>
+            </Button>
           </div>
         </div>
       )}

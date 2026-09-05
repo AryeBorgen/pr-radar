@@ -144,6 +144,13 @@ adopts that application's design rather than bringing its own:
 renderRadar(element, { token, repos, components: { Row, Chip, Button } })
 ```
 
+**Built, with one correction to the sketch above.** `Row` does *not* receive the
+pull request. It receives the row's parts already rendered -- `title`, `meta`,
+`badges`, `trailing`, `actions`, plus `state` and `draft` as plain strings --
+because a slot taking a `PullRequest` would publish `PullRequest`, and that is
+the type this entire document argues for keeping private. A host arranges the
+pieces; it never learns their shape.
+
 With an options object that is a new optional key -- a minor release, nothing
 breaks. With positional arguments it is a third parameter grafted on beside two
 others, and every future addition makes the signature worse. **The shape is
