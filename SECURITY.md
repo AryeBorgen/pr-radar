@@ -12,34 +12,80 @@ you would rather stay anonymous.
 
 ## What this project is, in security terms
 
-PR Radar is a static page. There is no server, no database, no account and no
-component of it that holds anyone's data. It runs entirely in your browser and
-talks to exactly one host: `api.github.com`.
+PR Radar is a static page. There is no database, no account, and nothing that
+stores anyone's data. It runs in your browser and reads everything it shows
+straight from `api.github.com`.
 
-That shape removes most of the attack surface a dashboard would normally have,
-and concentrates what remains in one place: **the personal access token you
-paste in**.
+The attack surface is concentrated in one place: **the GitHub credential the
+page holds**, whether you pasted a token or signed in.
 
-### How the token is handled
+### How the credential is handled
 
 - It is kept in `sessionStorage`, so it is gone when the tab closes. It is never
-  written to disk by this app.
-- It is sent to `api.github.com` and nowhere else. The Content-Security-Policy
-  in `index.html` enforces this in the browser rather than merely promising it:
-  `connect-src` names GitHub's API and nothing more, so even a compromised
-  dependency cannot post the token to another host.
-- It is never logged, never placed in a URL, and never sent to this project's
-  maintainers, because there is nowhere for it to be sent.
+  written to disk by this app. A refresh token, where one exists, lives exactly
+  as long as the access token it renews.
+- Requests carrying it go to `api.github.com` and nowhere else. The
+  Content-Security-Policy in `index.html` enforces that in the browser rather
+  than promising it: `connect-src` names GitHub's API and, on a deployment that
+  relays sign-in, that relay's origin — nothing else. A compromised dependency
+  cannot post the credential to a host that is not on that list.
+- It is never logged and never placed in a URL.
+
+### One exception, and it is the important one
+
+**Signing in passes the token through a relay.** GitHub's OAuth endpoints send
+no `Access-Control-Allow-Origin`, so a page cannot complete the exchange itself
+— measured on every test run in `tests/reachability.spec.ts`, not assumed. Two
+requests therefore go through something server-side, and the access token comes
+back in the second one's response.
+
+Where that relay runs is the whole of the difference:
+
+| How you run it | Where the relay is |
+| --- | --- |
+| `npx pr-radar` | the machine you started it on |
+| the container | the machine running it |
+| [the hosted page](https://aryeborgen.github.io/pr-radar/) | a Cloudflare Worker, [`worker/`](worker/) |
+| a static host with no relay | there is none — the token field is the only way in, and no token ever passes through anything |
+
+The relay holds no secret, keeps no session and writes nothing down: it forwards
+two requests and rebuilds the reply from the fields the flow needs. It is about
+a hundred lines and the rules it enforces are shared verbatim with the other two
+servers, so they cannot drift apart — `tests/node/conformance.test.js` asks all
+three the same questions and requires the same answers.
+
+**The hosted worker is the one you are trusting with someone else's
+infrastructure.** If that is not a trade you want, paste a token instead: that
+path involves no relay at all, on any deployment.
+
+The OAuth client id is public by design. The device flow authenticates with the
+id alone — which is *why* a page can use it — so there is no secret in the
+worker to leak, and none to rotate.
+
+### It can now change your repositories
+
+Since 0.3.0 the dashboard can **merge and close** a pull request. That is a write
+against your repositories, made with your credential.
+
+- Nothing happens on a first click. The menu opens; the destructive item opens a
+  confirmation naming the repository and the number.
+- There is no bulk action, and there will not be one.
+- A merge sends the head commit's SHA, so a push that landed while the menu was
+  open is refused by GitHub rather than merged over.
+- A credential without write access simply cannot do it: GitHub refuses, and the
+  page says the token is not allowed to write there.
 
 ### What you can do to reduce the blast radius
 
 - Prefer a **fine-grained token** scoped to the repositories you actually want
-  to watch, read-only. Public repositories need no scopes at all.
-- On a shared or untrusted machine, treat the token as you would a password
+  to watch. Read-only is enough for everything except merging and closing;
+  public repositories need no scopes at all.
+- On a shared or untrusted machine, treat the credential as you would a password
   typed into that machine, because that is what it is.
-- Revoke it at any time from
-  [github.com/settings/tokens](https://github.com/settings/tokens); nothing in
-  this project needs to be told.
+- Revoke it at any time — a token from
+  [github.com/settings/tokens](https://github.com/settings/tokens), a sign-in
+  from [the authorised applications list](https://github.com/settings/applications).
+  Nothing in this project needs to be told.
 
 ## How the supply chain is protected
 
