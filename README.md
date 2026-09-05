@@ -8,7 +8,8 @@
 
 ### [→ Open it](https://aryeborgen.github.io/pr-radar/)
 
-No install, no sign-up, no server. Works on a laptop and on a phone.
+Sign in with GitHub, or bring your own token. No install, no account,
+nothing stored anywhere but your own browser. Works on a laptop and on a phone.
 
 [![CI](https://github.com/AryeBorgen/pr-radar/actions/workflows/ci.yml/badge.svg)](https://github.com/AryeBorgen/pr-radar/actions/workflows/ci.yml)
 [![Docker image](https://github.com/AryeBorgen/pr-radar/actions/workflows/docker.yml/badge.svg)](https://github.com/AryeBorgen/pr-radar/actions/workflows/docker.yml)
@@ -25,14 +26,19 @@ No install, no sign-up, no server. Works on a laptop and on a phone.
 Three steps, about a minute, nothing to install.
 
 1. **[Open the app](https://aryeborgen.github.io/pr-radar/).**
-2. **[Create a token](https://github.com/settings/tokens/new?scopes=repo,read:org&description=PR%20Radar)** — that link
-   pre-fills everything. Scroll down, press **Generate token**, and copy it.
-   *(Only watching public repositories? You can untick every box.)*
-3. **Paste it in, then add a repository** — type `facebook/react`, or just
-   `facebook` to pull in the whole organisation at once.
+2. **Press *Sign in with GitHub*** — you get a short code, you type it at
+   `github.com/login/device`, and that is the sign-in.
+3. **Add a repository** — type `facebook/react`, or just `facebook` to pull in
+   the whole organisation at once.
 
-That is the entire setup. The token stays in your browser tab and is sent to
-nobody but GitHub. Close the tab and it is gone.
+That is the entire setup. Whatever you sign in with stays in your browser tab
+and is sent to nobody but GitHub. Close the tab and it is gone.
+
+**Prefer a token?** The field is still there, on every deployment, and it needs
+nothing configured anywhere.
+[Create one](https://github.com/settings/tokens/new?scopes=repo,read:org&description=PR%20Radar)
+— that link pre-fills the scopes. *(Only watching public repositories? You can
+untick every box.)*
 
 ### Put it on your phone
 
@@ -56,8 +62,12 @@ is what this is built around. The dashboard opens on *Needs my review*, not on
 an undifferentiated list.
 
 Clicking a pull request takes you to it on GitHub. This is deliberately not a
-review client: there is no diff viewer, no comment box, no merge button. It is
-the place you notice things, not the place you do them.
+review client: there is no diff viewer and no comment box. It is where you
+notice things, not where you do them.
+
+Merging and closing are the one exception, because they are the click that
+follows noticing — and they ask first, by name, every time. There is no bulk
+merge and there will not be one.
 
 ## What it is
 
@@ -90,8 +100,18 @@ the place you notice things, not the place you do them.
 ## Running your own copy
 
 You do not have to. [The hosted one](https://aryeborgen.github.io/pr-radar/) is
-the same bundle, and since there is no backend there is nothing about it that is
-"theirs" -- your token and your settings never leave your browser either way.
+the same bundle. Your repositories, your settings and your pull requests are
+read straight from `api.github.com` by your browser and never reach anything
+else, hosted or not.
+
+One honest exception, since it would be easy to leave unsaid: **signing in on
+the hosted site passes through a relay.** GitHub's OAuth endpoints refuse a
+browser, so the two requests that turn a device code into a token go via a small
+stateless worker — which means the token exists in that response on its way to
+you. It stores nothing, keeps no session and writes nothing down, and you can
+read all of it in [`worker/`](worker/). If that trade is not one you want, the
+token field needs no relay at all, and `npx pr-radar` and the container relay
+from your own machine.
 
 Run your own if you would rather serve it yourself. Every option below is the
 same static bundle.
