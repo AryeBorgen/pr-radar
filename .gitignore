@@ -12,3 +12,7 @@ blob-report
 # Build output. dist-lib is published from a fresh build, never from the tree.
 dist-lib
 *.tgz
+
+# wrangler dev writes its local miniflare state here -- sqlite files and a
+# cache. Machine state, not source, and it landed in a commit once.
+worker/.wrangler
