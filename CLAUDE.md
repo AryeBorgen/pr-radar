@@ -234,7 +234,16 @@ need a backend*.
    `acme/web #7` as one string so it is one run. Both were found by looking at a
    screenshot; neither showed up in a passing test.
 
-7. **An unprefixed Tailwind class is not a class.** The stylesheet is prefixed
+7. **Prose split by an interpolation is invisible to a check that reads between
+   tags.** `coverage.test.ts` matched `>text<` with `{` and `}` excluded from
+   the text, so a sentence with a count in the middle of it matched nothing at
+   all -- and that is the shape of every sentence with a count in the middle of
+   it. Two English paragraphs shipped that way, one of them describing loading
+   progress on the very screen this was found on. The check now punches each
+   `{...}` out to a placeholder and re-reads the runs that contain one; it found
+   both immediately.
+
+8. **An unprefixed Tailwind class is not a class.** The stylesheet is prefixed
    `pr:` so it cannot collide with a host's, which means a class without it
    matches nothing -- no error, no warning, nothing missing, the rule simply
    absent. Eight of them shipped, every one in the `selected` branch of a
@@ -373,6 +382,25 @@ users get is the one worth testing. Two rules hold it up:
   tests a stale artefact is worse than one that fails.**
 - `tests/reachability.spec.ts` deliberately does not mock GitHub, for the reason
   below. It is what corrected fact 1 above.
+- **A probe of the real world asserts the property, not the status code.** The
+  same rule the `Intl` tests learned, in a different area. That file asks
+  whether `api.github.com` serves the OAuth endpoints and pinned the answer as
+  `404`; from a CI runner's shared IP the answer is `403`, the unauthenticated
+  rate limit its two sibling tests already tolerate -- GitHub throttles before
+  it routes. The test was reporting GitHub's opinion of the runner's IP address.
+  It now asserts that no `device_code` comes back, which is the whole of the
+  claim and the only thing whose change would matter.
+
+**A flex item reports one box however many lines are inside it.** A label chip
+was rendering four lines deep as an orange blob on a phone, and the test written
+to catch it counted `getClientRects()`, got `1`, and passed against exactly the
+markup it existed to reject. `getClientRects()` returns per-line boxes for an
+*inline* box; a flex item is a block box and reports its border box alone. The
+assertion is on height. Two other tests in that same commit were aimed at the
+wrong node and at a label short enough to fit either way -- **three tests written
+in one sitting, all three green against the broken code.** Reverting the fix and
+watching the test fail is not a formality, and it is the only thing that found
+this.
 
 Two bugs the browser runs caught that unit tests could not: `<img src="">` when
 an avatar is missing (React warns; the browser may re-request the page), and the

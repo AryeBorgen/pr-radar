@@ -123,16 +123,38 @@ test.describe('reaching GitHub OAuth from a browser', () => {
   test('the CORS-enabled host does not serve the OAuth endpoints', async ({ page }) => {
     // api.github.com answers cross-origin requests happily, so the natural
     // question is whether the flow can simply be pointed at it. It cannot.
-    const status = await page.evaluate(async () => {
+    //
+    // What is asserted is that no device code comes back -- not the status code.
+    // This pinned an exact 404 and went red in CI on a 403, which is the
+    // unauthenticated rate limit the two tests above already tolerate: from a
+    // shared runner IP GitHub throttles before it routes. Both answers refuse a
+    // device code, and that is the whole of the claim. Pinning the status made
+    // the test report GitHub's opinion of the runner's IP address.
+    const outcome = await page.evaluate(async () => {
       const response = await fetch('https://api.github.com/login/device/code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: 'client_id=Iv1.0000000000000000',
       })
-      return response.status
+      const body = await response.text()
+      let code: unknown
+      try {
+        code = (JSON.parse(body) as Record<string, unknown>).device_code
+      } catch {
+        code = new URLSearchParams(body).get('device_code') ?? undefined
+      }
+      return { status: response.status, ok: response.ok, code: code ?? null }
     })
 
-    expect(status).toBe(404)
+    // The day either of these fails, api.github.com is serving the device flow
+    // and the relay in bin/pr-radar.js and docker/nginx.conf can be deleted.
+    expect(
+      outcome.code,
+      `api.github.com/login/device/code returned a device code (status ${outcome.status})`,
+    ).toBeNull()
+    expect(outcome.ok, `api.github.com now serves the device flow (status ${outcome.status})`).toBe(
+      false,
+    )
   })
 })
 

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { PullRequest } from '../types'
 import { PrIcon, CheckIcon } from './icons'
 import { absoluteTime, relativeTime } from '../lib/time'
@@ -56,7 +57,22 @@ export default function PrRow({
   const badge = pr.reviewDecision ? REVIEW_BADGE[pr.reviewDecision] : undefined
   const stateChip = STATE_CHIP[pr.state]
 
-  const dot = <span aria-hidden="true">·</span>
+  /*
+   * A meta item and the separator in front of it, as one unbreakable run.
+   *
+   * The dots used to be siblings in a wrapping flex row, so on a narrow screen
+   * each one was free to land on a line of its own: a 320-pixel phone rendered
+   * `#409 ·` / `opened 4d ago` / `· by hubot ·` / `updated 4d ago` / `·`, seven
+   * lines for one pull request with three orphaned separators among them.
+   * Grouping keeps the desktop rendering identical -- same glyphs, same order --
+   * and makes the orphan unrepresentable rather than unlikely.
+   */
+  const item = (key: string, node: ReactNode, first = false) => (
+    <span key={key} className="pr:whitespace-nowrap">
+      {!first && <span aria-hidden="true">· </span>}
+      {node}
+    </span>
+  )
 
   return (
     <Row
@@ -89,36 +105,40 @@ export default function PrRow({
       }
       meta={
         <>
-          <span className="pr:font-medium pr:text-neutral-600 pr:dark:text-neutral-300">
-            {pr.repo}
-          </span>
-          <span>#{pr.number}</span>
-          {dot}
-          <span title={absoluteTime(pr.createdAt, locale)}>
-            {t('row.opened', { when: relativeTime(pr.createdAt, now, locale) })}
-          </span>
-          {pr.author && (
+          {item(
+            'where',
             <>
-              {dot}
-              <span>{t('row.by', { author: pr.author.login })}</span>
-            </>
+              <span className="pr:font-medium pr:text-neutral-600 pr:dark:text-neutral-300">
+                {pr.repo}
+              </span>{' '}
+              <span>#{pr.number}</span>
+            </>,
+            true,
           )}
-          {dot}
-          {pr.mergedAt ? (
-            <span title={absoluteTime(pr.mergedAt, locale)}>
-              {t('row.merged', { when: relativeTime(pr.mergedAt, now, locale) })}
-            </span>
-          ) : (
-            <span title={absoluteTime(pr.updatedAt, locale)}>
-              {t('row.updated', { when: relativeTime(pr.updatedAt, now, locale) })}
-            </span>
+          {item(
+            'opened',
+            <span title={absoluteTime(pr.createdAt, locale)}>
+              {t('row.opened', { when: relativeTime(pr.createdAt, now, locale) })}
+            </span>,
           )}
-          {pr.requestedReviewers.length > 0 && (
-            <>
-              {dot}
-              <span>{t('row.waitingOn', { who: pr.requestedReviewers.join(', ') })}</span>
-            </>
+          {pr.author && item('by', <span>{t('row.by', { author: pr.author.login })}</span>)}
+          {item(
+            'when',
+            pr.mergedAt ? (
+              <span title={absoluteTime(pr.mergedAt, locale)}>
+                {t('row.merged', { when: relativeTime(pr.mergedAt, now, locale) })}
+              </span>
+            ) : (
+              <span title={absoluteTime(pr.updatedAt, locale)}>
+                {t('row.updated', { when: relativeTime(pr.updatedAt, now, locale) })}
+              </span>
+            ),
           )}
+          {pr.requestedReviewers.length > 0 &&
+            item(
+              'waiting',
+              <span>{t('row.waitingOn', { who: pr.requestedReviewers.join(', ') })}</span>,
+            )}
         </>
       }
       trailing={

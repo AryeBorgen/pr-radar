@@ -17,12 +17,23 @@ interface Props {
 export default function FacetBar({ prs, selection, stages, viewer, now, onChange }: Props) {
   const { Button } = useSlots()
   const t = useT()
+  /*
+   * Collapsed on a phone, always open on a desktop.
+   *
+   * Four axes of pills measured 365 pixels of an 844-pixel screen -- more than
+   * every other band of chrome put together, and 85% of the screen was spent
+   * before the first pull request appeared. A dashboard you have to scroll past
+   * to reach the list is not a dashboard.
+   *
+   * `sm:` handles the desktop side entirely, so this state only ever matters
+   * below that width.
+   */
   return (
     <div className="pr:border-b pr:border-neutral-200 pr:dark:border-neutral-800">
       {FACETS.map((facet) => {
         const counts = facetCounts(prs, facet, selection, stages, viewer, now)
         return (
-          <div key={facet.id} className="pr:flex pr:flex-wrap pr:items-center pr:gap-1.5 pr:px-4 pr:py-1.5">
+          <div key={facet.id} className="pr:flex pr:flex-wrap pr:items-center pr:gap-1.5 pr:px-4 pr:py-2 pr:sm:py-1.5">
             <span className="pr:w-14 pr:shrink-0 pr:text-xs pr:font-medium pr:tracking-wide pr:text-neutral-400 pr:uppercase pr:dark:text-neutral-500">
               {t(facet.legend)}
             </span>
