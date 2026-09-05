@@ -4,13 +4,19 @@ import { after, before, describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 
 /**
- * The container and `npx pr-radar` must answer identically.
+ * Every server that relays the sign-in must answer identically.
  *
- * Two servers ship this project, and both relay the sign-in. They share
- * relay-policy.js so the *rules* cannot diverge, but each has its own plumbing
- * around it, and plumbing is where a check quietly stops running: nginx answers
- * a large body from its own error page, njs reads headers by a different name,
- * a route is added to one config and forgotten in the other.
+ * Three of them now: `npx pr-radar`, the container, and the Cloudflare Worker
+ * that gives the hosted static page a relay it has no machine for. All three
+ * load relay-policy.js so the *rules* cannot diverge, but each has its own
+ * plumbing around it, and plumbing is where a check quietly stops running:
+ * nginx answers a large body from its own error page, njs reads headers by a
+ * different name, a route is added to one config and forgotten in another.
+ *
+ * The worker differs in exactly one way, deliberately: it sends CORS headers,
+ * because it is cross-origin by definition where the other two are same-origin.
+ * That difference is asserted on its own, in worker.test.js, rather than
+ * quietly excused here.
  *
  * So every refusal is asked of both, over HTTP, and the answers are compared to
  * each other rather than to a list written down here. A difference is a failure
@@ -22,6 +28,17 @@ import assert from 'node:assert/strict'
 
 const IMAGE = process.env.PR_RADAR_IMAGE ?? 'pr-radar:auth'
 const CLIENT_ID = 'Iv1.conformance'
+
+function workerAvailable() {
+  try {
+    execFileSync('npx', ['wrangler', '--version'], { stdio: 'ignore' })
+    return true
+  } catch {
+    return false
+  }
+}
+
+let worker
 
 function dockerAvailable() {
   try {
@@ -62,6 +79,20 @@ before(async () => {
   })
   started.push(() => cli.kill())
   servers.cli = 'http://127.0.0.1:41831'
+
+  // The worker, through wrangler's local runtime.
+  if (workerAvailable()) {
+    worker = spawn(
+      'npx',
+      ['wrangler', 'dev', '--port', '41833', '--local', '--var',
+       `PR_RADAR_CLIENT_ID:${CLIENT_ID}`, '--var',
+       `PR_RADAR_UPSTREAM:http://127.0.0.1:${fakeGitHubPort}`, '--var',
+       'PR_RADAR_ORIGINS:http://127.0.0.1:4173'],
+      { cwd: 'worker', stdio: 'ignore' },
+    )
+    started.push(() => worker.kill())
+    servers.worker = 'http://127.0.0.1:41833'
+  }
 
   if (dockerAvailable()) {
     execFileSync('docker', ['rm', '-f', 'pr-radar-conformance'], { stdio: 'ignore' })
@@ -140,11 +171,15 @@ function bothAgree(name, request, expected) {
         )
       }
     }
-    if (answers.container === undefined) return
-    assert.deepEqual(
-      answers.container, answers.cli,
-      `the container and the CLI disagree:\n  container ${JSON.stringify(answers.container)}\n  cli       ${JSON.stringify(answers.cli)}`,
-    )
+    // Compared to each other, not to a list written down here: a difference is
+    // a failure even where both answers look reasonable.
+    for (const [which, answer] of Object.entries(answers)) {
+      if (which === 'cli') continue
+      assert.deepEqual(
+        answer, answers.cli,
+        `${which} and the CLI disagree:\n  ${which.padEnd(9)} ${JSON.stringify(answer)}\n  cli       ${JSON.stringify(answers.cli)}`,
+      )
+    }
   })
 }
 
@@ -152,10 +187,13 @@ describe('the relay, through every server that ships it', () => {
   it('is testing both, or says which one is missing', () => {
     const which = Object.keys(servers).join(' and ')
     if (servers.container === undefined) {
-      console.log(`\n  NOTE: only the CLI was tested (${IMAGE} is not built).`)
-      console.log('        Build it first for the comparison to mean anything:')
+      console.log(`\n  NOTE: the container was not tested (${IMAGE} is not built).`)
       console.log('        docker build -t pr-radar:auth .\n')
     }
+    if (servers.worker === undefined) {
+      console.log('\n  NOTE: the worker was not tested (wrangler is unavailable).\n')
+    }
+    console.log(`  testing: ${which}`)
     assert.ok(servers.cli, `expected at least the CLI; got ${which}`)
   })
 

@@ -250,8 +250,16 @@ the flow needs. Every one of those is tested by attempting to get past it, and
 the container and the CLI are asked the same questions and required to give the
 same answers.
 
-The hosted page on GitHub Pages has no server, so it has no sign-in. It says so
-rather than showing a button that could not work.
+The hosted page on GitHub Pages has no server of its own, so it relays through a
+small stateless worker instead — see [`worker/`](worker/). Build the page knowing
+where that lives:
+
+```bash
+PR_RADAR_RELAY=https://pr-radar-auth.example.workers.dev npm run build
+```
+
+A deployment with neither a server nor a relay shows no sign-in button, and says
+why rather than offering one that could not work.
 
 ## Why a token is still here
 
