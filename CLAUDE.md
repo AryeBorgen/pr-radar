@@ -103,7 +103,15 @@ cycle; none of them are guesses.
    published perfectly. The script now takes `--expect <version>` and waits up
    to two minutes for it; on a pull request there is nothing to wait for and it
    reads once.
-7. **`--generate-notes` with no previous release lists the entire project.**
+7. **A job that gains a step gains that step's dependencies.** The release job
+   cut a release and nothing else, so it never ran `npm ci`. Adding a step that
+   drives the published package in a browser gave it a dependency it had no way
+   to satisfy: 0.4.0 published correctly, with provenance, and the job went red
+   on `ERR_MODULE_NOT_FOUND` for `@playwright/test`. Twice now the release job
+   has failed *after* a correct publish -- once on registry propagation, once on
+   this -- so when it goes red, check what actually shipped before assuming
+   nothing did.
+8. **`--generate-notes` with no previous release lists the entire project.**
    v0.1.1's notes presented forty commits of history as the contents of a patch
    release, because there was no v0.1.0 tag to diff against. The release job now
    passes `--notes-start-tag`.
