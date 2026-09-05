@@ -39,14 +39,23 @@ test.describe('the token gate', () => {
 
     await expect(page.getByLabel('GitHub personal access token')).toBeHidden()
 
-    // The token is a credential with a deliberately short life. localStorage
-    // would outlive the tab; sessionStorage is the promise the README makes.
-    const stored = await page.evaluate(() => ({
-      session: sessionStorage.getItem('pr-radar.token.v1'),
-      local: JSON.stringify(localStorage).includes('ghp_good'),
-    }))
-    expect(stored.session).toBe('ghp_good')
-    expect(stored.local).toBe(false)
+      /*
+       * The token is a credential with a deliberately short life. localStorage
+       * would outlive the tab; sessionStorage is the promise the README makes.
+       *
+       * Stored as a session object rather than a bare string since sign-in
+       * gained a refresh token -- which lives exactly as long as the access
+       * token it renews, because keeping it longer would be keeping a
+       * credential the user thinks they closed. This reads the token out of the
+       * session rather than matching a whole string, so the shape can change
+       * again without this test having an opinion about it.
+       */
+      const stored = await page.evaluate(() => ({
+        session: sessionStorage.getItem('pr-radar.token.v1'),
+        local: JSON.stringify(localStorage).includes('ghp_good'),
+      }))
+      expect(JSON.parse(stored.session ?? 'null')).toMatchObject({ token: 'ghp_good' })
+      expect(stored.local, 'the token must never reach localStorage').toBe(false)
   })
 })
 

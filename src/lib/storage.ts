@@ -1,4 +1,5 @@
 import type { RepoRef, SavedView, Settings } from '../types'
+import type { Credential } from './deviceAuth'
 
 const SETTINGS_KEY = 'pr-radar.settings.v1'
 const TOKEN_KEY = 'pr-radar.token.v1'
@@ -64,20 +65,49 @@ export function saveSettings(settings: Settings): void {
  * is re-pasting it in a new tab, which is the right trade for a static app that
  * has no server to hold a session for it.
  */
-export function loadToken(): string {
+/**
+ * The signed-in session.
+ *
+ * sessionStorage, so it is gone when the tab closes -- the same lifetime a
+ * pasted token has always had. A refresh token lives exactly as long as the
+ * access token it renews; keeping it any longer would be keeping a credential
+ * the user thinks they closed.
+ *
+ * A pasted token is stored as a bare string, which is also what every version
+ * before sessions wrote, so reading handles both. Writing always uses the
+ * object form.
+ */
+export function loadCredential(): Credential | null {
   try {
-    return sessionStorage.getItem(TOKEN_KEY) ?? ''
+    const raw = sessionStorage.getItem(TOKEN_KEY)
+    if (!raw) return null
+    if (!raw.startsWith('{')) return { token: raw }
+
+    const parsed: unknown = JSON.parse(raw)
+    if (typeof parsed !== 'object' || parsed === null) return null
+    const data = parsed as Record<string, unknown>
+    if (typeof data['token'] !== 'string' || data['token'] === '') return null
+
+    return {
+      token: data['token'],
+      ...(typeof data['refreshToken'] === 'string' ? { refreshToken: data['refreshToken'] } : {}),
+      ...(typeof data['expiresAt'] === 'number' ? { expiresAt: data['expiresAt'] } : {}),
+    }
   } catch {
-    return ''
+    // Storage blocked, or something that is not a session. Either way: signed out.
+    return null
   }
 }
 
-export function saveToken(token: string): void {
+export function saveCredential(credential: Credential | null): void {
   try {
-    if (token) sessionStorage.setItem(TOKEN_KEY, token)
-    else sessionStorage.removeItem(TOKEN_KEY)
+    if (credential && credential.token) {
+      sessionStorage.setItem(TOKEN_KEY, JSON.stringify(credential))
+    } else {
+      sessionStorage.removeItem(TOKEN_KEY)
+    }
   } catch {
-    // Nothing to do: the user simply re-enters it on the next load.
+    // Nothing to do: the user simply signs in again on the next load.
   }
 }
 

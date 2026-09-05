@@ -128,6 +128,62 @@ export function needsRefresh(state: AuthState, now: number): boolean {
 }
 
 /**
+ * A signed-in session: the token, and what is needed to keep it alive.
+ *
+ * `refreshToken` and `expiresAt` are absent for an application whose tokens do
+ * not expire, and absent is the right shape for that -- a session with no
+ * expiry is not a session expiring at infinity, and code that treats it as one
+ * ends up scheduling a refresh in the year 275760.
+ */
+export interface Credential {
+  token: string
+  refreshToken?: string
+  expiresAt?: number
+}
+
+/** The session a successful sign-in produced, or null if it is not one. */
+export function credentialOf(state: AuthState): Credential | null {
+  if (state.status !== 'authenticated') return null
+  return {
+    token: state.token,
+    ...(state.refreshToken === undefined ? {} : { refreshToken: state.refreshToken }),
+    ...(state.expiresAt === undefined ? {} : { expiresAt: state.expiresAt }),
+  }
+}
+
+/**
+ * How long to wait before refreshing, or null if there is nothing to schedule.
+ *
+ * Null covers three different situations that all mean the same thing to a
+ * timer: no refresh token, no expiry, and a session that is already past due.
+ * The last one returns 0 rather than null -- it is due *now*, which is not the
+ * same as never.
+ */
+export function refreshDelay(credential: Credential | null, now: number): number | null {
+  if (credential === null) return null
+  if (credential.refreshToken === undefined || credential.expiresAt === undefined) return null
+  return Math.max(0, credential.expiresAt - REFRESH_MARGIN_MS - now)
+}
+
+/**
+ * The session a refresh produced.
+ *
+ * GitHub returns a *new* refresh token with each refresh and invalidates the
+ * old one, so keeping the previous one would work exactly once. When a response
+ * omits it -- which it should not -- the old one is carried forward rather than
+ * dropped, since dropping it guarantees a sign-out at the next expiry.
+ */
+export function afterRefresh(previous: Credential, result: PollResult, now: number): Credential | null {
+  if (result.kind !== 'token') return null
+  const refreshToken = result.refreshToken ?? previous.refreshToken
+  return {
+    token: result.token,
+    ...(refreshToken === undefined ? {} : { refreshToken }),
+    ...(result.expiresIn === undefined ? {} : { expiresAt: now + result.expiresIn * 1000 }),
+  }
+}
+
+/**
  * Normalise one poll response body.
  *
  * GitHub answers the device-flow poll with HTTP 200 and an `error` field, not a

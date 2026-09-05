@@ -1,6 +1,6 @@
 import { useDeviceLogin } from '../lib/useDeviceLogin'
 import { useSlots } from './slots'
-import type { AuthFailure } from '../lib/deviceAuth'
+import type { AuthFailure, Credential } from '../lib/deviceAuth'
 import { useT } from '../i18n/useLocale'
 import type { MessageKey } from '../i18n/en'
 
@@ -28,7 +28,7 @@ const MESSAGES: Record<AuthFailure, MessageKey> = {
   unknown: 'signIn.failed.unknown',
 }
 
-export default function SignIn({ onToken }: { onToken: (token: string) => void }) {
+export default function SignIn({ onToken }: { onToken: (credential: Credential) => void }) {
   const { Button, Link } = useSlots()
   const t = useT()
   const { state, start, cancel } = useDeviceLogin(onToken)

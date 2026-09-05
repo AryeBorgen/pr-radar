@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
+  afterRefresh,
+  credentialOf,
+  refreshDelay,
   delayUntilNextPoll,
   failureFor,
   needsRefresh,
@@ -230,3 +233,89 @@ describe('reading the device code', () => {
     expect(readDeviceCode(body)).toBeNull()
   })
 })
+
+describe('keeping a session alive', () => {
+  const signedIn = (over: Record<string, unknown> = {}): AuthState => ({
+    status: 'authenticated',
+    token: 'gho_a',
+    refreshToken: 'ghr_a',
+    expiresAt: T0 + 28_800_000,
+    ...over,
+  })
+
+  it('takes the session out of a sign-in', () => {
+    expect(credentialOf(signedIn())).toEqual({
+      token: 'gho_a',
+      refreshToken: 'ghr_a',
+      expiresAt: T0 + 28_800_000,
+    })
+  })
+
+  // An application whose tokens do not expire has no refresh token and no
+  // expiry, and absent is the right shape: a session with no expiry is not one
+  // expiring at infinity.
+  it('omits what a non-expiring application does not give', () => {
+    const credential = credentialOf({ status: 'authenticated', token: 'gho_a' })
+    expect(credential).toEqual({ token: 'gho_a' })
+    expect(credential).not.toHaveProperty('refreshToken')
+  })
+
+  it('has nothing to take from a sign-in that has not happened', () => {
+    expect(credentialOf({ status: 'waiting' } as AuthState)).toBeNull()
+    expect(credentialOf({ status: 'idle' })).toBeNull()
+  })
+
+  describe('when to refresh', () => {
+    it('schedules a margin before expiry', () => {
+      expect(refreshDelay({ token: 'a', refreshToken: 'r', expiresAt: T0 + 28_800_000 }, T0))
+        .toBe(28_800_000 - REFRESH_MARGIN_MS)
+    })
+
+    // Due now is not the same as never, and a negative delay would fire a timer
+    // immediately in some runtimes and never in others.
+    it('is due immediately when already past the margin', () => {
+      expect(refreshDelay({ token: 'a', refreshToken: 'r', expiresAt: T0 }, T0 + 1_000_000)).toBe(0)
+    })
+
+    it('schedules nothing without a refresh token', () => {
+      expect(refreshDelay({ token: 'a', expiresAt: T0 + 1000 }, T0)).toBeNull()
+    })
+
+    it('schedules nothing without an expiry', () => {
+      expect(refreshDelay({ token: 'a', refreshToken: 'r' }, T0)).toBeNull()
+    })
+
+    it('schedules nothing when there is no session', () => {
+      expect(refreshDelay(null, T0)).toBeNull()
+    })
+  })
+
+  describe('after a refresh', () => {
+    const before = { token: 'gho_old', refreshToken: 'ghr_old', expiresAt: T0 }
+
+    /*
+     * The one that would break a day later rather than immediately. GitHub
+     * returns a new refresh token with every refresh and invalidates the old
+     * one, so a session that kept the previous one works exactly once and then
+     * signs the user out.
+     */
+    it('takes the new refresh token, because the old one is now dead', () => {
+      expect(
+        afterRefresh(before, { kind: 'token', token: 'gho_new', refreshToken: 'ghr_new', expiresIn: 28800 }, T0),
+      ).toEqual({ token: 'gho_new', refreshToken: 'ghr_new', expiresAt: T0 + 28_800_000 })
+    })
+
+    // Dropping it guarantees a sign-out at the next expiry; carrying it forward
+    // at worst fails once, later.
+    it('carries the old one forward if a reply omits it', () => {
+      expect(afterRefresh(before, { kind: 'token', token: 'gho_new', expiresIn: 100 }, T0))
+        .toMatchObject({ refreshToken: 'ghr_old' })
+    })
+
+    it('produces nothing from a refusal', () => {
+      expect(afterRefresh(before, { kind: 'failed', reason: 'denied' }, T0)).toBeNull()
+      expect(afterRefresh(before, { kind: 'pending' }, T0)).toBeNull()
+    })
+  })
+})
+
