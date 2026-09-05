@@ -52,8 +52,14 @@
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
 
     <meta name="theme-color" content="#059669" />
-    <!-- iOS reads its own tags rather than the manifest. -->
+    <!--
+      iOS reads its own tags rather than the manifest, and the two names are not
+      interchangeable: Safari reads only the `apple-` one, and Chrome warns that
+      the `apple-` one is deprecated in favour of the plain one. Both, therefore.
+      Dropping the `apple-` name costs iOS its install banner silently.
+    -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="PR Radar" />
 

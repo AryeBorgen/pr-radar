@@ -1,5 +1,5 @@
 import { expect, test, type Page, type Route } from '@playwright/test'
-import { mockGitHub } from './fixtures/github'
+import { mockGitHub, skipIntro } from './fixtures/github'
 
 /**
  * Merging and closing, from the dashboard.
@@ -27,12 +27,12 @@ async function trackWrites(page: Page) {
 }
 
 async function dashboard(page: Page) {
+  await skipIntro(page)
   await page.addInitScript(() => {
     localStorage.setItem(
       'pr-radar.settings.v1',
       JSON.stringify({ repos: [{ owner: 'acme', name: 'web' }], views: [], refreshInterval: 0 }),
     )
-    localStorage.setItem('pr-radar.intro.v1', 'seen')
     sessionStorage.setItem('pr-radar.token.v1', 'ghp_test')
   })
   await page.goto('/')

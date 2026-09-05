@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { mockGitHub } from './fixtures/github'
+import { mockGitHub, skipIntro } from './fixtures/github'
 
 /**
  * Hebrew, and right-to-left, in a real browser.
@@ -176,13 +176,13 @@ test.describe('a Latin value inside a Hebrew sentence', () => {
    * wrong.
    */
   test('does not drag the sentence\'s punctuation to the wrong end', async ({ page }) => {
-    await page.addInitScript(() => {
+    await skipIntro(page)
+  await page.addInitScript(() => {
       Object.defineProperty(navigator, 'languages', { get: () => ['he-IL'] })
       localStorage.setItem(
         'pr-radar.settings.v1',
         JSON.stringify({ repos: [{ owner: 'acme', name: 'web' }], views: [], refreshInterval: 0 }),
       )
-      localStorage.setItem('pr-radar.intro.v1', 'seen')
       sessionStorage.setItem('pr-radar.token.v1', 'ghp_test')
     })
     await mockGitHub(page)
