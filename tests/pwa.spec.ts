@@ -85,10 +85,17 @@ test.describe('the web app manifest', () => {
 
   test('iOS has the tags it reads instead of the manifest', async ({ page, request }) => {
     await page.goto('/')
-    await expect(page.locator('meta[name="apple-mobile-web-app-capable"]')).toHaveAttribute(
-      'content',
-      'yes',
-    )
+    /*
+     * Both names, because they are not interchangeable and each browser reads
+     * exactly one. Safari reads `apple-mobile-web-app-capable`; Chrome reads
+     * `mobile-web-app-capable` and warns that the other is deprecated. An edit
+     * that replaced the first with the second reached a commit here, and this
+     * assertion is what stopped it -- iOS would have lost its install banner
+     * with nothing to say so.
+     */
+    for (const name of ['apple-mobile-web-app-capable', 'mobile-web-app-capable']) {
+      await expect(page.locator(`meta[name="${name}"]`), name).toHaveAttribute('content', 'yes')
+    }
     const icon = await page.locator('link[rel="apple-touch-icon"]').getAttribute('href')
     expect(icon).toBeTruthy()
     expect((await request.get(icon!)).status()).toBe(200)
