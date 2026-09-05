@@ -25,22 +25,46 @@ nothing stored anywhere but your own browser. Works on a laptop and on a phone.
 
 ## Start here
 
-Three steps, about a minute, nothing to install.
+About a minute, nothing to install.
 
-1. **[Open the app](https://aryeborgen.github.io/pr-radar/).**
-2. **Press *Sign in with GitHub*** — you get a short code, you type it at
-   `github.com/login/device`, and that is the sign-in.
-3. **Add a repository** — type `facebook/react`, or just `facebook` to pull in
-   the whole organisation at once.
+**1. [Open the app](https://aryeborgen.github.io/pr-radar/).**
 
-That is the entire setup. Whatever you sign in with stays in your browser tab
-and is sent to nobody but GitHub. Close the tab and it is gone.
+**2. Get in, either way.** Both work; neither is a fallback.
 
-**Prefer a token?** The field is still there, on every deployment, and it needs
-nothing configured anywhere.
+<table>
+<tr>
+<td width="50%" valign="top">
+
+**Sign in with GitHub**
+
+Press the button, get a short code, type it at `github.com/login/device`.
+Nothing to create, nothing to copy.
+
+Shown wherever something can relay it — the link above, `npx pr-radar` and the
+container. A static host of your own has no relay, so it shows the token field
+alone.
+
+</td>
+<td width="50%" valign="top">
+
+**Paste a token**
+
 [Create one](https://github.com/settings/tokens/new?scopes=repo,read:org&description=PR%20Radar)
-— that link pre-fills the scopes. *(Only watching public repositories? You can
-untick every box.)*
+— that link pre-fills the scopes. Scroll down, press **Generate token**, copy it
+in.
+
+Works on **every** deployment, needs nothing configured anywhere, and involves
+no relay at all. *(Only watching public repositories? Untick every box.)*
+
+</td>
+</tr>
+</table>
+
+**3. Add a repository** — type `facebook/react`, or just `facebook` to pull in
+the whole organisation at once.
+
+That is the entire setup. Whatever you signed in with stays in your browser tab
+and is sent to nobody but GitHub. Close the tab and it is gone.
 
 ### Put it on your phone
 
