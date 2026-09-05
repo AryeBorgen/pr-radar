@@ -66,9 +66,13 @@ export default function PrRow({
    * lines for one pull request with three orphaned separators among them.
    * Grouping keeps the desktop rendering identical -- same glyphs, same order --
    * and makes the orphan unrepresentable rather than unlikely.
+   *
+   * Capped and truncated, because refusing to wrap is exactly how a run of five
+   * requested reviewers would push the page wider than the screen instead. No
+   * orphan, and no sideways scroll either.
    */
   const item = (key: string, node: ReactNode, first = false) => (
-    <span key={key} className="pr:whitespace-nowrap">
+    <span key={key} className="pr:max-w-full pr:overflow-hidden pr:text-ellipsis pr:whitespace-nowrap">
       {!first && <span aria-hidden="true">· </span>}
       {node}
     </span>

@@ -166,6 +166,88 @@ test.describe('on a phone', () => {
   })
 })
 
+/**
+ * The same phone, in Hebrew, with a title nobody would choose to write.
+ *
+ * Every measurement above was taken in English, left to right, on titles this
+ * project made up -- and the layout that passed all of them scrolled sideways
+ * on a real account, reported from an iPhone at 440px. A pull request title is
+ * somebody else's text: a branch name, a package path, a pasted URL. One token
+ * that cannot break sets the row's width, the row sets the page's, and the
+ * dashboard has to be dragged left and right to be read.
+ *
+ * Hebrew is in here because that is the direction the report came from and
+ * because nothing else in this file runs right to left, not because the defect
+ * needs it -- it does not.
+ */
+test.describe('on a phone, in Hebrew, with hostile content', () => {
+  const HOSTILE = [
+    pull({
+      number: 950,
+      title: 'Fix ThisIsOneEnormousUnbreakableIdentifierNobodyShouldHaveWritten',
+      author: 'a-very-long-service-account-name[bot]',
+      labels: [{ name: 'infrastructure-and-deployment', color: 'd4c5f9' }],
+    }),
+    pull({
+      number: 951,
+      title: 'See https://github.com/acme/web/actions/runs/33996193622/job/101387061106',
+      requestedReviewers: [VIEWER, 'octocat', 'platform-team-lead', 'someone-else'],
+    }),
+  ]
+
+  async function hebrew(page: Page) {
+    await page.setViewportSize({ width: 440, height: 956 })
+    await skipIntro(page)
+    await mockGitHub(page, { pulls: HOSTILE })
+    await page.addInitScript(() => {
+      localStorage.setItem('pr-radar.locale', 'he')
+      localStorage.setItem(
+        'pr-radar.settings.v1',
+        JSON.stringify({
+          repos: [{ owner: 'acme', name: 'web-and-platform-services-shared' }],
+          views: [],
+          refreshInterval: 0,
+        }),
+      )
+      sessionStorage.setItem('pr-radar.token.v1', JSON.stringify({ token: 'ghp_t' }))
+    })
+    await page.goto('/')
+    await expect(page.locator('li').first()).toBeVisible({ timeout: 15000 })
+  }
+
+  test('the page does not scroll sideways, whatever the titles say', async ({ page }) => {
+    await hebrew(page)
+
+    // Named, not just counted: "the page is 128px too wide" sends you looking
+    // through the whole tree, and the element that did it is one query away.
+    const report = await page.evaluate(() => {
+      const de = document.documentElement
+      const culprits: string[] = []
+      for (const el of document.querySelectorAll('*')) {
+        const r = el.getBoundingClientRect()
+        const out = r.right > de.clientWidth + 1 || r.left < -1
+        const childOut = [...el.children].some((c) => {
+          const cr = c.getBoundingClientRect()
+          return cr.right > de.clientWidth + 1 || cr.left < -1
+        })
+        if (out && !childOut) culprits.push(`${el.tagName} "${(el.textContent ?? '').trim().slice(0, 40)}"`)
+      }
+      return { overflow: de.scrollWidth - de.clientWidth, culprits: culprits.slice(0, 5) }
+    })
+
+    expect(
+      report.overflow,
+      `the page is ${report.overflow}px wider than the screen. Widest: ${report.culprits.join(' | ')}`,
+    ).toBeLessThanOrEqual(0)
+  })
+
+  test('it really is rendering right to left', async ({ page }) => {
+    await hebrew(page)
+    // Or the test above would be measuring the English layout under a Hebrew name.
+    await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
+  })
+})
+
 test.describe('on a desktop', () => {
   // The measurement said the desktop layout was fine, so this asserts the
   // change did not take anything away from it.
