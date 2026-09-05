@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useReducer, useRef } from 'react'
+import { fraction } from './progress'
 import { useQuery } from '@tanstack/react-query'
 import { fetchPullRequests, fetchViewer, type RepoFailure } from './github'
 import { useEnrichment } from './useEnrichment'
@@ -66,6 +67,14 @@ export interface PrRadarState {
   isFetching: boolean
   /** How many pull requests are still waiting for review and check state. */
   enriching: number
+  /**
+   * How far a load has got, 0 to 1, or null when there is nothing to report.
+   *
+   * Null covers both "not started" and "finished", which are the same thing to
+   * anything that draws a bar. See lib/progress.ts for why the two phases are
+   * weighted rather than halved.
+   */
+  progress: number | null
   error: Error | null
   /** Repositories whose closed list was cut off by the page size. */
   truncated: string[]
@@ -102,14 +111,32 @@ export function usePrRadar({
   // Closed PRs are part of the key: switching the Status axis refetches.
   const withClosed = needsClosed(selection)
 
+  /*
+   * How many repositories have answered, for the loading bar.
+   *
+   * A ref alongside the state: the fetch reports progress from inside a promise
+   * that outlives a render, and writing straight to state from there would
+   * queue an update per repository. The ref is the truth; the state exists to
+   * make the bar re-render, and both move together.
+   */
+  const listProgress = useRef({ done: 0, total: 0 })
+  const [, bumpProgress] = useReducer((n: number) => n + 1, 0)
+
   const query = useQuery({
     queryKey: ['pull-requests', repoIds, withClosed],
-    queryFn: () => fetchPullRequests(token, repos, withClosed),
+    queryFn: () => {
+      listProgress.current = { done: 0, total: repos.length }
+      bumpProgress()
+      return fetchPullRequests(token, repos, withClosed, (done, total) => {
+        listProgress.current = { done, total }
+        bumpProgress()
+      })
+    },
     enabled: Boolean(token) && repos.length > 0,
     refetchInterval: refreshInterval > 0 ? refreshInterval * 1000 : false,
   })
 
-  const { prs, pending } = useEnrichment(token, query.data?.pullRequests)
+  const { prs, pending, total: enrichTotal } = useEnrichment(token, query.data?.pullRequests)
   const viewer = viewerQuery.data ?? ''
 
   const now = useMemo(() => Date.now(), [query.dataUpdatedAt])
@@ -206,6 +233,12 @@ export function usePrRadar({
     isPending: query.isPending,
     isFetching: query.isFetching,
     enriching: pending,
+    progress: fraction({
+      reposDone: listProgress.current.done,
+      reposTotal: listProgress.current.total,
+      enrichedDone: enrichTotal - pending,
+      enrichedTotal: enrichTotal,
+    }),
     error: query.error instanceof Error ? query.error : null,
     truncated: query.data?.truncated ?? [],
     failures: query.data?.errors ?? [],

@@ -29,10 +29,19 @@ const EMPTY: PullRequest[] = []
 export function useEnrichment(
   token: string,
   prs: PullRequest[] = EMPTY,
-): { prs: PullRequest[]; pending: number } {
+): { prs: PullRequest[]; pending: number; total: number } {
   const cache = useRef(new Map<string, Enrichment>())
   const inFlight = useRef(new Set<string>())
-  const [pending, setPending] = useState(0)
+  /*
+   * The run, as one value.
+   *
+   * `pending` alone cannot drive a progress bar: it counts what is *left*, and
+   * a bar needs that out of a total. Held together rather than as two pieces of
+   * state so the two can never disagree -- and so a poll that queues five more
+   * mid-run widens the denominator in the same update that raises the
+   * numerator, instead of the bar jumping backwards between two renders.
+   */
+  const [run, setRun] = useState({ pending: 0, total: 0 })
   const [, render] = useReducer((n: number) => n + 1, 0)
 
   useEffect(() => {
@@ -49,7 +58,12 @@ export function useEnrichment(
     if (todo.length === 0) return
 
     for (const pr of todo) inFlight.current.add(enrichmentKey(pr))
-    setPending((count) => count + todo.length)
+    // A run that had finished starts a new total; one still going widens.
+    setRun((was) =>
+      was.pending === 0
+        ? { pending: todo.length, total: todo.length }
+        : { pending: was.pending + todo.length, total: was.total + todo.length },
+    )
 
     let cancelled = false
     const queue = [...todo]
@@ -72,7 +86,7 @@ export function useEnrichment(
           })
         }
         inFlight.current.delete(key)
-        setPending((count) => count - 1)
+        setRun((was) => ({ ...was, pending: Math.max(0, was.pending - 1) }))
         if (++sinceRender >= RENDER_EVERY || queue.length === 0) {
           sinceRender = 0
           if (!cancelled) render()
@@ -86,7 +100,7 @@ export function useEnrichment(
       cancelled = true
       // Anything still queued was never started, so release it for a later run.
       for (const pr of queue) inFlight.current.delete(enrichmentKey(pr))
-      setPending((count) => Math.max(0, count - queue.length))
+      setRun((was) => ({ ...was, pending: Math.max(0, was.pending - queue.length) }))
     }
   }, [prs, token])
 
@@ -95,5 +109,5 @@ export function useEnrichment(
     return enrichment ? { ...pr, ...enrichment } : pr
   })
 
-  return { prs: merged, pending }
+  return { prs: merged, pending: run.pending, total: run.total }
 }
