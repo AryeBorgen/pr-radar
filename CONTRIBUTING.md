@@ -35,6 +35,7 @@ Two more suites run in CI and are worth running by hand when you touch what they
 cover:
 
 ```bash
+scripts/check-tree.sh                         # nothing generated is tracked
 scripts/cli-smoke.sh                          # packs, installs and probes the npm package
 scripts/lint-workflows.sh                     # the security rules the workflows must follow
 docker build -t pr-radar:x . && docker/smoke.sh pr-radar:x
@@ -69,6 +70,12 @@ distinguishes a negative test from a comment.
 
 `tests/render.d.ts.snapshot` is the public declaration, checked in whole, so a
 change to the API arrives as a diff a reviewer can read.
+
+`check-tree.sh` exists because an ignore rule is not a check. `worker/.wrangler`
+was added to `.gitignore` in the same pull request that first ran `wrangler dev`
+-- and the squash was composed before that fix, so the ignore rule shipped and
+nineteen miniflare sqlite files shipped alongside it. They then blocked a
+checkout, which is how they were noticed.
 
 ## What the tests are for
 

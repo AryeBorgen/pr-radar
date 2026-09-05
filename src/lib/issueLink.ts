@@ -11,7 +11,25 @@
  */
 
 /** Paths that describe how the project is built rather than what it does. */
-const EXEMPT = [/^\.github\//, /\.md$/, /^media\//, /^docs\//, /^LICENSE$/]
+const EXEMPT = [
+  /^\.github\//,
+  /\.md$/,
+  /^media\//,
+  /^docs\//,
+  /^LICENSE$/,
+  // Repository tooling. A shell script that runs in CI is not code that reaches
+  // a user, and neither is the file that says what git should ignore. Added
+  // after a pull request that only untracked some generated files and added a
+  // check for them was asked to justify itself with an issue.
+  /^scripts\//,
+  /^\.gitignore$/,
+  /^\.gitattributes$/,
+  /^\.editorconfig$/,
+  // Anything under a path the tree check forbids is, by definition, generated:
+  // it should never have been tracked, so removing it reaches nobody.
+  /^worker\/\.wrangler\//,
+  /^dist(-lib)?\//,
+]
 
 /** package.json plus its lockfile and nothing else: the shape of a release. */
 const RELEASE_FILES = ['package.json', 'package-lock.json']

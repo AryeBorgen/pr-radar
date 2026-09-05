@@ -26,6 +26,9 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      # Before anything is built, so a generated file that reached a commit is
+      # reported as itself rather than as a diff in someone's next checkout.
+      - run: scripts/check-tree.sh
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
