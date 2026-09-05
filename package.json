@@ -1,7 +1,7 @@
 {
   "name": "pr-radar",
   "private": false,
-  "version": "0.4.0",
+  "version": "0.5.0",
   "type": "module",
   "description": "Every open pull request across all your repositories, on one screen. Static, backend-free, bring your own repos.",
   "license": "MIT",

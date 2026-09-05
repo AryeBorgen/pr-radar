@@ -205,6 +205,17 @@ guessing from a class name.
 never take a dependency on how this project models a pull request, which is what
 lets that keep changing.
 
+## Knowing it is working
+
+A first load is around three hundred requests: one per repository, then two per
+open pull request for review and check state. A two-pixel line crosses the top
+while that is happening, and it is driven by those counts rather than by a
+timer — no extra request is made to feed it.
+
+It does not appear for a background refresh that finds nothing, because a bar
+that flashes every two minutes carries no information, and it moves nothing else
+on the page.
+
 ## Reading it in your own language
 
 English and Hebrew, chosen from your browser and changeable from the header. The
