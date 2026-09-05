@@ -13,6 +13,7 @@ import FilterMenus from './FilterMenus'
 import SavedViews from './SavedViews'
 import FilterBar from './FilterBar'
 import PrRow from './PrRow'
+import LoadingBar from './LoadingBar'
 
 /**
  * The dashboard itself: the filters, the messages and the list.
@@ -53,6 +54,7 @@ export default function Radar({ radar, views, onViewsChange, actions }: RadarPro
     // re-lay-out an application nobody asked us to touch. Standalone, the
     // provider sets <html dir> as well and this agrees with it.
     <div dir={dir} className="pr:contents">
+      <LoadingBar progress={radar.progress} />
       <FacetBar
         prs={radar.pullRequests}
         selection={radar.selection}

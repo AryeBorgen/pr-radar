@@ -299,14 +299,22 @@ export interface FetchResult {
  */
 const MAX_CONCURRENT_REQUESTS = 6
 
-/** Run `task` over `items`, at most `limit` at a time, preserving input order. */
+/**
+ * Run `task` over `items`, at most `limit` at a time, preserving input order.
+ *
+ * `onDone` is called after each item, with how many have finished. It is what
+ * lets the loading bar report a real count rather than an animation: the number
+ * of repositories that have actually answered.
+ */
 async function mapLimit<T, R>(
   items: T[],
   limit: number,
   task: (item: T) => Promise<R>,
+  onDone?: (done: number, total: number) => void,
 ): Promise<R[]> {
   const results: R[] = new Array(items.length)
   let next = 0
+  let done = 0
 
   async function worker(): Promise<void> {
     while (next < items.length) {
@@ -315,6 +323,8 @@ async function mapLimit<T, R>(
       // The loop bound guarantees this; the check is what says so to the compiler.
       if (item === undefined) continue
       results[index] = await task(item)
+      done += 1
+      onDone?.(done, items.length)
     }
   }
 
@@ -351,6 +361,8 @@ export async function fetchPullRequests(
   token: string,
   repos: RepoRef[],
   includeClosed = false,
+  /** Called as each repository answers, so the page can say how far along it is. */
+  onProgress?: (done: number, total: number) => void,
 ): Promise<FetchResult> {
   if (repos.length === 0) return { pullRequests: [], errors: [], truncated: [] }
 
@@ -380,7 +392,7 @@ export async function fetchPullRequests(
       const values = (cause as { values?: Readonly<Record<string, string | number>> })?.values
       return { error: { repo: slug, message, ...(values ? { values } : {}) } }
     }
-  })
+  }, onProgress)
 
   return {
     pullRequests: outcomes.flatMap((outcome) => outcome.pulls ?? []),

@@ -229,4 +229,5 @@ export const he: Catalogue<Messages, 'he'> = {
   'row.assigned': 'אחראי: {who}',
   'notify.allowInBrowser': 'אפשרו התראות לאתר הזה בהגדרות הדפדפן כדי להפעיל אותן.',
   'notify.tabOnly': 'הן מגיעות כל עוד הלשונית פתוחה. אין כאן שרת שידחוף אליכם כשהיא סגורה.',
+  'loading.label': 'טוענים בקשות משיכה',
 }
