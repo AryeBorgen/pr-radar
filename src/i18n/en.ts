@@ -217,6 +217,9 @@ export const en = {
   'action.merged': 'Merged {pr}.',
   'action.closed': 'Closed {pr}.',
   'action.reopened': 'Reopened {pr}.',
+  'row.assigned': 'Assigned: {who}',
+  'notify.allowInBrowser': 'Allow notifications for this site in your browser settings to turn them on.',
+  'notify.tabOnly': 'They arrive while this tab is open. There is no server here to push to you when it is closed.',
 } as const
 
 export type MessageKey = keyof typeof en

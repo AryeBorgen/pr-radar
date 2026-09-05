@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useSlots } from './slots'
 import { useT } from '../i18n/useLocale'
 import { NOTIFY_RULES } from '../lib/notifications'
 import { permissionOf } from '../lib/useNotifications'
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export default function NotifyMenu({ enabled, onChange }: Props) {
+  const { Button } = useSlots()
   const t = useT()
   const [open, setOpen] = useState(false)
   const [permission, setPermission] = useState(permissionOf)
@@ -79,18 +81,13 @@ export default function NotifyMenu({ enabled, onChange }: Props) {
             </p>
           ) : (
             <>
-              <button
-                type="button"
-                onClick={ask}
-                disabled={permission === 'denied'}
-                className="pr:mt-3 pr:w-full pr:rounded-md pr:bg-emerald-600 pr:px-3 pr:py-1.5 pr:text-sm pr:font-medium pr:text-white pr:hover:bg-emerald-700 pr:disabled:opacity-50"
-              >
-                {permission === 'denied' ? t('notify.blocked') : t('notify.enable')}
-              </button>
+              <div className="pr:mt-3 pr:[&>button]:w-full">
+                <Button variant="primary" onClick={ask} disabled={permission === 'denied'}>
+                  {permission === 'denied' ? t('notify.blocked') : t('notify.enable')}
+                </Button>
+              </div>
               <p className="pr:mt-2 pr:text-xs pr:text-neutral-500 pr:dark:text-neutral-400">
-                {permission === 'denied'
-                  ? 'Allow notifications for this site in your browser settings to turn them on.'
-                  : 'They arrive while this tab is open. There is no server here to push to you when it is closed.'}
+                {permission === 'denied' ? t('notify.allowInBrowser') : t('notify.tabOnly')}
               </p>
             </>
           )}

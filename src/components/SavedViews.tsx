@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSlots } from './slots'
 import { useT } from '../i18n/useLocale'
 import type { SavedView } from '../types'
 
@@ -17,6 +18,7 @@ interface Props {
  * from, so applying one is the same operation as typing it.
  */
 export default function SavedViews({ views, counts, onApply, onChange, draftQuery }: Props) {
+  const { Button, Input } = useSlots()
   const t = useT()
   const [naming, setNaming] = useState(false)
   const [name, setName] = useState('')
@@ -62,18 +64,19 @@ export default function SavedViews({ views, counts, onApply, onChange, draftQuer
 
       {naming ? (
         <form onSubmit={save} className="pr:flex pr:items-center pr:gap-1">
-          <input
-            autoFocus
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            onBlur={() => !name.trim() && setNaming(false)}
-            placeholder={t('views.namePlaceholder')}
-            aria-label={t('views.nameLabel')}
-            className="pr:w-36 pr:rounded-full pr:border pr:border-neutral-300 pr:bg-white pr:px-3 pr:py-1 pr:text-sm pr:dark:border-neutral-700 pr:dark:bg-neutral-900 pr:dark:text-neutral-100"
-          />
-          <button type="submit" className="pr:text-sm pr:text-blue-600 pr:dark:text-blue-400">
-            {t('action.save')}
-          </button>
+            <div className="pr:w-36">
+              <Input
+                autoFocus
+                value={name}
+                onChange={setName}
+                onBlur={() => !name.trim() && setNaming(false)}
+                placeholder={t('views.namePlaceholder')}
+                aria-label={t('views.nameLabel')}
+              />
+            </div>
+            <Button variant="quiet" type="submit">
+              {t('action.save')}
+            </Button>
         </form>
       ) : (
         <button

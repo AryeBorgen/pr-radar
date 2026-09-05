@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useSlots } from './components/slots'
 import { usePrRadar } from './lib/usePrRadar'
 import { usePrActions } from './lib/usePrActions'
 import {
@@ -28,6 +29,7 @@ import { useT } from './i18n/useLocale'
  * mounts that alone.
  */
 export default function App() {
+  const { Button } = useSlots()
   const t = useT()
   const [token, setToken] = useState(loadToken)
   const [seenIntro, setSeenIntro] = useState(introSeen)
@@ -83,22 +85,14 @@ export default function App() {
           {radar.viewer && ` · ${radar.viewer}`}
         </span>
         <div className="pr:ms-auto pr:flex pr:items-center pr:gap-2">
-          <button
-            type="button"
-            onClick={() => setShowRepos((open) => !open)}
-            className="pr:rounded-md pr:border pr:border-neutral-300 pr:px-2.5 pr:py-1 pr:text-sm pr:hover:bg-neutral-100 pr:dark:border-neutral-700 pr:dark:hover:bg-neutral-800"
-          >
+          <Button variant="default" onClick={() => setShowRepos((open) => !open)}>
             {showRepos ? t('header.done') : t('header.manageRepositories')}
-          </button>
+          </Button>
           <NotifyMenu enabled={notify} onChange={setNotify} />
           <LanguageMenu />
-          <button
-            type="button"
-            onClick={() => setToken('')}
-            className="pr:text-sm pr:text-neutral-500 pr:hover:text-neutral-900 pr:dark:hover:text-neutral-100"
-          >
+          <Button variant="quiet" onClick={() => setToken('')}>
             {t('header.signOut')}
-          </button>
+          </Button>
         </div>
       </header>
 

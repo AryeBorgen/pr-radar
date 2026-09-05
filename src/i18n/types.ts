@@ -14,8 +14,13 @@
  * complete -- is not something a library does at all.
  */
 
-/** Locales this app ships. Adding one is a compile error until it is complete. */
-export type Locale = 'en' | 'he'
+/**
+ * Locales this app ships. Adding one is a compile error until it is complete.
+ * Defined in public.ts because the library exposes it; re-exported here so
+ * every internal import keeps working.
+ */
+export type { Locale } from '../public'
+import type { Locale } from '../public'
 
 /**
  * The plural categories each locale actually uses, per CLDR.

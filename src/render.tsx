@@ -4,14 +4,53 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { usePrRadar } from './lib/usePrRadar'
 import Radar from './components/Radar'
 import { LocaleProvider } from './i18n/useLocale'
+import {
+  SlotProvider,
+  type AvatarProps,
+  type ButtonProps,
+  type ButtonVariant,
+  type ChipProps,
+  type ChipTone,
+  type InputProps,
+  type LinkProps,
+  type LinkVariant,
+  type RadarComponents,
+  type RowProps,
+  // zsh: command not found: .js, like every other relative import here: a consumer on
+  // moduleResolution nodenext cannot resolve an extensionless one in a .d.ts,
+  // and tsc emits the specifier exactly as written. Caught by test:package,
+  // which is the second time -- the first cost a release.
+} from './components/slots.js'
 // `.js`, not `./types`, and deliberately: a consumer on `moduleResolution:
 // nodenext` cannot resolve an extensionless relative import in a `.d.ts`, and
 // tsc emits the specifier exactly as written. Type-only, so nothing reaches the
 // bundle. Pinned by tests/surface.spec.ts.
-import type { RepoRef } from './types.js'
-import type { Locale } from './i18n/types.js'
+import type { Locale, RepoRef } from './public.js'
 
-export type { RepoRef, Locale }
+/*
+ * The prop types are exported, not only `RadarComponents`.
+ *
+ * A host can write `{ Button: ({ children }) => … }` on inference alone, but a
+ * named component -- `function MyButton(props: ButtonProps)` -- needs the name.
+ * A library whose types cannot be named is awkward to build against.
+ *
+ * Each of these is primitives and `ReactNode` and nothing else, so exporting
+ * them freezes only the vocabulary of a design, never a data shape.
+ */
+export type {
+  RepoRef,
+  Locale,
+  RadarComponents,
+  ButtonProps,
+  ButtonVariant,
+  ChipProps,
+  ChipTone,
+  AvatarProps,
+  LinkProps,
+  LinkVariant,
+  InputProps,
+  RowProps,
+}
 
 export interface RadarOptions {
   /** A GitHub token. It is used and never stored: see the note in `renderRadar`. */
@@ -25,6 +64,17 @@ export interface RadarOptions {
    * around it is written in, and Hebrew brings right-to-left with it.
    */
   locale?: Locale
+  /**
+   * Your components, so the radar looks like the application it is in rather
+   * than like this one.
+   *
+   * Partial: anything left out keeps the radar's own, so replacing a button
+   * does not make you responsible for a row. Every prop is a primitive or a
+   * `ReactNode` -- a slot never receives a pull request, because publishing
+   * that type would freeze the one thing the architecture rests on being free
+   * to change.
+   */
+  components?: RadarComponents
 }
 
 export interface RadarHandle {
@@ -83,9 +133,11 @@ export function renderRadar(element: Element, options: RadarOptions): RadarHandl
          * either, for the same reason nothing else here is.
          */}
         <LocaleProvider applyToDocument={false} {...(current.locale === undefined ? {} : { initial: current.locale })}>
-          <QueryClientProvider client={client}>
-            <Mounted options={current} />
-          </QueryClientProvider>
+          <SlotProvider components={current.components}>
+            <QueryClientProvider client={client}>
+              <Mounted options={current} />
+            </QueryClientProvider>
+          </SlotProvider>
         </LocaleProvider>
       </StrictMode>,
     )

@@ -142,3 +142,134 @@ test.describe('embedded in a page that is not React', () => {
     await expect(p.getByText('Add a keyboard shortcut for the filter box')).toBeVisible()
   })
 })
+
+test.describe('wearing the host\'s design', () => {
+  // Its own, because this block sits outside the one above and inherited none
+  // of its routes -- which is why every test here failed on a page that never
+  // loaded the library at all.
+  test.beforeEach(async ({ page: p }) => {
+    await mockGitHub(p)
+    await p.route('**/render.js', (route) =>
+      route.fulfill({ path: `${LIB}/render.js`, contentType: 'text/javascript' }),
+    )
+    await p.route('**/style.css', (route) =>
+      route.fulfill({ path: `${LIB}/pr-radar.css`, contentType: 'text/css' }),
+    )
+  })
+
+  /*
+   * The feature is only real if a host's component actually renders. These
+   * mount the radar with replacements and look for them on the page, rather
+   * than for the option having been accepted.
+   */
+  const withComponents = (body: string) => `
+    import { renderRadar } from '/render.js'
+    import { createElement as h } from 'react'
+    ${body}
+  `
+
+  test('a replaced button is the one that renders', async ({ page: p }) => {
+    await serve(
+      p,
+      page(
+        withComponents(`
+          const Button = ({ children, onClick, variant }) =>
+            h('button', { onClick, 'data-host-button': variant, className: 'host-btn' }, children)
+          renderRadar(document.getElementById('radar'), {
+            token: 'ghp_test',
+            repos: [{ owner: 'acme', name: 'web' }],
+            components: { Button },
+          })
+        `),
+      ),
+    )
+
+    await expect(p.locator('[data-host-button]').first()).toBeVisible()
+    // And the radar's own is gone from the places it was used.
+    expect(await p.locator('.host-btn').count()).toBeGreaterThan(0)
+  })
+
+  test('a replaced row arranges the parts the radar hands it', async ({ page: p }) => {
+    await serve(
+      p,
+      page(
+        withComponents(`
+          const Row = ({ title, meta, badges, state, draft }) =>
+            h('article', { 'data-host-row': state, 'data-draft': String(draft) }, [
+              h('h3', { key: 't' }, title),
+              h('div', { key: 'b' }, badges),
+              h('footer', { key: 'm' }, meta),
+            ])
+          renderRadar(document.getElementById('radar'), {
+            token: 'ghp_test',
+            repos: [{ owner: 'acme', name: 'web' }],
+            components: { Row },
+          })
+        `),
+      ),
+    )
+
+    const rows = p.locator('[data-host-row]')
+    await expect(rows.first()).toBeVisible()
+    // The pieces arrive rendered, and the row's own facts arrive as strings.
+    await expect(rows.first().locator('h3')).toContainText('Add a keyboard shortcut')
+    await expect(rows.first()).toHaveAttribute('data-host-row', 'open')
+    await expect(p.locator('[data-draft="true"]')).toHaveCount(1)
+  })
+
+  // Partial on purpose: replacing a button must not make a host responsible for
+  // a row as well.
+  test('what is not replaced keeps the radar\'s own', async ({ page: p }) => {
+    await serve(
+      p,
+      page(
+        withComponents(`
+          const Button = ({ children, onClick }) => h('button', { onClick, id: 'only-button' }, children)
+          renderRadar(document.getElementById('radar'), {
+            token: 'ghp_test',
+            repos: [{ owner: 'acme', name: 'web' }],
+            components: { Button },
+          })
+        `),
+      ),
+    )
+
+    await expect(p.locator('#only-button').first()).toBeVisible()
+    // The radar's own list rows are still there.
+    await expect(p.locator('li').first()).toBeVisible()
+  })
+
+  test('no pull request reaches a host component', async ({ page: p }) => {
+    await serve(
+      p,
+      page(
+        withComponents(`
+          window.seen = []
+          const Row = (props) => {
+            window.seen.push(Object.keys(props).sort().join(','))
+            // With content: an empty element has no height, and Playwright
+            // correctly reports a zero-height element as hidden.
+            return h('div', { 'data-row': true }, props.title)
+          }
+          renderRadar(document.getElementById('radar'), {
+            token: 'ghp_test',
+            repos: [{ owner: 'acme', name: 'web' }],
+            components: { Row },
+          })
+        `),
+      ),
+    )
+
+    await expect(p.locator('[data-row]').first()).toBeVisible()
+    const keys = await p.evaluate(() => (window as unknown as { seen: string[] }).seen[0])
+
+    /*
+     * The discipline the whole surface rests on. A slot that received the pull
+     * request would publish `PullRequest`, and that is the type the
+     * architecture depends on being free to change -- it is what changed when
+     * the data layer moved from GraphQL to REST in one module.
+     */
+    expect(keys).toBe('actions,badges,draft,icon,meta,state,title,trailing')
+  })
+})
+
