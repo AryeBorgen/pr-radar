@@ -17,6 +17,8 @@ nothing stored anywhere but your own browser. Works on a laptop and on a phone.
 [![npm](https://img.shields.io/npm/v/pr-radar.svg)](https://www.npmjs.com/package/pr-radar)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
+[What changed between versions](CHANGELOG.md)
+
 </div>
 
 ---
