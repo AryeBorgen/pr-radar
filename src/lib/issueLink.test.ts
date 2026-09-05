@@ -207,3 +207,33 @@ describe('verdict', () => {
     expect(why(null)).toMatch(/does not exist/i)
   })
 })
+
+describe('repository tooling needs no issue', () => {
+  const pr = (files: string[]) => ({ author: 'someone', files, labels: [] })
+
+  // A shell script that runs in CI is not code that reaches a user. This was
+  // missing, and a pull request that only untracked generated files and added a
+  // check for them was asked to justify itself with an issue.
+  it('exempts a change to scripts and the gitignore', () => {
+    expect(
+      exemption(pr(['scripts/check-tree.sh', '.gitignore', '.github/workflows/ci.yml'])),
+    ).toBeDefined()
+  })
+
+  // Removing something that should never have been tracked reaches nobody.
+  it('exempts untracking generated files', () => {
+    expect(exemption(pr(['worker/.wrangler/state/v3/cache/metadata.sqlite']))).toBeDefined()
+  })
+
+  // The exemption is still "only", not "mostly". Tooling plus a real change is
+  // a real change.
+  it('does not exempt a script change that also touches the app', () => {
+    expect(exemption(pr(['scripts/check-tree.sh', 'src/lib/filter.ts']))).toBeUndefined()
+  })
+
+  // worker/relay.js is the relay itself: source, and very much reaching users.
+  it('does not exempt the worker\'s own source', () => {
+    expect(exemption(pr(['worker/relay.js']))).toBeUndefined()
+  })
+})
+
