@@ -237,6 +237,9 @@ export const he: Catalogue<Messages, 'he'> = {
   'notify.allowInBrowser': 'אפשרו התראות לאתר הזה בהגדרות הדפדפן כדי להפעיל אותן.',
   'notify.tabOnly': 'הן מגיעות כל עוד הלשונית פתוחה. אין כאן שרת שידחוף אליכם כשהיא סגורה.',
   'loading.label': 'טוענים בקשות משיכה',
+  'signIn.copyAndGo': 'העתקת הקוד והמשך ל-GitHub',
+  'signIn.copied': 'הועתק. אשרו בלשונית שנפתחה.',
+  'signIn.copyFailed': 'לא הצלחנו להעתיק — הקלידו את הקוד שלמעלה בלשונית שנפתחה.',
   'facet.filters': 'סינון',
   'facet.noneActive': 'כל מה שפתוח',
 }

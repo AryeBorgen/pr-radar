@@ -227,6 +227,9 @@ export const en = {
   'notify.allowInBrowser': 'Allow notifications for this site in your browser settings to turn them on.',
   'notify.tabOnly': 'They arrive while this tab is open. There is no server here to push to you when it is closed.',
   'loading.label': 'Loading pull requests',
+  'signIn.copyAndGo': 'Copy code and continue to GitHub',
+  'signIn.copied': 'Copied. Approve it in the tab that opened.',
+  'signIn.copyFailed': 'Could not copy it — type the code above into the tab that opened.',
   'facet.filters': 'Filters',
   'facet.noneActive': 'Everything open',
 } as const

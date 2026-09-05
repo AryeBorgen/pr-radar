@@ -179,6 +179,23 @@ need a backend*.
    takes the route gets a connection refused from something that is not the
    machine it meant.
 
+## Hard-won facts about the browser
+
+1. **Start the clipboard write, then open the tab, and await neither.** Measured
+   in a real browser rather than reasoned about: opening first and copying after
+   gives `copy=ok, opened=true`; awaiting the copy and opening after gives
+   `copy=ok, opened=false` -- `window.open` returns `null`, because the gesture
+   that permitted the popup belonged to the task the click started and the
+   continuation after an `await` is a different one. `lib/clipboard.ts` does the
+   first, and `clipboard.test.ts` asserts the tab opens before the copy settles.
+2. **The clipboard fails in more ways than it throws for.** An insecure origin,
+   a denied permission, a browser without the API. A button that reported
+   success anyway leaves the person pasting whatever they had copied before, so
+   the code stays on screen and the failure is said out loud.
+3. **`github.com/login/device` redirects to `/login?return_to=…`** for a browser
+   that is not signed in, which is every test run. Assert that the tab reached
+   GitHub's sign-in, not that it stayed on the URL you handed it.
+
 ## Hard-won facts about translation
 
 1. **`Intl` output is ICU-version-dependent; assert the property, not the
