@@ -19,3 +19,7 @@ compatibility_date = "2026-09-01"
 
 [vars]
 PR_RADAR_ORIGINS = "https://aryeborgen.github.io"
+# Public by design. The device flow authenticates with the id alone -- that is
+# why a page can use it -- so this is configuration, not a secret, and putting
+# it here rather than in `wrangler secret` says so.
+PR_RADAR_CLIENT_ID = "Ov23liAUn76rOl2XkbB2"

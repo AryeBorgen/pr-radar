@@ -39,6 +39,20 @@ function siteUrl() {
 export default defineConfig({
   base: process.env.PR_RADAR_BASE ?? '/',
   plugins: [react(), tailwindcss(), siteUrl()],
+  /*
+   * One variable drives both halves, because getting one without the other is
+   * silent in both directions.
+   *
+   * Vite exposes only `VITE_`-prefixed variables to `import.meta.env`, so
+   * setting PR_RADAR_RELAY alone widened the Content-Security-Policy -- which
+   * the plugin above reads from `process.env` directly -- while leaving the
+   * client asking its own origin. The page then allowed a request it never
+   * made. Defining it here means the deployment sets one name and cannot get
+   * half of it.
+   */
+  define: {
+    'import.meta.env.VITE_PR_RADAR_RELAY': JSON.stringify(RELAY),
+  },
   build: {
     rollupOptions: {
       output: {
