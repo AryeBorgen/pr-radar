@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { mockGitHub, pull, VIEWER } from './fixtures/github'
+import { mockGitHub, pull, skipIntro, VIEWER } from './fixtures/github'
 
 /**
  * The dashboard on a phone.
@@ -36,12 +36,12 @@ const PULLS = [
 async function dashboard(page: Page, size: { width: number; height: number }) {
   await page.setViewportSize(size)
   await mockGitHub(page, { pulls: PULLS })
+  await skipIntro(page)
   await page.addInitScript(() => {
     localStorage.setItem(
       'pr-radar.settings.v1',
       JSON.stringify({ repos: [{ owner: 'acme', name: 'web' }], views: [], refreshInterval: 0 }),
     )
-    localStorage.setItem('pr-radar.intro.v1', 'seen')
     sessionStorage.setItem('pr-radar.token.v1', JSON.stringify({ token: 'ghp_t' }))
   })
   await page.goto('/')

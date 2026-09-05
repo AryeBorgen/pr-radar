@@ -31,6 +31,30 @@ describe('the test suite itself', () => {
       ).toBe(true)
     }
   })
+
+  /*
+   * Set-up that quietly does nothing.
+   *
+   * Four browser specs put the introduction past themselves by writing
+   * `pr-radar.intro.v1 = 'seen'`. The flag is read as `=== 'yes'`, so every one
+   * of those lines was inert -- and none of them failed, because each spec also
+   * installs a token and a token skips the introduction on its own. A line that
+   * looks load-bearing and is not survives until somebody removes the line that
+   * actually was, and then the failure makes no sense.
+   *
+   * There is a `skipIntro` helper holding the real value. This says to use it.
+   */
+  it('no spec writes the intro flag by hand', () => {
+    const offenders = walk('tests')
+      .filter((p) => /\.spec\.tsx?$/.test(p))
+      .filter((p) => readFileSync(p, 'utf8').includes('pr-radar.intro.v1'))
+
+    expect(
+      offenders,
+      'these set the intro flag themselves instead of calling skipIntro():\n  ' +
+        offenders.join('\n  '),
+    ).toEqual([])
+  })
 })
 
 /**
