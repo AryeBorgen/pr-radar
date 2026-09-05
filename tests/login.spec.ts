@@ -174,3 +174,90 @@ test.describe('signing in with a GitHub account', () => {
     expect(polls, 'polling continued after the flow was abandoned').toBe(after)
   })
 })
+
+test.describe('copying the code', () => {
+  /*
+   * Two steps became one. Copying the code and then finding the link is a thing
+   * people do out of order, or half of -- and on a phone, switching apps to
+   * paste it is where a sign-in gets abandoned.
+   */
+  const start = async (page: Page) => {
+    await mockGitHub(page)
+    await relay(page)
+    await page.goto('/')
+    await page.getByRole('button', { name: 'Continue to the radar' }).click()
+    await page.getByRole('button', { name: 'Sign in with GitHub' }).click()
+    await expect(page.getByTestId('user-code')).toBeVisible()
+  }
+
+  test('one press copies the code and opens GitHub', async ({ page, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+    await start(page)
+
+    const opened = context.waitForEvent('page')
+    await page.getByRole('button', { name: 'Copy code and continue to GitHub' }).click()
+
+    /*
+     * A new tab reports about:blank until it navigates, so the URL is waited
+     * for. And `/login/device` redirects to `/login?return_to=…` for a browser
+     * that is not signed in, which is most of them and every test run -- so
+     * what is asserted is that the tab went to GitHub's sign-in, not that it
+     * stayed on the URL we handed it.
+     */
+    const tab = await opened
+    await tab.waitForURL(/github\.com\/login/, { timeout: 15000 })
+    await expect(page.getByRole('status')).toContainText('Copied')
+
+    const clipboard = await page.evaluate(() => navigator.clipboard.readText())
+    expect(clipboard).toBe('WDJB-MJHT')
+  })
+
+  /*
+   * The ordering the helper exists for: `window.open` after an `await` is a
+   * popup the browser may block, because the gesture belongs to the task the
+   * click started. Checked here by making the copy hang -- the tab must still
+   * open.
+   */
+  test('opens the tab even while the copy is still going', async ({ page, context }) => {
+    await start(page)
+    await page.evaluate(() => {
+      Object.defineProperty(navigator, 'clipboard', {
+        value: { writeText: () => new Promise(() => {}) },
+        configurable: true,
+      })
+    })
+
+    const opened = context.waitForEvent('page')
+    await page.getByRole('button', { name: 'Copy code and continue to GitHub' }).click()
+
+    const tab = await opened
+    await tab.waitForURL(/github\.com\/login/, { timeout: 15000 })
+  })
+
+  // A refused clipboard leaves whatever was copied before in place. Saying
+  // "copied" then would send someone to paste the wrong thing entirely.
+  test('says so when the clipboard refuses, and keeps the code on screen', async ({ page }) => {
+    await start(page)
+    await page.evaluate(() => {
+      Object.defineProperty(navigator, 'clipboard', {
+        value: { writeText: () => Promise.reject(new Error('NotAllowedError')) },
+        configurable: true,
+      })
+    })
+
+    await page.getByRole('button', { name: 'Copy code and continue to GitHub' }).click()
+
+    await expect(page.getByRole('status')).toContainText('Could not copy')
+    await expect(page.getByTestId('user-code')).toHaveText('WDJB-MJHT')
+  })
+
+  // Someone signing in on a second device reads the code across rather than
+  // pasting it. It must not go away because a button now exists.
+  test('the code stays readable, for a sign-in on another device', async ({ page }) => {
+    await start(page)
+
+    await expect(page.getByTestId('user-code')).toHaveText('WDJB-MJHT')
+    await expect(page.getByRole('link', { name: 'github.com/login/device' })).toBeVisible()
+  })
+})
+

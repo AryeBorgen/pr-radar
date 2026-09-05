@@ -1,4 +1,6 @@
 import { useDeviceLogin } from '../lib/useDeviceLogin'
+import { useState } from 'react'
+import { copyAndOpen, type CopyResult } from '../lib/clipboard'
 import { useSlots } from './slots'
 import type { AuthFailure, Credential } from '../lib/deviceAuth'
 import { useT } from '../i18n/useLocale'
@@ -29,9 +31,18 @@ const MESSAGES: Record<AuthFailure, MessageKey> = {
 }
 
 export default function SignIn({ onToken }: { onToken: (credential: Credential) => void }) {
+  /** What the last copy did, or null before one has been tried. */
+  const [copied, setCopied] = useState<CopyResult | null>(null)
   const { Button, Link } = useSlots()
   const t = useT()
   const { state, start, cancel } = useDeviceLogin(onToken)
+
+  const copyAndGo = () => {
+    if (state.status !== 'waiting') return
+    // Not awaited before the tab opens -- see copyAndOpen for why that ordering
+    // is the whole point.
+    void copyAndOpen(state.code.userCode, state.code.verificationUri).then(setCopied)
+  }
 
   if (state.status === 'waiting') {
     return (
@@ -50,10 +61,33 @@ export default function SignIn({ onToken }: { onToken: (credential: Credential) 
         >
           {state.code.userCode}
         </p>
-        <p className="pr:mt-3 pr:text-sm pr:text-neutral-500 pr:dark:text-neutral-500">
-          {t('signIn.waiting')}
+        {/*
+          One press instead of two. Copying the code and then finding the link
+          is a step people do out of order, or half of -- and on a phone,
+          switching apps to paste it is where a sign-in gets abandoned.
+
+          The code stays on screen above: the clipboard is refused often enough
+          (an insecure origin, a denied permission, a browser that never had it)
+          that a button which pretended otherwise would leave someone pasting
+          whatever they had copied before.
+        */}
+        <div className="pr:mt-4 pr:[&>button]:w-full">
+          <Button variant="primary" onClick={copyAndGo}>
+            {t('signIn.copyAndGo')}
+          </Button>
+        </div>
+
+        <p
+          role="status"
+          className="pr:mt-3 pr:text-sm pr:text-neutral-500 pr:dark:text-neutral-500"
+        >
+          {copied === 'copied'
+            ? t('signIn.copied')
+            : copied === 'failed'
+              ? t('signIn.copyFailed')
+              : t('signIn.waiting')}
         </p>
-        <div className="pr:mt-3">
+        <div className="pr:mt-2">
           <Button variant="quiet" onClick={cancel}>
             {t('signIn.cancel')}
           </Button>
