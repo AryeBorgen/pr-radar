@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { mockGitHub } from './fixtures/github'
+import { mockGitHub, pull, VIEWER } from './fixtures/github'
 
 /**
  * The dashboard on a phone.
@@ -12,10 +12,30 @@ import { mockGitHub } from './fixtures/github'
  */
 
 const PHONE = { width: 390, height: 844 }
+/** The narrowest screen still in use, and where the row defects showed. */
+const SMALL_PHONE = { width: 320, height: 700 }
+
+/*
+ * A label and a requested reviewer, because that is what broke.
+ *
+ * The default fixtures carry neither, so the row measurements below would have
+ * asserted against a row that has nothing to wrap -- passing without ever
+ * rendering the thing they exist to catch.
+ */
+const PULLS = [
+  pull({ number: 412, title: 'Add a keyboard shortcut for the filter box', author: 'hubot' }),
+  pull({
+    number: 409,
+    title: 'Waiting on my review',
+    requestedReviewers: [VIEWER],
+    labels: [{ name: 'needs-review-from-the-platform-team', color: 'd93f0b' }],
+  }),
+  pull({ number: 401, title: 'A draft that is still cooking', draft: true, author: VIEWER }),
+]
 
 async function dashboard(page: Page, size: { width: number; height: number }) {
   await page.setViewportSize(size)
-  await mockGitHub(page)
+  await mockGitHub(page, { pulls: PULLS })
   await page.addInitScript(() => {
     localStorage.setItem(
       'pr-radar.settings.v1',
@@ -81,6 +101,59 @@ test.describe('on a phone', () => {
 
     await page.getByRole('button', { name: 'Filters' }).click()
     await expect(axis).toBeHidden()
+  })
+
+  /*
+   * The row, at the narrowest width anybody still browses on.
+   *
+   * The chrome was the first problem and these were the second: with the
+   * screen cut down, the rows themselves fell apart. Both were plainly visible
+   * in a screenshot and invisible to every assertion in this file, which is the
+   * same way the 715 pixels above went unnoticed. Measured at 320 because that
+   * is where they showed; they were present and milder at 390.
+   */
+  test('no line of a row is nothing but separators', async ({ page }) => {
+    await dashboard(page, SMALL_PHONE)
+
+    // Group the meta line's parts by the line they landed on, and ask whether
+    // any line carries an actual word. A `·` alone on a line is the failure:
+    // the separators used to be siblings in a wrapping flex row, free to wrap
+    // away from the thing they separate.
+    const lines = await page.evaluate(() => {
+      const meta = document.querySelectorAll('li')[1]?.querySelectorAll('div')[3]
+      const byTop = new Map<number, string>()
+      for (const child of meta?.children ?? []) {
+        const top = Math.round(child.getBoundingClientRect().top)
+        byTop.set(top, (byTop.get(top) ?? '') + (child.textContent ?? ''))
+      }
+      return [...byTop.values()]
+    })
+
+    expect(lines.length).toBeGreaterThan(1) // or the test proves nothing
+    for (const line of lines) {
+      expect(/\p{L}|\p{N}/u.test(line), `a line of the meta reads "${line.trim()}"`).toBe(true)
+    }
+  })
+
+  test('a label is never broken in half', async ({ page }) => {
+    await dashboard(page, SMALL_PHONE)
+
+    /*
+     * A chip is a name, and a name is one line.
+     *
+     * Two things had to be got right for this to measure anything. The label is
+     * longer than the column it sits in, because a short one fits whether or
+     * not it is allowed to break. And the assertion is on *height*: a chip is a
+     * flex item, so `getClientRects()` reports a single border box however many
+     * lines of text are stacked inside it -- the first version of this test
+     * counted rects, got 1, and passed cheerfully against a chip rendering four
+     * lines deep as an orange blob.
+     */
+    const chip = page.locator('span', { hasText: /^needs-review-from-the-platform-team$/ }).first()
+    await expect(chip).toBeVisible()
+    const height = await chip.evaluate((el) => el.getBoundingClientRect().height)
+
+    expect(height, `the label is ${Math.round(height)}px tall, so it wrapped`).toBeLessThan(30)
   })
 
   // The query box is the one filter worth its own row on a phone: it is how you

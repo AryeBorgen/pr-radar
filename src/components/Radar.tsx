@@ -109,10 +109,7 @@ export default function Radar({ radar, views, onViewsChange, actions }: RadarPro
 
       {radar.withClosed && radar.truncated.length > 0 && (
         <p className={NOTE}>
-          Showing the 100 most recently updated closed pull requests per repository, so older ones
-          in this period may be missing from{' '}
-          <strong className="pr:font-medium">{radar.truncated.join(', ')}</strong>. Narrow the period,
-          or filter to one repository, to see further back.
+          {t('closed.truncated', { repos: radar.truncated.join(', ') })}
         </p>
       )}
 
