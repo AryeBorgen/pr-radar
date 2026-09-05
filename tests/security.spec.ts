@@ -123,3 +123,49 @@ test.describe('the token', () => {
     await second.close()
   })
 })
+
+test.describe('a relay on another origin', () => {
+  /*
+   * The failure this prevents is completely silent.
+   *
+   * `connect-src` names api.github.com and nothing else, which is what stops a
+   * compromised dependency posting the token anywhere. A hosted deployment
+   * relays sign-in through a worker on a different origin, and if the policy
+   * does not name it the browser blocks the request with no error the page can
+   * see -- it looks exactly like the relay being down.
+   *
+   * Built with PR_RADAR_RELAY set, so this asserts the build, not a string.
+   */
+  test('is named in the policy when the build has one', async ({ page }) => {
+    await page.goto('/')
+    const policy = await page.evaluate(
+      () =>
+        document
+          .querySelector('meta[http-equiv="Content-Security-Policy"]')
+          ?.getAttribute('content') ?? '',
+    )
+
+    const relay = process.env['PR_RADAR_RELAY']
+    if (!relay) {
+      // The default build relays from its own origin and needs nothing extra.
+      expect(policy).toContain("connect-src 'self' https://api.github.com")
+      return
+    }
+    expect(policy).toContain(relay.replace(/\/$/, ''))
+  })
+
+  // 'self' has to stay whatever else is added: the same-origin relay in
+  // `npx pr-radar` and the container depends on it.
+  test('never loses the same-origin permission the local relays need', async ({ page }) => {
+    await page.goto('/')
+    const policy = await page.evaluate(
+      () =>
+        document
+          .querySelector('meta[http-equiv="Content-Security-Policy"]')
+          ?.getAttribute('content') ?? '',
+    )
+
+    expect(policy).toMatch(/connect-src\s+'self'/)
+  })
+})
+

@@ -7,11 +7,30 @@ import tailwindcss from '@tailwindcss/vite'
 // own setting, defaulting to where the project is published.
 const SITE = (process.env.PR_RADAR_SITE ?? 'https://aryeborgen.github.io/pr-radar').replace(/\/$/, '')
 
-/** Substitutes %PR_RADAR_SITE% in index.html at build time. */
+/*
+ * Where the sign-in relay lives, for a build that will be served by something
+ * that cannot relay for itself. Empty for `npx pr-radar` and the container,
+ * which relay from the same origin.
+ */
+const RELAY = (process.env.PR_RADAR_RELAY ?? '').replace(/\/$/, '')
+
+/**
+ * Substitutes %PR_RADAR_SITE% in index.html, and adds the relay to the policy.
+ *
+ * `connect-src` names api.github.com and nothing else, deliberately: it is what
+ * stops a compromised dependency posting the token anywhere. A relay on another
+ * origin therefore has to be named, and named exactly -- the browser blocks it
+ * silently otherwise, which looks like the relay being down.
+ */
 function siteUrl() {
   return {
     name: 'pr-radar-site-url',
-    transformIndexHtml: (html: string) => html.replaceAll('%PR_RADAR_SITE%', SITE),
+    transformIndexHtml: (html: string) =>
+      html
+        .replaceAll('%PR_RADAR_SITE%', SITE)
+        .replace('connect-src \'self\' https://api.github.com', RELAY
+          ? `connect-src 'self' https://api.github.com ${RELAY}`
+          : "connect-src 'self' https://api.github.com"),
   }
 }
 

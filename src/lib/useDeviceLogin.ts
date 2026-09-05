@@ -23,8 +23,25 @@ export interface DeviceLoginConfig {
   available: boolean | null
 }
 
+/**
+ * Where the relay lives.
+ *
+ * Empty means same-origin, which is the case for `npx pr-radar` and the
+ * container: the thing serving the page is the thing that relays. A static host
+ * has neither, so a build for one is given the URL of a relay that does --
+ * substituted at build time, because it is a property of the deployment rather
+ * than of the user.
+ *
+ * Trailing slash removed so the two are joined the same way either way.
+ */
+const RELAY = (import.meta.env.VITE_PR_RADAR_RELAY ?? '').replace(/\/$/, '')
+
+function relayUrl(path: string): string {
+  return RELAY + path
+}
+
 async function postJson(path: string, body: unknown): Promise<unknown> {
-  const response = await fetch(path, {
+  const response = await fetch(relayUrl(path), {
     method: 'POST',
     // Deliberately JSON: it forces a preflight on any cross-origin caller, and
     // the relay answers none. See bin/relay-policy.js.
@@ -40,7 +57,7 @@ export function useDeviceLoginAvailable(): boolean | null {
 
   useEffect(() => {
     let cancelled = false
-    fetch('/auth/config')
+    fetch(relayUrl('/auth/config'))
       .then((response) => (response.ok ? response.json() : null))
       .then((body: unknown) => {
         if (cancelled) return

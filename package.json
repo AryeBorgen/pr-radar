@@ -19,7 +19,7 @@
     "build:lib": "vite build --config vite.lib.config.ts && tsc -p tsconfig.lib.json",
     "test:package": "publint && attw --pack . --profile esm-only --exclude-entrypoints style.css",
     "test:types": "tsc -p tsconfig.consumer.json",
-    "test:node": "node --test tests/node/*.test.js"
+    "test:node": "node --test --test-concurrency=1 tests/node/*.test.js"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.62.7",
@@ -39,7 +39,8 @@
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "vite": "^8.2.2",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.11",
+    "wrangler": "^4.129.0"
   },
   "keywords": [
     "github",

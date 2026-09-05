@@ -1,0 +1,21 @@
+# The hosted sign-in relay.
+#
+# Two variables, neither of them a secret:
+#
+#   PR_RADAR_CLIENT_ID  the OAuth App's client id. Public by design -- the
+#                       device flow exists precisely because a page cannot keep
+#                       a secret, and it authenticates with the id alone.
+#   PR_RADAR_ORIGINS    comma-separated origins allowed to call this. Not `*`:
+#                       this is the one relay that must answer cross-origin
+#                       requests, so the list is what keeps it from answering
+#                       everybody's.
+#
+# There is nothing here to rotate and nothing to leak. If this worker were
+# taken over, the worst it could do is forward device-flow requests for an
+# application the attacker could have registered themselves.
+name = "pr-radar-auth"
+main = "relay.js"
+compatibility_date = "2026-09-01"
+
+[vars]
+PR_RADAR_ORIGINS = "https://aryeborgen.github.io"
