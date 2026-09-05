@@ -356,6 +356,14 @@ users get is the one worth testing. Two rules hold it up:
   tests a stale artefact is worse than one that fails.**
 - `tests/reachability.spec.ts` deliberately does not mock GitHub, for the reason
   below. It is what corrected fact 1 above.
+- **A probe of the real world asserts the property, not the status code.** The
+  same rule the `Intl` tests learned, in a different area. That file asks
+  whether `api.github.com` serves the OAuth endpoints and pinned the answer as
+  `404`; from a CI runner's shared IP the answer is `403`, the unauthenticated
+  rate limit its two sibling tests already tolerate -- GitHub throttles before
+  it routes. The test was reporting GitHub's opinion of the runner's IP address.
+  It now asserts that no `device_code` comes back, which is the whole of the
+  claim and the only thing whose change would matter.
 
 Two bugs the browser runs caught that unit tests could not: `<img src="">` when
 an avatar is missing (React warns; the browser may re-request the page), and the
