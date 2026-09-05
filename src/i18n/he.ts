@@ -230,4 +230,6 @@ export const he: Catalogue<Messages, 'he'> = {
   'notify.allowInBrowser': 'אפשרו התראות לאתר הזה בהגדרות הדפדפן כדי להפעיל אותן.',
   'notify.tabOnly': 'הן מגיעות כל עוד הלשונית פתוחה. אין כאן שרת שידחוף אליכם כשהיא סגורה.',
   'loading.label': 'טוענים בקשות משיכה',
+  'facet.filters': 'סינון',
+  'facet.noneActive': 'כל מה שפתוח',
 }

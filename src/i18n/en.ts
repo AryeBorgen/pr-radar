@@ -221,6 +221,8 @@ export const en = {
   'notify.allowInBrowser': 'Allow notifications for this site in your browser settings to turn them on.',
   'notify.tabOnly': 'They arrive while this tab is open. There is no server here to push to you when it is closed.',
   'loading.label': 'Loading pull requests',
+  'facet.filters': 'Filters',
+  'facet.noneActive': 'Everything open',
 } as const
 
 export type MessageKey = keyof typeof en
