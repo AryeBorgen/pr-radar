@@ -203,9 +203,14 @@ test.describe('copying the code', () => {
      * that is not signed in, which is most of them and every test run -- so
      * what is asserted is that the tab went to GitHub's sign-in, not that it
      * stayed on the URL we handed it.
+     *
+     * Anchored at the origin, because an unanchored `github.com/login` matches
+     * anywhere in a URL and `https://github.com.example.net/login` would pass.
+     * CodeQL flagged both of these; it was right, and the anchored form is what
+     * the assertion meant in the first place.
      */
     const tab = await opened
-    await tab.waitForURL(/github\.com\/login/, { timeout: 15000 })
+    await tab.waitForURL(/^https:\/\/github\.com\/login/, { timeout: 15000 })
     await expect(page.getByRole('status')).toContainText('Copied')
 
     const clipboard = await page.evaluate(() => navigator.clipboard.readText())
@@ -231,7 +236,7 @@ test.describe('copying the code', () => {
     await page.getByRole('button', { name: 'Copy code and continue to GitHub' }).click()
 
     const tab = await opened
-    await tab.waitForURL(/github\.com\/login/, { timeout: 15000 })
+    await tab.waitForURL(/^https:\/\/github\.com\/login/, { timeout: 15000 })
   })
 
   // A refused clipboard leaves whatever was copied before in place. Saying
