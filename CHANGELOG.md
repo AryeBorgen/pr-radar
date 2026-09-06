@@ -10,6 +10,46 @@ surface — no export has been removed or changed shape since `pr-radar/render`
 first appeared in 0.2.0. That is not a promise until 1.0.0, and the version
 badge is orange to say so.
 
+## 0.6.0 — 2026-09-06
+
+**The dashboard on a phone.** The filters took 715 of an 844-pixel screen, so
+85% of a phone was spent scrolling past chrome to reach the first pull request.
+The axes, the menus and the saved views now sit behind one control below `sm` —
+one rather than three, because collapsing each separately gives a phone three
+buttons that each hide a third of the answer. That control names *what* is
+filtering rather than counting it: with the axes hidden it is the only place
+that state is visible, and a filter you set and forgot would otherwise make the
+page a liar. Down to about a quarter of the screen; five pull requests where
+four fit. The query box stays out in the open, and the desktop layout is
+untouched.
+
+**Copy the code and continue to GitHub**, in one press, when signing in with a
+GitHub account. The page says whether the copy actually happened — a clipboard
+write can be refused, and a button that silently did nothing is worse than no
+button when the tab it just opened is asking for a code you believe you are
+holding. The code stays on screen and selectable either way.
+
+**Fixed: one long word made the whole page wider than the screen.** A pull
+request title is somebody else's text — a branch name, a package path, a pasted
+URL. A token that could not break set the row's width, the row set the page's,
+and the dashboard had to be dragged sideways to be read: 186 pixels past a
+440-pixel phone, from two titles.
+
+**Fixed: two paragraphs of English on a Hebrew page** — the note about review
+and CI state still arriving, and the one about closed pull requests being capped
+at a hundred per repository. The check that exists to catch exactly this reads
+text between tags with braces excluded, so a sentence with a count in the middle
+of it matched nothing at all — which is the shape of every sentence with a count
+in the middle of it. It punches interpolations out to a placeholder now, and
+named both immediately.
+
+**Added:** `<meta name="mobile-web-app-capable">`, alongside the `apple-`
+prefixed one that was already there. They are not interchangeable: Safari reads
+one, Chrome reads the other and warns that the first is deprecated. The manifest
+remains the real mechanism; these are the fallback.
+
+*Nothing was added to or removed from the published types.*
+
 ## 0.5.0 — 2026-09-05
 
 **Knowing it is working.** A first load is around three hundred requests and the
