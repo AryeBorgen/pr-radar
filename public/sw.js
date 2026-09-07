@@ -68,6 +68,82 @@ self.addEventListener('fetch', (event) => {
   }
 })
 
+/*
+ * The doorbell.
+ *
+ * A push message from `pr-radar --push` carries no payload -- see
+ * src/server/notifier.ts for why -- so this wakes up knowing only that
+ * *something* happened, and asks the server that rang what it was. The reply
+ * comes from the same origin as this page, which is the machine you started,
+ * and the pull request titles in it never go near a push service.
+ *
+ * `event.waitUntil` is not optional: the browser is entitled to kill a worker
+ * the moment its handler returns, and a notification that has not been shown
+ * yet dies with it.
+ */
+self.addEventListener('push', (event) => {
+  event.waitUntil(showWhatChanged())
+})
+
+async function showWhatChanged() {
+  const subscription = await self.registration.pushManager.getSubscription()
+
+  let waiting = []
+  try {
+    /*
+     * No subscription means this cannot ask *which* changes are ours, and the
+     * fallback below is what gets shown. Returning early instead would be a
+     * bug: a browser that delivered a push requires something visible in
+     * return, and one that gets nothing substitutes a notice of its own saying
+     * the site was updated in the background -- which is both untrue and worse
+     * than the honest version.
+     */
+    if (!subscription) throw new Error('no subscription')
+    const response = await fetch(new URL('push/pending', INDEX).href, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ endpoint: subscription.endpoint }),
+    })
+    waiting = (await response.json()).notifications ?? []
+  } catch {
+    /*
+     * The server that rang is no longer answering -- it was stopped between
+     * sending and this waking up. Saying nothing is right: every browser
+     * requires a visible notification for a push it delivered, so the fallback
+     * below is what appears, and it says only what is actually known.
+     */
+  }
+
+  if (waiting.length === 0) {
+    await self.registration.showNotification('PR Radar', {
+      body: 'Something changed. Open the dashboard to see what.',
+      tag: 'pr-radar-unknown',
+    })
+    return
+  }
+
+  await Promise.all(
+    waiting.map((notification) =>
+      self.registration.showNotification(notification.title, {
+        body: notification.body,
+        // Keyed by repository and number, so a pull request that changes twice
+        // replaces its own notification instead of stacking up. The same
+        // identity the browser-side notifications use, for the same reason.
+        tag: notification.tag,
+        data: { url: notification.url },
+      }),
+    ),
+  )
+}
+
+/* Clicking one goes to the pull request, which is the only thing to do with it. */
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  const url = event.notification.data?.url
+  if (!url) return
+  event.waitUntil(self.clients.openWindow(url))
+})
+
 async function networkFirstDocument(request) {
   try {
     const response = await fetch(request)

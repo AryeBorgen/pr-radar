@@ -86,7 +86,12 @@ export default function App() {
           <Button variant="default" onClick={() => setShowRepos((open) => !open)}>
             {showRepos ? t('header.done') : t('header.manageRepositories')}
           </Button>
-          <NotifyMenu enabled={notify} onChange={setNotify} />
+          <NotifyMenu
+            enabled={notify}
+            onChange={setNotify}
+            repos={settings.repos}
+            viewer={radar.viewer}
+          />
           <LanguageMenu />
           <Button variant="quiet" onClick={signOut}>
             {t('header.signOut')}
