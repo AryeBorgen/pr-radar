@@ -48,10 +48,19 @@ const flag = (name) => {
 if (args.includes('--help') || args.includes('-h')) {
   console.log(
     'pr-radar — every open pull request across all your repositories, on one screen\n\n' +
-      'Usage: pr-radar [--port <n>] [--host <addr>] [--no-open] [--client-id <id>]\n\n' +
+      'Usage: pr-radar [--port <n>] [--host <addr>] [--no-open] [--client-id <id>]\n' +
+      '                [--push] [--token <t>] [--state-dir <path>]\n\n' +
       '  --port       port to listen on (default 4173, or the first free port after it)\n' +
       '  --host       address to bind (default 127.0.0.1; use 0.0.0.0 to expose it)\n' +
       '  --no-open    do not launch a browser\n' +
+      '  --push       keep watching GitHub while the tab is closed, and send a\n' +
+      '               notification when something changes. Needs a token to poll\n' +
+      '               with: --token, or PR_RADAR_TOKEN. Without --push this server\n' +
+      '               stores nothing and makes no request of its own.\n' +
+      '  --token      a GitHub token for --push to poll with. Nothing is written to\n' +
+      '               disk when you supply one; you keep it. Also PR_RADAR_TOKEN.\n' +
+      '  --state-dir  where --push keeps its keys and its baseline\n' +
+      '               (default $XDG_STATE_HOME/pr-radar or ~/.local/state/pr-radar).\n' +
       '  --client-id  a GitHub App or OAuth App client id, with device flow enabled,\n' +
       '               to offer "Sign in with GitHub" instead of asking for a token.\n' +
       '               Also read from PR_RADAR_CLIENT_ID. Not a secret: the device\n' +
@@ -76,6 +85,16 @@ const startPort = Number(flag('--port') ?? process.env.PORT ?? 4173)
  */
 const clientId = flag('--client-id') ?? process.env.PR_RADAR_CLIENT_ID ?? ''
 
+/*
+ * Push is opt-in, and everything it costs is behind this flag: the poll loop,
+ * the file that holds a token, the VAPID keys. Without it this server is the
+ * static file server it has always been -- which is what the "nothing to
+ * configure" story rests on, so it stays true by construction rather than by
+ * good intentions.
+ */
+const pushWanted = args.includes('--push')
+const pushToken = flag('--token') ?? process.env.PR_RADAR_TOKEN ?? ''
+
 /**
  * The page carries its own Content-Security-Policy in a meta tag, which covers
  * everything a meta tag can. These are the parts it cannot: frame-ancestors is
@@ -91,6 +110,46 @@ const SECURITY_HEADERS = {
   'Permissions-Policy': 'geolocation=(), camera=(), microphone=(), payment=(), usb=()',
 }
 
+/**
+ * The notifier, or nothing at all.
+ *
+ * Imported lazily so that a server started without `--push` never even loads
+ * it: a build that is missing `dist-server/` should break push, not the
+ * dashboard.
+ */
+let notifier = null
+/** Absent unless --push loaded it; the route below answers 404 either way. */
+let handlePush = null
+if (pushWanted) {
+  if (!pushToken) {
+    console.error(
+      'pr-radar: --push needs a token to poll GitHub with.\n' +
+        '  pr-radar --push --token ghp_...      (or set PR_RADAR_TOKEN)\n' +
+        'Nothing is written to disk when you supply one.',
+    )
+    process.exit(1)
+  }
+  const server_ = await import('../dist-server/index.js').catch(() => null)
+  if (!server_) {
+    console.error('pr-radar: --push needs a build. Run:  npm run build')
+    process.exit(1)
+  }
+  const dir = server_.stateDir({ arg: flag('--state-dir') })
+  try {
+    notifier = server_.createNotifier({ dir, token: pushToken })
+    // Resolve `@me` in the notification rules against whoever the token is,
+    // not whoever the browser thinks it is: the token here is what does the
+    // polling, and disagreeing silently would announce somebody else's work.
+    notifier.setViewer(await server_.fetchViewer(pushToken))
+    notifier.start()
+    console.log(`pr-radar: watching for changes as ${notifier.viewer}; state in ${dir}`)
+  } catch (error) {
+    console.error(`pr-radar: ${error.message}`)
+    process.exit(1)
+  }
+  handlePush = server_.handlePush
+}
+
 const server = createServer((request, response) => {
   const path = decodeURIComponent(new URL(request.url, 'http://localhost').pathname)
 
@@ -104,6 +163,24 @@ const server = createServer((request, response) => {
         response.writeHead(500, { 'Content-Type': 'application/json', ...SECURITY_HEADERS })
         response.end('{"error":"internal"}')
       })
+    return
+  }
+
+  // Same rule as /auth/: handled here and never falling through to the bundle,
+  // or a missing route would answer a fetch with index.html and the page would
+  // report a JSON parse error instead of a 404.
+  if (path.startsWith('/push/')) {
+    if (!handlePush) {
+      // Started without --push. The page asks, is told no, and offers nothing
+      // rather than showing a switch that cannot work.
+      response.writeHead(404, { 'Content-Type': 'application/json', ...SECURITY_HEADERS })
+      response.end('{"error":"push is not enabled on this server"}')
+      return
+    }
+    handlePush(request, response, { notifier, headers: SECURITY_HEADERS }).catch(() => {
+      response.writeHead(500, { 'Content-Type': 'application/json', ...SECURITY_HEADERS })
+      response.end('{"error":"internal"}')
+    })
     return
   }
 
@@ -156,6 +233,30 @@ function listen(port, attemptsLeft) {
   server.listen(port, host, () => {
     const url = `http://${host === '0.0.0.0' ? 'localhost' : host}:${port}`
     console.log(`pr-radar running at ${url}`)
+
+    /*
+     * Reaching this from a phone is the obvious next thought, and plain HTTP
+     * over a network address does not work -- measured, not assumed. Two things
+     * go wrong and neither says so:
+     *
+     *   - the page's own CSP carries `upgrade-insecure-requests`, so every
+     *     asset request is rewritten to https, fails the handshake, and the
+     *     page renders completely blank;
+     *   - `navigator.serviceWorker` is *absent* outside a secure context, so
+     *     push could not work even if the page loaded.
+     *
+     * A browser reports the first as a blank screen and the second as nothing
+     * at all. Saying it here costs one line and saves the evening.
+     */
+    const loopback = host === '127.0.0.1' || host === 'localhost' || host === '::1'
+    if (!loopback) {
+      console.log(
+        '\npr-radar: bound to a network address. Browsers treat plain http on a\n' +
+          'network address as insecure: the page will not load and notifications\n' +
+          'cannot work. Put it behind https to reach it from a phone -- a\n' +
+          'Tailscale name or a tunnel both give you one.\n',
+      )
+    }
     console.log('Paste a GitHub personal access token to get started. Ctrl+C to stop.')
     if (!args.includes('--no-open')) open(url)
   })

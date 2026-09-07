@@ -7,7 +7,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b --force && vite build && npm run build:lib",
+    "build": "tsc -b --force && vite build && npm run build:lib && npm run build:server",
     "preview": "vite preview",
     "typecheck": "tsc -b --force",
     "test": "vitest run",
@@ -19,7 +19,8 @@
     "build:lib": "vite build --config vite.lib.config.ts && tsc -p tsconfig.lib.json",
     "test:package": "publint && attw --pack . --profile esm-only --exclude-entrypoints style.css",
     "test:types": "tsc -p tsconfig.consumer.json",
-    "test:node": "node --test --test-concurrency=1 tests/node/*.test.js"
+    "test:node": "node --test --test-concurrency=1 tests/node/*.test.js",
+    "build:server": "vite build --config vite.notify.config.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.62.7",
@@ -64,6 +65,7 @@
   "files": [
     "dist",
     "dist-lib",
+    "dist-server",
     "bin",
     "README.md",
     "LICENSE"
