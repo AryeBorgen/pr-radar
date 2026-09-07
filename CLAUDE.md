@@ -195,6 +195,26 @@ need a backend*.
 3. **`github.com/login/device` redirects to `/login?return_to=…`** for a browser
    that is not signed in, which is every test run. Assert that the tab reached
    GitHub's sign-in, not that it stayed on the URL you handed it.
+4. **Serving this over a plain network address renders a blank page, and the
+   reason is our own policy.** The obvious way to try the dashboard on a phone
+   is `--host 0.0.0.0` and the laptop's address. The page's
+   Content-Security-Policy carries `upgrade-insecure-requests`, so every asset
+   request is rewritten to `https`, there is no certificate, and each one fails
+   with `ERR_SSL_PROTOCOL_ERROR`. The document arrives and references nothing
+   that loads. A browser shows that as an empty window with no error anybody
+   would find.
+
+   Measured alongside it, and worth knowing separately: that origin is not a
+   secure context, and `navigator.serviceWorker` is **absent** there rather than
+   restricted -- so nothing depending on a worker can even be attempted, and a
+   feature check of the form `'serviceWorker' in navigator` reports "not
+   supported" for what is really "wrong URL". Over `127.0.0.1`, on the same
+   server, `isSecureContext` is `true` and the worker registers.
+
+   Neither is a bug: the policy is doing its job, and the secure-context rule is
+   the platform's. But both are silent, so `bin/pr-radar.js` says it out loud
+   when it binds anywhere but loopback. Reaching this from another device means
+   https -- a Tailscale name or a tunnel.
 
 ## Hard-won facts about translation
 
