@@ -156,6 +156,37 @@ function listen(port, attemptsLeft) {
   server.listen(port, host, () => {
     const url = `http://${host === '0.0.0.0' ? 'localhost' : host}:${port}`
     console.log(`pr-radar running at ${url}`)
+
+    /*
+     * Reaching this from a phone is the obvious next thought, and plain HTTP on
+     * a network address does not work. Measured, not assumed, and it fails in
+     * the least helpful way available: the page renders completely blank.
+     *
+     * The cause is the page's own Content-Security-Policy, which carries
+     * `upgrade-insecure-requests`. Every asset request is rewritten to https,
+     * there is no certificate, and each one dies with ERR_SSL_PROTOCOL_ERROR --
+     * so the document arrives, references nothing that loads, and shows
+     * nothing. A browser reports that as an empty window.
+     *
+     * The same origin is also not a secure context, which is worth knowing for
+     * the next person who tries: `navigator.serviceWorker` is not restricted
+     * there, it is *absent*, so nothing that depends on a worker can even be
+     * attempted.
+     *
+     * None of that is a bug to fix -- the policy is doing its job -- but a blank
+     * page explains itself to nobody. This line costs nothing and saves the
+     * evening.
+     */
+    const loopback = host === '127.0.0.1' || host === 'localhost' || host === '::1'
+    if (!loopback) {
+      console.log(
+        '\npr-radar: bound to a network address. A browser treats plain http on\n' +
+          'a network address as insecure, and this page will render blank there:\n' +
+          'its own security policy upgrades every asset to https, and there is no\n' +
+          'certificate. Put it behind https to reach it from another device -- a\n' +
+          'Tailscale name or a tunnel both give you one.\n',
+      )
+    }
     console.log('Paste a GitHub personal access token to get started. Ctrl+C to stop.')
     if (!args.includes('--no-open')) open(url)
   })

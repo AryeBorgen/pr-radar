@@ -160,6 +160,35 @@ case $("$WORK/prefix/bin/pr-radar" --help 2>&1) in
   *) fail '--help documents the flags' ;;
 esac
 
+# Bound to a network address, this has to say that a browser will not load it.
+#
+# The failure it warns about is a *blank page*: the app's own security policy
+# carries upgrade-insecure-requests, so over plain http on a network address
+# every asset is rewritten to https, fails the handshake, and the document
+# arrives referencing nothing that loads. Nothing in a browser explains that.
+# Checked here rather than trusted, because a message nobody asserts is a
+# message that quietly stops being printed.
+echo 'Warning about an origin a browser will refuse'
+"$WORK/prefix/bin/pr-radar" --no-open --host 0.0.0.0 --port "$((PORT + 1))" >"$WORK/net.log" 2>&1 &
+netpid=$!
+i=0
+while [ "$i" -lt 30 ]; do
+  grep -q 'running at' "$WORK/net.log" 2>/dev/null && break
+  i=$((i + 1))
+  sleep 1
+done
+kill "$netpid" 2>/dev/null || true
+case $(cat "$WORK/net.log") in
+  *'render blank'*'https'*) pass 'warns when bound to a network address' ;;
+  *) fail 'warns when bound to a network address' ;;
+esac
+
+# And stays quiet on loopback, which is the normal case and where it works.
+case $(cat "$WORK/server.log") in
+  *'network address'*) fail 'stays quiet on loopback' ;;
+  *) pass 'stays quiet on loopback' ;;
+esac
+
 printf '\n'
 if [ "$failures" -eq 0 ]; then
   echo 'All checks passed.'
