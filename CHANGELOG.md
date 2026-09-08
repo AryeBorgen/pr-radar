@@ -10,6 +10,21 @@ surface — no export has been removed or changed shape since `pr-radar/render`
 first appeared in 0.2.0. That is not a promise until 1.0.0, and the version
 badge is orange to say so.
 
+## 0.6.1 — 2026-09-08
+
+**Fixed: reaching the dashboard from another device gave a blank page and said
+nothing.** Starting it with `--host 0.0.0.0` and opening the machine's address
+from a phone rendered an empty window. The cause was this project's own
+Content-Security-Policy: `upgrade-insecure-requests` rewrites every asset request
+to `https`, there is no certificate on a plain address, and each one fails the
+handshake — so the document arrives referencing nothing that loads. Nothing in a
+browser explains that. It now says so when it binds anywhere but loopback, and
+points at what actually works: https, through a Tailscale name or a tunnel.
+
+Only `npx pr-radar` is affected — the container serves through nginx, and the
+hosted page is unchanged. Nothing else moved: this release builds a
+byte-identical application bundle to 0.6.0.
+
 ## 0.6.0 — 2026-09-06
 
 **The dashboard on a phone.** The filters took 715 of an 844-pixel screen, so
