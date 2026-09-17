@@ -99,10 +99,23 @@ jobs:
       - name: The registry must actually have it, with provenance
         run: |
           version=$(node -p 'require("./package.json").version')
-          for attempt in 1 2 3 4 5 6; do
-            body=$(curl -sf "https://registry.npmjs.org/pr-radar/$version") && break
-            echo "not visible yet, retrying"
-            sleep 10
+          # Two things this got wrong, both found when 0.7.0 published perfectly
+          # and this step failed anyway.
+          #
+          # The wait was a minute. npm now prints "Your package is being
+          # processed and may take a few minutes to become available" as it
+          # accepts the publish, so a minute is not a margin, it is a race.
+          #
+          # And the retries were defeating themselves. The registry is behind a
+          # CDN with max-age=300; the first attempt, two seconds after
+          # publishing, gets a 404 -- and that 404 is what every later attempt
+          # was served. The changing query string is what makes each attempt a
+          # real question. A `Cache-Control: no-cache` header does not do it;
+          # that was measured.
+          for attempt in $(seq 1 30); do
+            body=$(curl -sf "https://registry.npmjs.org/pr-radar/$version?t=$(date +%s)") && break
+            echo "not visible yet (attempt $attempt), retrying"
+            sleep 20
           done
           if [ -z "$body" ]; then
             echo "::error::pr-radar@$version is not on the registry after a successful publish"

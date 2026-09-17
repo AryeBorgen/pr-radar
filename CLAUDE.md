@@ -95,15 +95,37 @@ cycle; none of them are guesses.
    with no tag breaks nothing; a tag with no release breaks nothing. `0.1.0` had
    neither for hours. `scripts/check-releases.sh` compares the registry against
    the releases in both directions and runs on every pull request.
-6. **npm answers a successful publish before the registry serves it.** The
-   release job's own post-publish assertion passes -- it asks the same API that
-   just accepted the write -- and then `check-releases.sh` reads
-   `registry.npmjs.org` and does not find the version. That is a gap of seconds,
-   not a disagreement, and it failed v0.3.0's release over a package that was
-   published perfectly. The script now takes `--expect <version>` and waits up
-   to two minutes for it; on a pull request there is nothing to wait for and it
-   reads once.
-7. **A job that gains a step gains that step's dependencies.** The release job
+6. **npm answers a successful publish before the registry serves it, and the
+   gap is minutes rather than seconds.** This note used to say seconds. As of
+   0.7.0 that is wrong: npm prints *"Your package is being processed and may
+   take a few minutes to become available"* as it accepts the publish, and a
+   one-minute wait failed on a release that had published perfectly, with
+   provenance. **Check what actually shipped before assuming nothing did** --
+   0.7.0 was live and only the GitHub release was missing.
+
+   Two separate things make this worse than a slow answer, both measured:
+
+   - **The registry is behind a CDN**, `cache-control: public, max-age=300`. A
+     plain read can be answered from a copy five minutes old. A
+     `Cache-Control: no-cache` request header does *not* bypass it -- `age` comes
+     back unchanged -- and a changing query string does, returning no `age`
+     header at all. Both readers use one now.
+   - **The retry loop was defeating itself.** The first attempt, two seconds
+     after publishing, gets a 404, and that 404 is cached: every later attempt
+     was served the same stored answer rather than asking again. Retrying
+     against a cacheable URL is not retrying.
+
+7. **Do not parse the packument with a regular expression.**
+   `check-releases.sh` extracted versions by matching `"<version>":{"name"` --
+   the version followed by whatever npm put first inside it. npm has changed
+   that order: every version through 0.6.1 begins `name, version, keywords`, and
+   0.7.0 begins `_id, bin, bugs`. So the guard went blind to 0.7.0 the moment it
+   was published, and would have stayed blind to everything after it.
+
+   It failed loudly, which was luck rather than design: the same list drives
+   both directions of the comparison, and a version the script cannot see reads
+   as agreement in the other one. It parses JSON with a JSON parser now.
+8. **A job that gains a step gains that step's dependencies.** The release job
    cut a release and nothing else, so it never ran `npm ci`. Adding a step that
    drives the published package in a browser gave it a dependency it had no way
    to satisfy: 0.4.0 published correctly, with provenance, and the job went red
@@ -111,7 +133,7 @@ cycle; none of them are guesses.
    has failed *after* a correct publish -- once on registry propagation, once on
    this -- so when it goes red, check what actually shipped before assuming
    nothing did.
-8. **`--generate-notes` with no previous release lists the entire project.**
+9. **`--generate-notes` with no previous release lists the entire project.**
    v0.1.1's notes presented forty commits of history as the contents of a patch
    release, because there was no v0.1.0 tag to diff against. The release job now
    passes `--notes-start-tag`.
