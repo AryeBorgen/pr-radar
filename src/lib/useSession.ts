@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { afterRefresh, readPoll, refreshDelay, type Credential } from './deviceAuth'
-import { loadCredential, saveCredential } from './storage'
+import { loadCredential, loadStaySignedIn, saveCredential, saveStaySignedIn } from './storage'
 
 /**
  * The signed-in session, kept alive.
@@ -20,6 +20,19 @@ export interface Session {
   /** Begin a session, from a sign-in or from a pasted token. */
   signIn: (credential: Credential) => void
   signOut: () => void
+  /**
+   * Whether to keep the session on this device.
+   *
+   * Off by default, and off is the behaviour this app has always had: the token
+   * lives in the tab and goes when the tab does. It is offered because the
+   * default decides "this might be a shared machine" on everybody's behalf, and
+   * most machines are not shared -- and because "new window" silently means two
+   * different things. A window the page opens inherits the tab's session; one
+   * the person opens does not, so the same app appears to remember them
+   * sometimes and not others, with nothing visible to explain it.
+   */
+  stay: boolean
+  setStay: (stay: boolean) => void
 }
 
 /** Where the relay lives; empty means same-origin. Mirrors useDeviceLogin. */
@@ -27,10 +40,18 @@ const RELAY = (import.meta.env.VITE_PR_RADAR_RELAY ?? '').replace(/\/$/, '')
 
 export function useSession(): Session {
   const [credential, setCredential] = useState<Credential | null>(loadCredential)
+  const [stay, setStay] = useState<boolean>(loadStaySignedIn)
 
   useEffect(() => {
-    saveCredential(credential)
-  }, [credential])
+    // Depends on `stay` as well as the credential, so turning the choice off
+    // moves the session back out of localStorage rather than leaving a copy
+    // behind. `saveCredential` clears whichever store it did not write.
+    saveCredential(credential, stay)
+  }, [credential, stay])
+
+  useEffect(() => {
+    saveStaySignedIn(stay)
+  }, [stay])
 
   /*
    * The refresh in flight, so a re-render cannot start a second one.
@@ -84,5 +105,7 @@ export function useSession(): Session {
     token: credential?.token ?? '',
     signIn: setCredential,
     signOut: () => setCredential(null),
+    stay,
+    setStay,
   }
 }

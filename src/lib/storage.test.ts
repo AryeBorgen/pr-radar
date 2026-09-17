@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { introSeen, markIntroSeen, parseRepoInput, repoKey, saveSettings } from './storage'
+import {
+  introSeen,
+  loadCredential,
+  loadStaySignedIn,
+  markIntroSeen,
+  parseRepoInput,
+  repoKey,
+  saveCredential,
+  saveSettings,
+  saveStaySignedIn,
+} from './storage'
 
 describe('parseRepoInput', () => {
   it('accepts owner/name', () => {
@@ -83,5 +93,92 @@ describe('the introduction flag', () => {
       expect(introSeen()).toBe(false)
       expect(() => markIntroSeen()).not.toThrow()
     })
+  })
+})
+
+/**
+ * Where the session is kept, and the one rule that holds it together.
+ *
+ * A user reported that the token "was not saved". It was not a bug -- the token
+ * lives in sessionStorage deliberately -- but the behaviour it produces is
+ * genuinely confusing: a window the *page* opens inherits the tab's session and
+ * one the *person* opens does not, so the app appears to remember them
+ * sometimes and not others, with nothing visible to explain the difference.
+ *
+ * So the choice is offered. The invariant that makes it safe is that the
+ * credential is written to exactly one store and cleared from the other -- a
+ * forgotten copy is what turns "I signed out" and "I unticked the box" into
+ * false statements.
+ */
+describe('where the session is kept', () => {
+  const TOKEN = 'pr-radar.token.v1'
+  const credential = { token: 'ghp_x' }
+
+  function clear() {
+    sessionStorage.clear()
+    localStorage.clear()
+  }
+
+  it('keeps it in the tab by default, which is the long-standing behaviour', () => {
+    clear()
+
+    saveCredential(credential)
+
+    expect(sessionStorage.getItem(TOKEN)).not.toBeNull()
+    expect(localStorage.getItem(TOKEN)).toBeNull()
+  })
+
+  it('keeps it on the device when asked', () => {
+    clear()
+
+    saveCredential(credential, true)
+
+    expect(localStorage.getItem(TOKEN)).not.toBeNull()
+    expect(sessionStorage.getItem(TOKEN)).toBeNull()
+  })
+
+  it('is never in both places at once, whichever way the choice moves', () => {
+    // The invariant. Both directions, because a copy left behind by *either*
+    // transition is a credential somewhere the person believes it is not.
+    clear()
+
+    saveCredential(credential)
+    saveCredential(credential, true)
+    expect(sessionStorage.getItem(TOKEN)).toBeNull()
+
+    saveCredential(credential, false)
+    expect(localStorage.getItem(TOKEN)).toBeNull()
+    expect(sessionStorage.getItem(TOKEN)).not.toBeNull()
+  })
+
+  it('signing out empties both, not just the one in use', () => {
+    // Otherwise "sign out" leaves the credential on disk for the next person at
+    // the machine -- the exact case the tab-scoped default exists to protect.
+    clear()
+    saveCredential(credential, true)
+
+    saveCredential(null, false)
+
+    expect(localStorage.getItem(TOKEN)).toBeNull()
+    expect(sessionStorage.getItem(TOKEN)).toBeNull()
+  })
+
+  it('reads back a session kept on the device', () => {
+    clear()
+    saveCredential({ token: 'ghp_x', refreshToken: 'ghr_y' }, true)
+
+    expect(loadCredential()).toEqual({ token: 'ghp_x', refreshToken: 'ghr_y' })
+  })
+
+  it('remembers the choice itself across tabs, since that is its whole job', () => {
+    clear()
+    expect(loadStaySignedIn()).toBe(false)
+
+    saveStaySignedIn(true)
+    expect(loadStaySignedIn()).toBe(true)
+    expect(localStorage.getItem('pr-radar.stay.v1')).toBe('yes')
+
+    saveStaySignedIn(false)
+    expect(loadStaySignedIn()).toBe(false)
   })
 })
