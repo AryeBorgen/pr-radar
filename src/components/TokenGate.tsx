@@ -23,7 +23,16 @@ const SCOPE_URL =
  * The token field never goes away. It needs no GitHub App configured anywhere,
  * it works on every deployment, and some people would simply rather paste one.
  */
-export default function TokenGate({ onToken }: { onToken: (credential: Credential) => void }) {
+export default function TokenGate({
+  onToken,
+  stay,
+  onStayChange,
+}: {
+  onToken: (credential: Credential) => void
+  /** Whether to keep the session on this device. Off is the long-standing behaviour. */
+  stay: boolean
+  onStayChange: (stay: boolean) => void
+}) {
   const { Button, Input, Link } = useSlots()
   const t = useT()
   const canSignIn = useDeviceLoginAvailable()
@@ -88,6 +97,23 @@ export default function TokenGate({ onToken }: { onToken: (credential: Credentia
           />
         </div>
         {error && <p className="pr:mt-2 pr:text-sm pr:text-red-600 pr:dark:text-red-400">{error}</p>}
+
+        {/*
+          Offered rather than assumed, and off by default. The existing default
+          decides "this might be a shared machine" for everybody; most machines
+          are not shared, and the cost lands as "it forgot me again" in a window
+          the person opened themselves.
+        */}
+        <label className="pr:mt-4 pr:flex pr:cursor-pointer pr:items-start pr:gap-2 pr:text-sm pr:text-neutral-700 pr:dark:text-neutral-300">
+          <input
+            type="checkbox"
+            className="pr:mt-0.5"
+            checked={stay}
+            onChange={(event) => onStayChange(event.target.checked)}
+          />
+          <span>{t('gate.stay')}</span>
+        </label>
+
         <div className="pr:mt-4">
           <Button variant="primary" type="submit" disabled={checking || !value.trim()}>
             {checking ? t('gate.verifying') : t('gate.continue')}
@@ -107,7 +133,7 @@ export default function TokenGate({ onToken }: { onToken: (credential: Credentia
         </p>
         <p className="pr:mt-3">
           <T
-            k="gate.storage"
+            k={stay ? 'gate.storageKept' : 'gate.storage'}
             parts={{ 1: <code className="pr:font-mono" />, 2: <code className="pr:font-mono" /> }}
           />
         </p>

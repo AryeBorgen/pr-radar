@@ -10,6 +10,26 @@ surface — no export has been removed or changed shape since `pr-radar/render`
 first appeared in 0.2.0. That is not a promise until 1.0.0, and the version
 badge is orange to say so.
 
+## 0.7.0 — 2026-09-17
+
+**Stay signed in on a device you trust.** A checkbox on the token screen, off by
+default. Reported as "the token is not saved", which it never was — it lives in
+`sessionStorage` on purpose and goes when the tab does. What makes that land as a
+complaint is that "new window" quietly means two different things: a window the
+page opens inherits the session and a window *you* open does not, so the app
+appears to remember you sometimes and not others with nothing on screen to
+explain it. An installed app is worse again — every launch is a fresh context.
+
+Leave it unticked and nothing changes: the token stays in the tab, and nothing is
+written to disk. Tick it and the session is kept in this browser instead, which
+is a credential on disk and worth knowing — so the screen that told you it was
+"kept in this tab only" now says where it actually is, and how to go back.
+
+Signing out empties both places, and so does unticking the box. A credential is
+never in two stores at once; that is the one rule the rest of it rests on.
+
+*Nothing was added to or removed from the published types.*
+
 ## 0.6.1 — 2026-09-08
 
 **Fixed: reaching the dashboard from another device gave a blank page and said

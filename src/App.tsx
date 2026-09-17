@@ -30,7 +30,7 @@ import { useT } from './i18n/useLocale'
 export default function App() {
   const { Button } = useSlots()
   const t = useT()
-  const { token, signIn, signOut } = useSession()
+  const { token, signIn, signOut, stay, setStay } = useSession()
   const [seenIntro, setSeenIntro] = useState(introSeen)
   const [settings, setSettings] = useState<Settings>(() =>
     typeof localStorage === 'undefined' ? DEFAULT_SETTINGS : loadSettings(),
@@ -69,7 +69,7 @@ export default function App() {
         />
       )
     }
-    return <TokenGate onToken={signIn} />
+    return <TokenGate onToken={signIn} stay={stay} onStayChange={setStay} />
   }
 
   const noRepos = settings.repos.length === 0

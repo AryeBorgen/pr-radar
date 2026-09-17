@@ -122,6 +122,67 @@ test.describe('the token', () => {
     await expect(fresh.getByLabel('GitHub personal access token')).toBeVisible()
     await second.close()
   })
+
+  test('is not on disk at all unless it was asked for', async ({ page }) => {
+    // The default promise, checked where it is actually kept rather than by
+    // reading the code that keeps it.
+    await mockGitHub(page)
+    await skipIntro(page)
+    await page.goto('/')
+    await page.getByLabel('GitHub personal access token').fill('ghp_good')
+    await page.getByRole('button', { name: 'Continue' }).click()
+    await expect(page.getByLabel('GitHub personal access token')).toBeHidden()
+
+    expect(await page.evaluate(() => localStorage.getItem('pr-radar.token.v1'))).toBeNull()
+  })
+
+  /*
+   * The complaint this answers: "the token is not saved".
+   *
+   * It never was, deliberately -- but "new window" quietly means two different
+   * things. A window the page opens inherits the tab's session; one the person
+   * opens does not. So the app remembers you sometimes and not others, and
+   * nothing on screen accounts for the difference. The choice is now offered,
+   * off by default, and these are its two halves.
+   */
+  test('survives a new window when the person asked it to', async ({ browser }) => {
+    const context = await browser.newContext()
+    const page = await context.newPage()
+    await mockGitHub(page)
+    await skipIntro(page)
+    await page.goto('/')
+    await page.getByLabel('GitHub personal access token').fill('ghp_good')
+    await page.getByLabel('Stay signed in on this device').check()
+    await page.getByRole('button', { name: 'Continue' }).click()
+    await expect(page.getByLabel('GitHub personal access token')).toBeHidden()
+
+    // A window the person opened: no opener, so nothing is inherited. Without
+    // the choice this is exactly where the session used to be lost.
+    const fresh = await context.newPage()
+    await mockGitHub(fresh)
+    await fresh.goto('/')
+
+    await expect(fresh.getByLabel('GitHub personal access token')).toBeHidden()
+    await context.close()
+  })
+
+  test('and unticking it takes the credential back off the disk', async ({ page }) => {
+    // Not just "stops writing": the copy already written has to go, or the
+    // person who changed their mind is still carrying one.
+    await mockGitHub(page)
+    await skipIntro(page)
+    await page.goto('/')
+    await page.getByLabel('GitHub personal access token').fill('ghp_good')
+    await page.getByLabel('Stay signed in on this device').check()
+    await page.getByRole('button', { name: 'Continue' }).click()
+    await expect(page.getByLabel('GitHub personal access token')).toBeHidden()
+    expect(await page.evaluate(() => localStorage.getItem('pr-radar.token.v1'))).not.toBeNull()
+
+    await page.getByRole('button', { name: 'Sign out' }).click()
+
+    expect(await page.evaluate(() => localStorage.getItem('pr-radar.token.v1'))).toBeNull()
+    expect(await page.evaluate(() => sessionStorage.getItem('pr-radar.token.v1'))).toBeNull()
+  })
 })
 
 test.describe('a relay on another origin', () => {

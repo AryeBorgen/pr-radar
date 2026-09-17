@@ -4,6 +4,7 @@ import type { Credential } from './deviceAuth'
 const SETTINGS_KEY = 'pr-radar.settings.v1'
 const TOKEN_KEY = 'pr-radar.token.v1'
 const INTRO_KEY = 'pr-radar.intro.v1'
+const STAY_KEY = 'pr-radar.stay.v1'
 
 /**
  * Views start empty. The built-in one-click filters are the facet axes, which
@@ -77,9 +78,38 @@ export function saveSettings(settings: Settings): void {
  * before sessions wrote, so reading handles both. Writing always uses the
  * object form.
  */
+/**
+ * Whether this person asked to stay signed in on this device.
+ *
+ * In localStorage, because the whole point of the answer is to outlive the tab
+ * that gave it. It is a boolean and not a credential: reading it tells an
+ * attacker nothing they did not already have.
+ */
+export function loadStaySignedIn(): boolean {
+  try {
+    return localStorage.getItem(STAY_KEY) === 'yes'
+  } catch {
+    // A blocked store means the safe answer, which is the old behaviour.
+    return false
+  }
+}
+
+export function saveStaySignedIn(stay: boolean): void {
+  try {
+    if (stay) localStorage.setItem(STAY_KEY, 'yes')
+    else localStorage.removeItem(STAY_KEY)
+  } catch {
+    // Nothing to do; the session simply stays tab-scoped.
+  }
+}
+
 export function loadCredential(): Credential | null {
   try {
-    const raw = sessionStorage.getItem(TOKEN_KEY)
+    // sessionStorage first, then the persistent one. `saveCredential` keeps the
+    // credential out of whichever store it did not write to, so these never
+    // disagree -- but reading the narrower one first is the right way to be
+    // wrong if they ever do.
+    const raw = sessionStorage.getItem(TOKEN_KEY) ?? localStorage.getItem(TOKEN_KEY)
     if (!raw) return null
     if (!raw.startsWith('{')) return { token: raw }
 
@@ -99,12 +129,27 @@ export function loadCredential(): Credential | null {
   }
 }
 
-export function saveCredential(credential: Credential | null): void {
+/**
+ * Write the session to exactly one store, and clear it from the other.
+ *
+ * The clearing half is the part that matters. Turning "stay signed in" off with
+ * a copy left in localStorage would mean a person who believes they have gone
+ * back to tab-scoped storage has a credential on disk anyway -- and signing out
+ * has to empty both, or it is not signing out. `storage.test.ts` asserts the
+ * credential is never in two places at once, because that is the invariant a
+ * later change is most likely to break quietly.
+ */
+export function saveCredential(credential: Credential | null, stay = false): void {
   try {
+    const [target, other] = stay
+      ? ([localStorage, sessionStorage] as const)
+      : ([sessionStorage, localStorage] as const)
+
+    other.removeItem(TOKEN_KEY)
     if (credential && credential.token) {
-      sessionStorage.setItem(TOKEN_KEY, JSON.stringify(credential))
+      target.setItem(TOKEN_KEY, JSON.stringify(credential))
     } else {
-      sessionStorage.removeItem(TOKEN_KEY)
+      target.removeItem(TOKEN_KEY)
     }
   } catch {
     // Nothing to do: the user simply signs in again on the next load.

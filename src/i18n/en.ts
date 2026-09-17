@@ -83,6 +83,8 @@ export const en = {
   'gate.scopes': 'with <1>repo</1> (private repositories) and <2>read:org</2> (to expand an organisation into its repos). Public repositories alone need no scopes at all.',
   'gate.storage': "The token is kept in this tab's <1>sessionStorage</1> and is sent only to <2>api.github.com</2>. This page has no server: nothing you enter leaves your browser except to GitHub itself.",
   'action.clear': 'Clear',
+  'gate.stay': 'Stay signed in on this device',
+  'gate.storageKept': 'The token is kept in this browser\u2019s <1>localStorage</1> so it survives closing the tab, and is sent only to <2>api.github.com</2>. Untick the box above to go back to keeping it in this tab alone.',
   'action.save': 'Save',
   'action.add': 'Add',
   'action.refresh': 'Refresh',
