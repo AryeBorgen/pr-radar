@@ -43,9 +43,34 @@ fi
 #
 # So the release passes `--expect <version>` and this waits for it. Without the
 # flag, on a pull request, there is nothing to wait for and it reads once.
+# The URL carries a changing value on purpose. registry.npmjs.org is served
+# through a CDN with `cache-control: public, max-age=300`, so a plain request can
+# be answered from a copy up to five minutes old -- and this script then reports a
+# disagreement that does not exist, or misses one that does. Measured: a
+# `Cache-Control: no-cache` request header does *not* bypass it (`age` unchanged);
+# a query string does (no `age` header at all, so it reached the origin).
+#
+# Parsed with a JSON parser rather than a regular expression, because the
+# regular expression matched `"<version>":{"name"` -- the version followed by
+# whatever npm happened to put first inside it. npm now orders those keys
+# differently: every version up to 0.6.1 begins `name, version, keywords`, and
+# 0.7.0 begins `_id, bin, bugs`. So the moment 0.7.0 was published this stopped
+# seeing it, and would have stopped seeing every version after it. It failed
+# loudly this time, which was luck: the same list drives the other direction of
+# the comparison, where a version it cannot see reads as agreement.
 read_registry() {
-  _raw=$(curl -sf "https://registry.npmjs.org/$PKG" || true)
-  printf '%s' "$_raw" | tr ',' '\n' | sed -n 's/.*"\([0-9][0-9.]*\)":{"name".*/\1/p' | sort -V
+  _raw=$(curl -sf "https://registry.npmjs.org/$PKG?t=$(date +%s)" || true)
+  printf '%s' "$_raw" | node -e '
+    let raw = ""
+    process.stdin.on("data", (chunk) => (raw += chunk)).on("end", () => {
+      try {
+        for (const version of Object.keys(JSON.parse(raw).versions ?? {})) console.log(version)
+      } catch {
+        // An empty or unparseable body is "the registry did not answer", which
+        // the caller already handles as no versions.
+      }
+    })
+  ' | sort -V
 }
 
 npm_versions=$(read_registry)
